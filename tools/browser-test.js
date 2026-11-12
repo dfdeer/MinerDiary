@@ -13,6 +13,9 @@ const shot = process.argv[2];   // 스크린숏을 남길 폴더 (선택)
   const st = () => page.evaluate(() => JSON.parse(JSON.stringify(window.MinerDiary.state())));
   const ok = (c, msg) => { if (!c) throw new Error('실패: ' + msg); console.log('통과: ' + msg); };
   const click = sel => page.click(sel);
+  // 캔버스 위 칸과 건물 누르기
+  const tap = async i => { const p = await page.evaluate(i => window.MinerDiary.tilePoint(i), i); await page.mouse.click(p.x, p.y); };
+  const visit = async id => { const p = await page.evaluate(id => window.MinerDiary.spotPoint(id), id); await page.mouse.click(p.x, p.y); await page.waitForSelector('#modal:not([hidden])', { timeout: 5000 }); };
 
   await page.goto(url);
   await page.evaluate(() => localStorage.clear());
@@ -25,14 +28,14 @@ const shot = process.argv[2];   // 스크린숏을 남길 폴더 (선택)
   if (shot) await page.screenshot({ path: path.join(shot, 'village.png') });
 
   // 2. 광산 입장
-  await click('[data-act="entrance"]');
+  await visit('mine');
   await click('#modal [data-act="enter"][data-arg="1"]');
   ok((await st()).screen === 'mine', '광산 1층 입장');
-  ok(await page.locator('.tile.can').count() === 7, '처음엔 맨 윗줄 7칸만 캘 수 있음');
+  ok(await page.evaluate(() => window.MinerDiary.state().mine.tiles.filter((t, i) => window.MinerDiary.canDig(i)).length) === 7, '처음엔 맨 윗줄 7칸만 캘 수 있음');
 
   // 막힌 칸은 기력을 안 씀
   const e0 = (await st()).energy;
-  await page.click('.tile[data-arg="45"]');
+  await tap(45);
   ok((await st()).energy === e0, '닿지 않은 칸은 못 캐고 기력 그대로');
 
   // 3. 계단을 찾아 내려가며 캐기 (5층까지 또는 저녁까지)
@@ -49,7 +52,7 @@ const shot = process.argv[2];   // 스크린숏을 남길 폴더 (선택)
       });
       const dist = i => Math.abs(i % 7 - target % 7) + Math.abs(((i / 7) | 0) - ((target / 7) | 0));
       can.sort((a, b) => dist(a) - dist(b));
-      await page.click(`.tile[data-arg="${can[0]}"]`);
+      await tap(can[0]);
     }
     return false;
   }
@@ -64,14 +67,17 @@ const shot = process.argv[2];   // 스크린숏을 남길 폴더 (선택)
   ok(s.mine.tiles.slice(42).every(t => t.t === 'h'), '5층 맨 아래 줄은 단단한 바위');
   ok(!s.mine.tiles.some(t => t.t === 'x'), '5층엔 계단 없음');
 
-  // 힌트 숫자 확인: 보이는 숫자 = 주변 8칸의 남은 광석 수
+  // 힌트 숫자 확인: 게임이 쓰는 숫자 = 테스트가 따로 센 주변 8칸의 남은 광석 수
   const hintsOk = await page.evaluate(() => {
-    const m = window.MinerDiary, s = m.state();
-    return [...document.querySelectorAll('.tile')].every((el, i) => {
-      const t = s.mine.tiles[i];
-      if (!(t.open && t.t === 's')) return true;
-      const n = m.hint(i);
-      return (el.textContent === '' && n === 0) || el.textContent === String(n);
+    const m = window.MinerDiary, t = m.state().mine.tiles;
+    return t.every((_, i) => {
+      const x = i % 7, y = (i / 7) | 0;
+      let n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if ((dx || dy) && nx >= 0 && nx < 7 && ny >= 0 && ny < 7 && t[ny * 7 + nx].t === 'o' && !t[ny * 7 + nx].open) n++;
+      }
+      return m.hint(i) === n;
     });
   });
   ok(hintsOk, '힌트 숫자가 실제 주변 광석 수와 같음');
@@ -85,7 +91,7 @@ const shot = process.argv[2];   // 스크린숏을 남길 폴더 (선택)
   });
   if (veinCheck >= 0) {
     const before = (await st()).mine.tiles.filter(t => t.t === 'o').length;
-    await page.click(`.tile[data-arg="${veinCheck}"]`);
+    await tap(veinCheck);
     const after = (await st()).mine.tiles.filter(t => t.t === 'o').length;
     ok(after < before, `광석 칸 캐기 (남은 광석 ${before} → ${after})`);
   }
@@ -98,10 +104,10 @@ const shot = process.argv[2];   // 스크린숏을 남길 폴더 (선택)
     s.mine.tiles[9] = { t: 'o', o: 'iron', open: false };
   });
   const cu = (await st()).inv.copper || 0;
-  await page.click('.tile[data-arg="0"]');
+  await tap(0);
   s = await st();
   ok(s.inv.copper === cu + 4 && [0, 1, 7].every(i => s.mine.tiles[i].open) && !s.mine.tiles[9].open, '광맥 잇기: 이어진 구리 3칸을 한 번에 캐고 덤 1개');
-  ok(await page.locator('.tile[data-arg="1"]').textContent() === '1' && await page.locator('.tile[data-arg="7"]').textContent() === '', '열린 1번 칸 힌트 1 (대각선 철 광석), 7번 칸은 빈칸');
+  ok(await page.evaluate(() => window.MinerDiary.hint(1) === 1 && window.MinerDiary.hint(7) === 0), '열린 1번 칸 힌트 1 (대각선 철 광석), 7번 칸은 0');
 
   // 시간대: 쓴 기력 비율과 맞는지
   s = await st();
@@ -115,7 +121,7 @@ const shot = process.argv[2];   // 스크린숏을 남길 폴더 (선택)
   const value = { copper: 10, iron: 25, crystal: 60, moon: 150 };
   const worth = Object.entries(s.inv).reduce((a, [o, n]) => a + n * value[o], 0);
   ok(worth > 0, `가방에 광석 있음 (🪙${worth}어치)`);
-  await click('[data-act="merchant"]');
+  await visit('merchant');
   if (shot) await page.screenshot({ path: path.join(shot, 'merchant.png') });
   await click('#modal [data-act="sellAll"]');
   s = await st();
@@ -124,14 +130,14 @@ const shot = process.argv[2];   // 스크린숏을 남길 폴더 (선택)
 
   // 5. 집에서 자기
   const day = s.day, late = await page.evaluate(() => window.MinerDiary.phaseIndex()) === 3;
-  await click('[data-act="house"]');
+  await visit('house');
   await click('#modal [data-act="sleep"]');
   s = await st();
   ok(s.day === day + 1 && s.energy === (late ? 90 : 100) && s.minE === s.energy, `자고 나서 ${s.day}일차 기력 ${s.energy}`);
   await click('#modal [data-act="close"]');
 
   // 6. 쓰러짐: 기력을 0까지 씀
-  await click('[data-act="entrance"]');
+  await visit('mine');
   await click('#modal [data-act="enter"][data-arg="1"]');
   const dayBefore = (await st()).day;
   for (let k = 0; k < 200; k++) {
@@ -142,8 +148,8 @@ const shot = process.argv[2];   // 스크린숏을 남길 폴더 (선택)
       const m = window.MinerDiary, s = m.state();
       return s.mine.tiles.map((t, i) => i).filter(i => m.canDig(i));
     });
-    if (!can.length) { await click('[data-act="leave"]'); await click('[data-act="entrance"]'); await click('#modal [data-act="enter"][data-arg="1"]'); continue; }
-    await page.click(`.tile[data-arg="${can[0]}"]`);
+    if (!can.length) { await click('[data-act="leave"]'); await visit('mine'); await click('#modal [data-act="enter"][data-arg="1"]'); continue; }
+    await tap(can[0]);
   }
   s = await st();
   ok(s.day === dayBefore + 1 && s.energy === 70 && s.screen === 'village', '쓰러지면 다음 날 집에서 기력 70');
@@ -158,7 +164,7 @@ const shot = process.argv[2];   // 스크린숏을 남길 폴더 (선택)
   ok((await st()).day === s.day, '새로고침 후에도 날짜 유지');
 
   // 8. 대장간 팻말
-  await click('[data-act="ruin"][data-arg="smithy"]');
+  await visit('smithy');
   ok((await page.locator('#modal').textContent()).includes('곡괭이 강화'), '대장간 팻말');
 
   // 9. 가로 넘침 없음
