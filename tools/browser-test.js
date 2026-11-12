@@ -36,8 +36,11 @@ const shot = process.argv[2];
 
   // 1. 촌장 소개
   ok(await page.locator('#sheet [data-a="intro"]').count() === 1, '처음엔 촌장 소개가 뜸');
-  for (let i = 0; i < 5; i++) await page.click('#sheet [data-a="intro"]');
+  ok(await page.locator('#dock').isHidden(), '소개 중엔 아래 단추가 안 보임');
+  while (await page.locator('#sheet [data-a="intro"]').count()) await page.click('#sheet [data-a="intro"]');
   await page.click('#sheet [data-a="introDone"]');
+  ok(await page.locator('#sheet').isHidden() && await page.locator('#dock [data-a="bag"]').isVisible(), '소개가 끝나면 창이 닫히고 목표와 가방 단추가 보임');
+  ok(!/누른 곳|끌어서|스페이스바|밝은 테두리/.test(await page.evaluate(() => document.body.innerText)), '조작 설명 문구 없음');
   ok((await st()).introSeen, '촌장 소개를 끝까지 봄');
   if (shot) await page.screenshot({ path: path.join(shot, 'village.png') });
 
@@ -86,7 +89,7 @@ const shot = process.argv[2];
   for (let f = 1; f < 5; f++) {
     ok(await digUntilStairs(), `${f}층 계단 발견`);
     if (f === 1 && shot) await page.screenshot({ path: path.join(shot, 'mine.png') });
-    await page.click('#sheet [data-a="descend"]');
+    await page.click('[data-a="descend"]');
     await page.waitForTimeout(100);
     ok((await st()).mine.floor === f + 1, `${f + 1}층으로 내려감`);
   }
@@ -100,6 +103,13 @@ const shot = process.argv[2];
     const m = window.MinerDiary, t = m.state().mine.tiles;
     return t.every((_, i) => { const x = i % 7, y = (i / 7) | 0; let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const a = x + dx, b = y + dy; if ((dx || dy) && a >= 0 && a < 7 && b >= 0 && b < 7 && t[b * 7 + a].t === 'o' && !t[b * 7 + a].open) n++; } return m.hint(i) === n; });
   }), '힌트 숫자가 실제 주변 광석 수와 같음');
+
+  // 6-1. 연쇄: 광석이 하나도 없는 판에서 한 칸을 캐면 기력 2로 판 전체가 열림
+  await page.evaluate(() => { const s = window.MinerDiary.state(); s.mine.tiles = s.mine.tiles.map(() => ({ t: 's', open: false })); });
+  const eC = (await st()).energy;
+  await tap(3);
+  s = await st();
+  ok(s.mine.tiles.every(t => t.open) && s.energy === eC - 2, '숫자 없는 칸은 이웃까지 연쇄로 열리고 기력은 한 번만 씀');
 
   // 7. 광맥 잇기 (정해진 판)
   await page.evaluate(() => { const s = window.MinerDiary.state(); s.mine.tiles = s.mine.tiles.map(() => ({ t: 's', open: false })); [0, 1, 7].forEach(i => { s.mine.tiles[i] = { t: 'o', o: 'copper', open: false }; }); s.mine.tiles[9] = { t: 'o', o: 'iron', open: false }; });
@@ -115,7 +125,7 @@ const shot = process.argv[2];
   ok(await page.evaluate(() => window.MinerDiary.phaseIndex()) === (used >= 90 ? 3 : used >= 60 ? 2 : used >= 30 ? 1 : 0), `시간대가 쓴 기력 ${used}%와 맞음`);
 
   // 9. 마을로 나와서 팔기
-  await page.click('#sheet [data-a="leave"]');
+  await page.click('[data-a="leave"]');
   await page.waitForTimeout(1300);
   ok((await st()).screen === 'village', '마을로 돌아옴');
   s = await st();
@@ -140,14 +150,17 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="enter"][data-n="1"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
   const dayBefore = (await st()).day;
+  let guarded = false;
   for (let k = 0; k < 200; k++) {
     s = await st();
     if (s.day !== dayBefore) break;
-    if (s.mine.tiles.some(t => t.t === 'x' && t.open)) { await page.click('#sheet [data-a="descend"]'); continue; }
+    if (s.mine.tiles.some(t => t.t === 'x' && t.open)) { await page.click('[data-a="descend"]'); continue; }
     const can = await canList();
-    if (!can.length) { await page.click('#sheet [data-a="leave"]'); await page.waitForTimeout(1200); await visit('mine', '#sheet [data-a="enter"]'); await page.click('#sheet [data-a="enter"][data-n="1"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'mine'); continue; }
+    if (!can.length) { await page.click('[data-a="leave"]'); await page.waitForTimeout(1200); await visit('mine', '#sheet [data-a="enter"]'); await page.click('#sheet [data-a="enter"][data-n="1"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'mine'); continue; }
     await tap(can[0]);
+    if (await page.locator('#sheet [data-a="digForce"]').count()) { guarded = true; await page.click('#sheet [data-a="digForce"]'); }
   }
+  ok(guarded, '마지막 기력에서는 쓰러지기 전에 한 번 물어봄');
   s = await st();
   ok(s.day === dayBefore + 1 && s.energy === 70 && s.screen === 'village', '쓰러지면 다음 날 집에서 기력 70');
   ok(await page.evaluate(() => window.MinerDiary.phaseIndex()) === 0, '쓰러진 다음 날도 아침에 시작');
@@ -183,9 +196,10 @@ const shot = process.argv[2];
   await d.visit('mine', '#sheet [data-a="enter"]');
   await desk.click('#sheet [data-a="enter"][data-n="1"]');
   await desk.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
+  await desk.evaluate(() => { const s = window.MinerDiary.state(); s.mine.tiles = s.mine.tiles.map(() => ({ t: 'o', o: 'copper', open: false })); [3, 10, 17].forEach(i => { s.mine.tiles[i] = { t: 's', open: false }; }); });
   for (const i of [3, 10, 17]) await d.tap(i);
   s = await d.st();
-  ok([3, 10, 17].every(i => s.mine.tiles[i].open) && s.energy === 94, '컴퓨터 화면에서도 누른 칸이 정확히 캐짐');
+  ok([3, 10, 17].every(i => s.mine.tiles[i].open) && s.mine.tiles.filter(t => t.open).length === 3 && s.energy === 94, '컴퓨터 화면에서도 누른 칸이 정확히 캐짐');
   if (shot) await desk.screenshot({ path: path.join(shot, 'desktop.png') });
   await desk.close();
 
