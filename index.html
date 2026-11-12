@@ -2,84 +2,64 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cut">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cut,user-scalable=no">
 <meta name="theme-color" content="#1f1812">
 <title>광부일기</title>
 <style>
 :root{
-  --bg:#1f1812; --panel:#2e241b; --panel2:#3a2e23; --line:#4a3b2d;
-  --text:#f3e9dc; --dim:#b8a690; --accent:#e0a84a; --good:#8fcf7a; --bad:#e07a6a;
-  --rock:#5a4634; --rock-can:#7a5f45; --open:#2a2119;
-  --copper:#d0793d; --iron:#b4bcc6; --crystal:#7fd4e6; --moon:#ece6ff;
+  --panel:rgba(30,22,15,.86); --line:rgba(255,230,190,.16);
+  --text:#f6ecdd; --dim:#c9b79e; --accent:#e9b04f;
+  --copper:#d97a3a; --iron:#c3cbd5; --crystal:#7fdcef; --moon:#efe9ff;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
-  font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
-  -webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#120d09;color:var(--text);
+  font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+  -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:none}
 button{font:inherit;color:inherit;cursor:pointer}
-#app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:0 12px 24px}
+#cv{position:fixed;inset:0;display:block}
 
-/* HUD */
-#hud{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 8px}
+/* 위쪽 정보 */
+#hud{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:5;
+  padding:calc(8px + env(safe-area-inset-top)) 12px 18px;pointer-events:none;
+  background:linear-gradient(rgba(10,7,4,.55),rgba(10,7,4,0))}
 .hud-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:14px;white-space:nowrap}
+.chip{background:rgba(25,18,12,.72);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:14px;white-space:nowrap;backdrop-filter:blur(4px)}
 .chip.gold{margin-left:auto;color:var(--accent);font-weight:700}
 .chip.until{color:var(--dim);font-size:13px}
-.ebar{position:relative;height:12px;margin-top:8px;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.ebar .fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#d9b44a,#f0d27a);transition:width .25s}
-.ebar .mark{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.45)}
-.ebar-label{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:3px}
-.goal{margin-top:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px}
-.goal .bar{height:6px;background:var(--open);border-radius:3px;margin-top:6px;overflow:hidden}
+.ebar{position:relative;height:10px;margin-top:8px;background:rgba(25,18,12,.72);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.ebar .fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#d9b44a,#f5da84);transition:width .25s}
+.ebar .mark{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.5)}
+.ebar-label{font-size:12px;color:var(--dim);margin-top:3px;text-shadow:0 1px 2px #000}
+
+/* 아래쪽 판 */
+#panel{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:5;
+  background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0;
+  padding:10px 12px calc(12px + env(safe-area-inset-bottom));backdrop-filter:blur(6px)}
+.goal{font-size:14px}
+.goal .bar{height:6px;background:rgba(0,0,0,.4);border-radius:3px;margin-top:6px;overflow:hidden}
 .goal .bar i{display:block;height:100%;background:var(--accent)}
-
-/* 마을 */
-h2{font-size:17px;margin:14px 0 8px}
-.places{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.place{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 10px;text-align:left;display:flex;gap:10px;align-items:center;min-height:62px}
-.place:active{transform:scale(.98)}
-.place .ic{font-size:26px;line-height:1}
-.place b{display:block;font-size:15px}
-.place small{display:block;color:var(--dim);font-size:12px;margin-top:2px}
-.place.ruin{background:transparent;border-style:dashed;opacity:.75}
-.place.ruin .ic{filter:grayscale(1)}
-.place.next{opacity:1;border-color:var(--accent)}
-.inv{display:flex;flex-wrap:wrap;gap:6px}
+.inv{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:28px;align-items:center}
 .inv .chip{display:flex;align-items:center;gap:6px}
-.empty{color:var(--dim);font-size:14px}
+.empty{color:var(--dim);font-size:13px}
+.note{color:var(--dim);font-size:12px;margin:6px 0 0}
+.row{display:flex;align-items:center;gap:8px}
+.row b{font-size:16px}
+.btn{background:rgba(70,54,38,.95);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:15px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#2b1d0c;font-weight:700}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.right{margin-left:auto}
 
-/* 광석 표시 */
 .ore{display:inline-block;width:12px;height:12px;border-radius:3px;transform:rotate(45deg);flex:none;box-shadow:inset -2px -2px 0 rgba(0,0,0,.25)}
 .ore.copper{background:var(--copper)} .ore.iron{background:var(--iron)}
 .ore.crystal{background:var(--crystal)} .ore.moon{background:var(--moon);box-shadow:0 0 6px #b9a8ff}
 
-/* 광산 */
-.minebar{display:flex;align-items:center;gap:8px;margin:10px 0}
-.minebar b{font-size:17px}
-.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:15px}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:#2b1d0c;font-weight:700}
-.btn:disabled{opacity:.45;cursor:default}
-.btn.right{margin-left:auto}
-.board{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;background:var(--panel);padding:6px;border-radius:12px;border:1px solid var(--line)}
-.tile{aspect-ratio:1;border:0;border-radius:6px;background:var(--rock);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;padding:0;position:relative}
-.tile.can{background:var(--rock-can);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
-.tile.can:active{transform:scale(.92)}
-.tile.open{background:var(--open);box-shadow:none}
-.tile.hard{background:#3b3631;box-shadow:inset 0 0 0 2px #55504a;font-size:20px}
-.tile.stairs{background:#4b3a22;font-size:22px;animation:pulse 1.4s infinite}
-.tile.dug{animation:pop .25s}
-@keyframes pop{from{transform:scale(.8)}to{transform:scale(1)}}
-@keyframes pulse{50%{box-shadow:0 0 0 3px var(--accent)}}
-.n1{color:#9fd3ff}.n2{color:#a7e39a}.n3{color:#ffd27a}.n4{color:#ffa36b}.n5,.n6,.n7,.n8{color:#ff7d7d}
-.legend{color:var(--dim);font-size:12px;margin-top:8px;line-height:1.5}
-
 /* 창 */
-#modal{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;padding:12px}
+#modal{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;padding:12px}
 #modal[hidden]{display:none}
-.sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:100%;max-width:456px;padding:16px;max-height:85vh;overflow:auto}
+.sheet{background:#2e241b;border:1px solid var(--line);border-radius:16px;width:100%;max-width:456px;padding:16px;max-height:85vh;overflow:auto;animation:up .2s}
+@keyframes up{from{transform:translateY(20px);opacity:0}}
 .sheet h3{margin:0 0 8px;font-size:18px;display:flex;align-items:center;gap:8px}
 .sheet p{margin:6px 0;line-height:1.55;font-size:15px}
-.sheet .note{color:var(--dim);font-size:12px}
 .sheet .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:flex-end}
 .sell{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
 .sell .nm{flex:1;display:flex;align-items:center;gap:8px;font-size:15px}
@@ -87,17 +67,16 @@ h2{font-size:17px;margin:14px 0 8px}
 .floors{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
 
 /* 알림 */
-#toasts{position:fixed;left:0;right:0;top:118px;z-index:30;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
-.toast{background:rgba(20,15,10,.92);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;animation:tin .2s,tout .3s 1.9s forwards}
+#toasts{position:fixed;left:0;right:0;top:96px;z-index:30;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+.toast{background:rgba(20,15,10,.9);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;animation:tin .2s,tout .3s 1.9s forwards}
 @keyframes tin{from{opacity:0;transform:translateY(-6px)}}
 @keyframes tout{to{opacity:0}}
 </style>
 </head>
 <body>
-<div id="app">
-  <header id="hud"></header>
-  <main id="screen"></main>
-</div>
+<canvas id="cv"></canvas>
+<header id="hud"></header>
+<div id="panel"></div>
 <div id="modal" hidden></div>
 <div id="toasts"></div>
 <script>
@@ -113,10 +92,10 @@ const FAINT_LOSS = 0.3;              // 쓰러지면 그날 얻은 광석 중 �
 const START_FRAC = { normal: 1, late: 0.9, faint: 0.7 };
 
 const ORES = {
-  copper:  { name: '구리 광석', price: 10 },
-  iron:    { name: '철 광석',   price: 25 },
-  crystal: { name: '수정 원석', price: 60 },
-  moon:    { name: '월광석',    price: 150 },
+  copper:  { name: '구리 광석', price: 10,  color: '#d97a3a', light: '#ffb27a' },
+  iron:    { name: '철 광석',   price: 25,  color: '#aeb7c2', light: '#eef2f6' },
+  crystal: { name: '수정 원석', price: 60,  color: '#5fc9e0', light: '#c9f6ff' },
+  moon:    { name: '월광석',    price: 150, color: '#d8cfff', light: '#ffffff' },
 };
 const ORE_ORDER = ['copper', 'iron', 'crystal', 'moon'];
 const FLOOR_ORES = {
@@ -126,6 +105,8 @@ const FLOOR_ORES = {
   4: [['copper', .35], ['iron', .5], ['crystal', .15]],
   5: [['copper', .25], ['iron', .5], ['crystal', .25]],
 };
+// 층마다 바위 색 (깊을수록 어둡고 차가움)
+const FLOOR_ROCK = { 1: [138, 104, 72], 2: [134, 90, 70], 3: [116, 104, 90], 4: [92, 100, 112], 5: [88, 78, 104] };
 // 시간대: 오늘 깨어난 뒤 쓴 기력(최대 기력 대비 %)이 at 이상이면 그 시간대
 const PHASES = [
   { name: '아침', icon: '🌅', at: 0 },
@@ -133,18 +114,40 @@ const PHASES = [
   { name: '저녁', icon: '🌇', at: 60 },
   { name: '새벽', icon: '🌙', at: 90 },
 ];
-const GOAL = { id: 'smithy', name: '대장간', cost: 500 };
-const RUINS = [
-  { id: 'smithy',  name: '부서진 대장간', icon: '⚒️', sign: '고치면 제련과 곡괭이 강화' },
-  { id: 'bridge',  name: '무너진 강가 다리', icon: '🌉', sign: '고치면 낚시' },
-  { id: 'field',   name: '거친 밭', icon: '🌱', sign: '일구면 농사' },
-  { id: 'forest',  name: '막힌 숲길', icon: '🌲', sign: '치우면 채집' },
-  { id: 'kitchen', name: '닫힌 식당', icon: '🍲', sign: '고치면 요리와 주민 의뢰' },
-  { id: 'market',  name: '빈 시장 터', icon: '🏪', sign: '고치면 매일 바뀌는 시세' },
-  { id: 'gate',    name: '닫힌 성벽 문', icon: '🏰', sign: '고치면 사냥' },
-  { id: 'jewel',   name: '부서진 세공소', icon: '💍', sign: '고치면 보석 세공' },
-  { id: 'museum',  name: '무너진 박물관', icon: '🏛️', sign: '고치면 도감과 기증' },
+// 시간대별 하늘과 풍경 색
+const SKY = [
+  { top: '#8cbfe9', bot: '#f8d9ae', far: '#9db1cc', far2: '#b9c6d8', hill: '#78a26c', hill2: '#5d8a58', tint: 'rgba(255,180,110,0.07)', sun: [0.2, 0.3], sunC: '#fff2c8' },
+  { top: '#4c97df', bot: '#c4e5ff', far: '#93abc9', far2: '#b3c6dc', hill: '#6aa660', hill2: '#4f8e4c', tint: null, sun: [0.55, 0.11], sunC: '#fffbea' },
+  { top: '#3a3c78', bot: '#f29262', far: '#6e5d8a', far2: '#8f6f8f', hill: '#566a4e', hill2: '#43573e', tint: 'rgba(255,110,50,0.13)', sun: [0.84, 0.33], sunC: '#ffb072' },
+  { top: '#060a24', bot: '#252957', far: '#262b52', far2: '#323866', hill: '#1d2b33', hill2: '#16222a', tint: 'rgba(8,12,45,0.42)', moon: [0.74, 0.14] },
 ];
+const GOAL = { id: 'smithy', name: '대장간', cost: 500 };
+const RUINS = {
+  smithy:  { name: '부서진 대장간', icon: '⚒️', sign: '고치면 제련과 곡괭이 강화' },
+  market:  { name: '빈 시장 터', icon: '🏪', sign: '고치면 매일 바뀌는 시세' },
+  kitchen: { name: '닫힌 식당', icon: '🍲', sign: '고치면 요리와 주민 의뢰' },
+  jewel:   { name: '부서진 세공소', icon: '💍', sign: '고치면 보석 세공' },
+  museum:  { name: '무너진 박물관', icon: '🏛️', sign: '고치면 도감과 기증' },
+  gate:    { name: '닫힌 성벽 문', icon: '🏰', sign: '고치면 사냥' },
+  bridge:  { name: '무너진 강가 다리', icon: '🌉', sign: '고치면 낚시' },
+  field:   { name: '거친 밭', icon: '🌱', sign: '일구면 농사' },
+  forest:  { name: '막힌 숲길', icon: '🌲', sign: '치우면 채집' },
+};
+// 마을 안 자리 (x는 건물 가운데, 단위는 화면 px)
+const SPOTS = [
+  { id: 'house',    x: 78,   w: 104, name: '낡은 집',     act: 'house' },
+  { id: 'mine',     x: 222,  w: 120, name: '광산',        act: 'entrance' },
+  { id: 'merchant', x: 352,  w: 104, name: '떠돌이 상인', act: 'merchant' },
+  { id: 'chief',    x: 478,  w: 84,  name: '촌장',        act: 'chief' },
+  { id: 'smithy',   x: 640,  w: 120 }, { id: 'market', x: 810, w: 120 },
+  { id: 'kitchen',  x: 975,  w: 110 }, { id: 'jewel',  x: 1130, w: 96 },
+  { id: 'museum',   x: 1300, w: 140 }, { id: 'gate',   x: 1490, w: 140 },
+  { id: 'bridge',   x: 1690, w: 150 }, { id: 'field',  x: 1880, w: 130 },
+  { id: 'forest',   x: 2060, w: 130 },
+];
+SPOTS.forEach(s => { if (RUINS[s.id]) { s.ruin = true; s.name = RUINS[s.id].name; s.act = 'ruin'; } });
+const WORLD = 2180;
+
 const INTRO = [
   '광부들이 떠난 뒤 무너진 채 남은 마을',
   '남은 건 광산과 가끔 들르는 떠돌이 상인뿐',
@@ -228,6 +231,8 @@ function newDay(kind) {
   S.today = {};
   S.mine = null;
   S.screen = 'village';
+  hero.x = hero.tx = SPOTS[0].x + 40; hero.target = null;
+  fade = 1;
 }
 function sleep() {
   const kind = phaseIndex() === 3 ? 'late' : 'normal';
@@ -257,7 +262,7 @@ function faint() {
   });
 }
 
-/* ===== 광산 ===== */
+/* ===== 광산 규칙 ===== */
 function rnd(n) { return Math.floor(Math.random() * n); }
 function pickOre(floor) {
   const list = FLOOR_ORES[floor];
@@ -313,7 +318,7 @@ function genBoard(floor, dawn) {
     for (let k = 0; k < n; k++) { const i = stoneAt(2); if (i >= 0) t[i] = { t: 'o', o: 'moon', open: false }; }
   }
   if (floor < MAX_FLOOR) { const i = stoneAt(3); if (i >= 0) t[i].t = 'x'; }
-  return { floor, tiles: t };
+  return { floor, tiles: t, pos: -1, seed: rnd(100000) };
 }
 function canDig(i) {
   const tl = S.mine.tiles[i];
@@ -327,17 +332,18 @@ function hint(i) {
 function enterMine(floor) {
   S.mine = genBoard(floor, phaseIndex() === 3);
   S.screen = 'mine';
+  miner.x = miner.y = null;
   closeModal();
   save(); render();
+  fade = 0.6;
   if (floor === MAX_FLOOR) toast('🪨 더 아래는 단단한 바위');
 }
-let lastDug = [];
 function dig(i) {
   const tl = S.mine.tiles[i];
-  if (tl.t === 'h') { toast('🪨 단단한 바위라 곡괭이 강화 필요'); return; }
-  if (tl.open) { if (tl.t === 'x') descend(); return; }
-  if (!canDig(i)) { toast('위쪽에서 이어진 칸부터 캐기'); return; }
-  lastDug = [i];
+  if (tl.t === 'h') { toast('🪨 단단한 바위라 곡괭이 강화 필요'); bump(i); return; }
+  if (tl.open) { if (tl.t === 'x') descend(); else S.mine.pos = i; return; }
+  if (!canDig(i)) { toast('위쪽에서 이어진 칸부터 캐기'); bump(i); return; }
+  const c = tileCenter(i);
   if (tl.t === 'o') {
     const o = tl.o, vein = [i], seen = new Set([i]);
     for (let k = 0; k < vein.length; k++) {
@@ -348,14 +354,18 @@ function dig(i) {
     }
     const n = vein.length;
     const bonus = n >= 3 ? n - 2 : 0;
-    vein.forEach(j => { S.mine.tiles[j] = { t: 's', open: true }; });
-    lastDug = vein;
+    vein.forEach(j => { S.mine.tiles[j] = { t: 's', open: true }; const cj = tileCenter(j); burst(cj.x, cj.y, ORES[o].color, ORES[o].light, 14); });
     addItem(o, n + bonus);
+    floatText(c.x, c.y - 10, `+${n + bonus}`, ORES[o].light);
     toast(`<span class="ore ${o}"></span> ${ORES[o].name} +${n + bonus}` + (bonus ? ` (광맥 ${n}칸)` : ''));
   } else {
     tl.open = true;
+    const r = FLOOR_ROCK[S.mine.floor];
+    burst(c.x, c.y, `rgb(${r})`, `rgb(${r.map(v => Math.min(255, v + 50))})`, 9);
     if (tl.t === 'x') toast('🪜 계단 발견');
   }
+  S.mine.pos = i;
+  swing = 1;
   if (spend(DIG_COST)) { save(); render(); }
 }
 function descend() {
@@ -367,11 +377,12 @@ function descend() {
 }
 function leaveMine() {
   S.mine = null; S.screen = 'village';
+  hero.x = hero.tx = spot('mine').x; hero.target = null;
+  camX = clampCam(hero.x - VW / 2);
   save(); render();
 }
 
-/* ===== 마을 ===== */
-function totalOres() { return ORE_ORDER.reduce((a, o) => a + (S.inv[o] || 0), 0); }
+/* ===== 마을 일 ===== */
 function sell(o, n) {
   n = Math.min(n, S.inv[o] || 0);
   if (n <= 0) return;
@@ -442,7 +453,7 @@ function openEntrance() {
   });
 }
 function openRuin(id) {
-  const r = RUINS.find(x => x.id === id);
+  const r = RUINS[id];
   const isGoal = id === GOAL.id;
   modal({
     title: `${r.icon} ${r.name}`,
@@ -453,73 +464,51 @@ function openRuin(id) {
   });
 }
 
-/* ===== 그리기 ===== */
+/* ===== 화면 글 (위쪽 정보와 아래쪽 판) ===== */
 function renderHud() {
   const p = PHASES[phaseIndex()], u = untilNext();
   const pct = S.energy / S.max * 100;
   const marks = PHASES.slice(1).map(ph => (S.dayStart - S.max * ph.at / 100) / S.max * 100)
     .filter(x => x > 0).map(x => `<span class="mark" style="left:${x}%"></span>`).join('');
-  const g = Math.min(100, S.gold / GOAL.cost * 100);
   document.getElementById('hud').innerHTML = `
     <div class="hud-row">
       <span class="chip">📅 ${S.day}일차</span>
-      <span class="chip" data-test="phase">${p.icon} ${p.name}</span>
+      <span class="chip">${p.icon} ${p.name}</span>
       <span class="chip until">${u.name}까지 기력 ${u.left}</span>
       <span class="chip gold">🪙${S.gold}</span>
     </div>
     <div class="ebar"><div class="fill" style="width:${pct}%"></div>${marks}</div>
-    <div class="ebar-label"><span>⚡${S.energy}/${S.max}</span><span>${S.screen === 'village' ? '마을에선 시간이 멈춤' : ''}</span></div>
-    ${S.screen === 'village' ? `<div class="goal">다음 복구: ${GOAL.name} 🪙${GOAL.cost}<div class="bar"><i style="width:${g}%"></i></div></div>` : ''}`;
+    <div class="ebar-label">⚡${S.energy}/${S.max}${S.screen === 'village' ? '  마을에선 시간이 멈춤' : ''}</div>`;
 }
-function renderVillage() {
-  const inv = ORE_ORDER.filter(o => S.inv[o]).map(o =>
-    `<span class="chip"><span class="ore ${o}"></span>${ORES[o].name} ${S.inv[o]}</span>`).join('');
-  const ruins = RUINS.map(r => `<button class="place ruin ${r.id === GOAL.id ? 'next' : ''}" data-act="ruin" data-arg="${r.id}">
-      <span class="ic">${r.icon}</span><span><b>${r.name}</b><small>${r.id === GOAL.id ? '🪙' + GOAL.cost : '팻말'}</small></span></button>`).join('');
-  document.getElementById('screen').innerHTML = `
-    <h2>마을</h2>
-    <div class="places">
-      <button class="place" data-act="entrance"><span class="ic">⛏️</span><span><b>광산</b><small>${S.deepest}층까지</small></span></button>
-      <button class="place" data-act="merchant"><span class="ic">🧳</span><span><b>떠돌이 상인</b><small>팔기</small></span></button>
-      <button class="place" data-act="chief"><span class="ic">👴</span><span><b>촌장</b><small>${S.introSeen ? '이야기' : '❗'}</small></span></button>
-      <button class="place" data-act="house"><span class="ic">🏠</span><span><b>낡은 집</b><small>자기</small></span></button>
-    </div>
-    <h2>가방</h2>
-    <div class="inv">${inv || '<span class="empty">빈 가방</span>'}</div>
-    <h2>무너진 곳</h2>
-    <div class="places">${ruins}</div>`;
+function oreChips(src) {
+  return ORE_ORDER.filter(o => src[o]).map(o =>
+    `<span class="chip"><span class="ore ${o}"></span>${ORES[o].name} ${src[o]}</span>`).join('');
 }
-function renderMine() {
-  const m = S.mine;
-  const cells = m.tiles.map((tl, i) => {
-    let cls = 'tile', txt = '';
-    if (tl.t === 'h') { cls += ' hard'; txt = '🪨'; }
-    else if (tl.open) {
-      cls += ' open';
-      if (tl.t === 'x') { cls += ' stairs'; txt = '🪜'; }
-      else { const n = hint(i); if (n) { cls += ' n' + n; txt = n; } }
-    } else if (canDig(i)) cls += ' can';
-    if (lastDug.includes(i)) cls += ' dug';
-    return `<button class="${cls}" data-act="dig" data-arg="${i}" aria-label="칸 ${i + 1}">${txt}</button>`;
-  }).join('');
-  const stairsOpen = m.tiles.some(tl => tl.t === 'x' && tl.open);
-  const got = ORE_ORDER.filter(o => S.today[o]).map(o =>
-    `<span class="chip"><span class="ore ${o}"></span>${S.today[o]}</span>`).join('');
-  document.getElementById('screen').innerHTML = `
-    <div class="minebar">
-      <button class="btn" data-act="leave">🏘️ 마을로</button>
-      <b>광산 ${m.floor}층</b>
-      ${m.floor < MAX_FLOOR ? `<button class="btn right ${stairsOpen ? 'primary' : ''}" data-act="descend" ${stairsOpen ? '' : 'disabled'}>⬇️ ${m.floor + 1}층</button>` : ''}
-    </div>
-    <div class="board">${cells}</div>
-    <h2>오늘 캔 것</h2>
-    <div class="inv">${got || '<span class="empty">아직 없음</span>'}</div>
-    <p class="legend">밝은 칸만 캘 수 있고 한 칸에 ⚡${DIG_COST}, 숫자는 주변 8칸에 남은 광석 수</p>`;
-  lastDug = [];
+function renderPanel() {
+  const el = document.getElementById('panel');
+  if (S.screen === 'mine' && S.mine) {
+    const m = S.mine;
+    const stairsOpen = m.tiles.some(tl => tl.t === 'x' && tl.open);
+    el.innerHTML = `
+      <div class="row">
+        <button class="btn" data-act="leave">🏘️ 마을로</button>
+        <b>광산 ${m.floor}층</b>
+        ${m.floor < MAX_FLOOR ? `<button class="btn right ${stairsOpen ? 'primary' : ''}" data-act="descend" ${stairsOpen ? '' : 'disabled'}>⬇️ ${m.floor + 1}층</button>` : ''}
+      </div>
+      <div class="inv">${oreChips(S.today) || '<span class="empty">오늘 캔 것 없음</span>'}</div>
+      <p class="note">밝은 테두리 칸만 캘 수 있고 한 칸에 ⚡${DIG_COST}, 숫자는 주변 8칸에 남은 광석 수</p>`;
+  } else {
+    const g = Math.min(100, S.gold / GOAL.cost * 100);
+    el.innerHTML = `
+      <div class="goal">다음 복구: ${GOAL.name} 🪙${GOAL.cost}<div class="bar"><i style="width:${g}%"></i></div></div>
+      <div class="inv">${oreChips(S.inv) || '<span class="empty">빈 가방</span>'}</div>
+      <p class="note">좌우로 밀어서 마을 둘러보기</p>`;
+  }
 }
 function render() {
   renderHud();
-  if (S.screen === 'mine' && S.mine) renderMine(); else renderVillage();
+  renderPanel();
+  layout();
 }
 
 /* ===== 창과 알림 ===== */
@@ -539,7 +528,658 @@ function toast(html) {
   setTimeout(() => t.remove(), 2300);
 }
 
+/* ===== 그림: 공통 ===== */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const FONT = 'system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif';
+let VW = 0, VH = 0, DPR = 1, hudH = 90, panelH = 120;
+let camX = 0, fade = 0, swing = 0, now = 0;
+const hero = { x: 140, tx: 140, target: null, walk: 0, face: 1 };
+const miner = { x: null, y: null };
+let parts = [], floats = [], bumps = [];
+
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  VW = window.innerWidth; VH = window.innerHeight;
+  cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
+  cv.style.width = VW + 'px'; cv.style.height = VH + 'px';
+  layout();
+}
+function layout() {
+  hudH = document.getElementById('hud').offsetHeight;
+  panelH = document.getElementById('panel').offsetHeight;
+  camX = clampCam(camX);
+}
+function clampCam(x) { return Math.max(0, Math.min(Math.max(0, WORLD - VW), x)); }
+function hash(a) {
+  a |= 0;
+  a = Math.imul(a ^ (a >>> 16), 0x45d9f3b);
+  a = Math.imul(a ^ (a >>> 16), 0x45d9f3b);
+  return ((a ^ (a >>> 16)) >>> 0) / 4294967296;
+}
+function rgb(c, k = 0, a = 1) {
+  const f = v => Math.max(0, Math.min(255, Math.round(v + k)));
+  return `rgba(${f(c[0])},${f(c[1])},${f(c[2])},${a})`;
+}
+function poly(pts, fill, stroke) {
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); }
+}
+function rect(x, y, w, h, fill) { ctx.fillStyle = fill; ctx.fillRect(x, y, w, h); }
+function rrect(x, y, w, h, r, fill, stroke) {
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); }
+}
+function circle(x, y, r, fill) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); }
+function ellipse(x, y, rx, ry, fill) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); }
+function line(x1, y1, x2, y2, color, w) {
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.stroke();
+}
+// 입체 상자: 앞면, 오른쪽 옆면, 윗면 (x,y는 앞면 왼쪽 아래)
+const DX = 0.6, DY = -0.42;
+function box(x, y, w, h, d, front, side, top) {
+  const ox = d * DX, oy = d * DY;
+  poly([[x + w, y], [x + w + ox, y + oy], [x + w + ox, y - h + oy], [x + w, y - h]], side);
+  poly([[x, y - h], [x + ox, y - h + oy], [x + w + ox, y - h + oy], [x + w, y - h]], top);
+  rect(x, y - h, w, h, front);
+}
+// 박공지붕: 앞쪽 삼각형과 오른쪽 경사면 (y는 지붕이 얹히는 앞면 위쪽)
+function gable(x, y, w, rh, d, front, roof, edge) {
+  const ox = d * DX, oy = d * DY;
+  poly([[x + w / 2, y - rh], [x + w / 2 + ox, y - rh + oy], [x + w + ox + 6, y + oy + 3], [x + w + 6, y + 3]], roof);
+  poly([[x - 6, y + 3], [x + w / 2, y - rh], [x + w + 6, y + 3]], front);
+  if (edge) line(x - 6, y + 3, x + w / 2, y - rh, edge, 3), line(x + w / 2, y - rh, x + w + 6, y + 3, edge, 3);
+}
+function label(x, y, text, bright) {
+  ctx.font = `600 12px ${FONT}`;
+  const w = ctx.measureText(text).width + 14;
+  rrect(x - w / 2, y - 10, w, 20, 10, bright ? 'rgba(25,17,10,.82)' : 'rgba(25,17,10,.55)');
+  ctx.fillStyle = bright ? '#f6ecdd' : '#cdbda6';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y + 1);
+}
+function emoji(x, y, s, ch) {
+  ctx.font = `${s}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",${FONT}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(ch, x, y);
+}
+
+// 사람: y는 발 위치, s는 크기 (1이면 키 약 40px)
+function person(x, y, s, o) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s * (o.face < 0 ? -1 : 1), s);
+  ellipse(0, 0, 11, 3, 'rgba(0,0,0,.28)');
+  const step = o.walk ? Math.sin(o.walk) * 4 : 0;
+  line(-3, -13, -3 + step, -1, o.pants, 4.5);
+  line(3, -13, 3 - step, -1, o.pants, 4.5);
+  if (o.pack) rrect(-15, -32, 10, 19, 3, '#80592f');
+  rrect(-7, -28, 14, 17, 4, o.shirt);
+  if (o.apron) rect(-6, -20, 12, 9, o.apron);
+  // 팔과 도구
+  if (o.pick !== undefined) {
+    ctx.save();
+    ctx.translate(4, -22);
+    ctx.rotate(-1.1 + o.pick * 1.9);
+    line(0, 0, 0, -18, '#8b5e34', 3);
+    line(-7, -17, 8, -19, '#9aa4ad', 3.5);
+    ctx.restore();
+  }
+  if (o.cane) line(9, -22, 12, 0, '#7a5230', 2.5);
+  line(1, -24, 7, -16, o.shirt, 4);
+  circle(0, -34, 6.5, '#f0c79c');
+  circle(3.2, -35, 1.1, '#2b1d10');
+  if (o.beard) poly([[-4, -32], [6, -32], [2, -24]], '#eeeae2');
+  if (o.helmet) {
+    ctx.beginPath(); ctx.arc(0, -36, 7.5, Math.PI, 0); ctx.fillStyle = '#f2c230'; ctx.fill();
+    rect(-8.5, -36.5, 18, 2.5, '#d9a71e');
+    circle(6, -39, 2.2, '#fff6c2');
+  }
+  if (o.hat) { rect(-9, -40, 18, 3, o.hat); rrect(-5.5, -46, 11, 7, 2, o.hat); }
+  if (o.hair) { ctx.beginPath(); ctx.arc(0, -36, 6.8, Math.PI * 1.05, Math.PI * 1.95); ctx.fillStyle = o.hair; ctx.fill(); }
+  ctx.restore();
+}
+
+/* ===== 그림: 마을 ===== */
+function groundY() { return Math.round(Math.min(VH * 0.62, VH - panelH - 70)); }
+function spot(id) { return SPOTS.find(s => s.id === id); }
+function skyBand(y0, y1, sk) {
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, sk.top); g.addColorStop(1, sk.bot);
+  rect(0, y0, VW, y1 - y0, g);
+}
+function ridge(par, base, amp, f1, f2, color, seed) {
+  const off = camX * par;
+  ctx.beginPath(); ctx.moveTo(0, VH);
+  for (let x = 0; x <= VW + 8; x += 8) {
+    const wx = x + off + seed;
+    const y = base - amp * (0.55 + 0.3 * Math.sin(wx * f1) + 0.15 * Math.sin(wx * f2 + 1.7));
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(VW, VH); ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+}
+function drawSky(gy, sk, ph) {
+  skyBand(0, gy, sk);
+  if (sk.sun) {
+    const sx = sk.sun[0] * VW, sy = sk.sun[1] * gy + hudH * 0.4;
+    const g = ctx.createRadialGradient(sx, sy, 4, sx, sy, 70);
+    g.addColorStop(0, sk.sunC); g.addColorStop(0.25, sk.sunC); g.addColorStop(1, 'rgba(255,240,200,0)');
+    circle(sx, sy, 70, g);
+  }
+  if (sk.moon) {
+    for (let i = 0; i < 70; i++) {
+      const tw = 0.5 + 0.5 * Math.sin(now / 600 + i * 1.7);
+      circle(hash(i * 7 + 1) * VW, hash(i * 13 + 5) * gy * 0.8, hash(i) < 0.15 ? 1.6 : 0.9, `rgba(255,255,240,${0.35 + 0.6 * tw})`);
+    }
+    const mx = sk.moon[0] * VW, my = sk.moon[1] * gy + hudH * 0.4;
+    circle(mx, my, 26, 'rgba(230,230,255,.12)');
+    circle(mx, my, 15, '#f4f1dc');
+    circle(mx + 6, my - 4, 13, sk.top);
+  }
+  // 구름
+  for (let i = 0; i < 6; i++) {
+    const span = VW + 260;
+    const x = ((hash(i * 31) * span + now * 0.008 * (0.6 + hash(i))) - camX * 0.08) % span;
+    const cx = (x + span) % span - 130, cy = hudH + 20 + hash(i * 17) * gy * 0.28;
+    const a = ph === 3 ? 0.18 : ph === 2 ? 0.55 : 0.75;
+    const c = ph === 2 ? `rgba(255,205,180,${a})` : `rgba(255,255,255,${a})`;
+    ellipse(cx, cy, 34, 11, c); ellipse(cx + 22, cy - 6, 22, 11, c); ellipse(cx - 18, cy - 4, 18, 9, c);
+  }
+  ridge(0.12, gy - 92, 120, 0.006, 0.017, sk.far2, 300);
+  ridge(0.2, gy - 60, 95, 0.008, 0.021, sk.far, 900);
+  ridge(0.45, gy - 26, 44, 0.012, 0.031, sk.hill, 50);
+  // 언덕 위 나무 실루엣
+  const off = camX * 0.45;
+  for (let k = Math.floor(off / 26) - 1; k < (off + VW) / 26 + 1; k++) {
+    if (hash(k * 3 + 11) < 0.45) continue;
+    const wx = k * 26 + 50;
+    const x = wx - off;
+    const y = gy - 26 - 44 * (0.55 + 0.3 * Math.sin(wx * 0.012) + 0.15 * Math.sin(wx * 0.031 + 1.7)) + 6;
+    const h = 16 + hash(k) * 16;
+    poly([[x - 7, y + 2], [x, y - h], [x + 7, y + 2]], sk.hill2);
+  }
+  ridge(0.7, gy - 10, 16, 0.02, 0.05, sk.hill2, 140);
+}
+function drawGround(gy, ph) {
+  const top = gy - 26;
+  // 윗면 (풀밭과 길)
+  const g = ctx.createLinearGradient(0, top, 0, gy);
+  const grass = ph === 3 ? ['#2f4a33', '#3b5a3c'] : ph === 2 ? ['#6e8a4e', '#7f9a55'] : ['#86b25e', '#9cc46a'];
+  g.addColorStop(0, grass[0]); g.addColorStop(1, grass[1]);
+  rect(0, top, VW, 26, g);
+  rect(0, gy - 15, VW, 9, ph === 3 ? '#4a4033' : '#c8a978');
+  // 앞면 (흙 단면과 지층)
+  const layers = [[0, 10, '#6b4a2c'], [10, 46, '#5b3e27'], [46, 110, '#4a3220'], [110, 400, '#3b2819'], [400, 2000, '#2d1f14']];
+  layers.forEach(([a, b, c]) => rect(0, gy + a, VW, b - a, c));
+  rect(0, gy, VW, 3, 'rgba(255,255,255,.12)');
+  for (let k = Math.floor(camX / 22) - 1; k < (camX + VW) / 22 + 1; k++) {
+    const h1 = hash(k * 5 + 3), x = k * 22 - camX + h1 * 14;
+    const y = gy + 16 + hash(k * 7) * (VH - gy - 20);
+    ellipse(x, y, 3 + h1 * 5, 2 + h1 * 3, 'rgba(0,0,0,.22)');
+    ellipse(x - 1, y - 1, 2 + h1 * 4, 1.5 + h1 * 2, 'rgba(255,230,190,.07)');
+    if (hash(k * 11) < 0.12) { // 땅속 광석 조각
+      const o = ORE_ORDER[Math.floor(hash(k * 19) * 3)];
+      poly([[x + 8, y], [x + 11, y - 4], [x + 14, y], [x + 11, y + 4]], ORES[o].color);
+    }
+  }
+  // 광산 굴 (마을 아래로 이어짐)
+  const mx = spot('mine').x - camX;
+  rect(mx - 20, gy, 40, VH - gy, '#120c07');
+  rect(mx - 24, gy, 4, VH - gy, '#6d4a2a'); rect(mx + 20, gy, 4, VH - gy, '#6d4a2a');
+  for (let y = gy + 12; y < VH; y += 16) line(mx - 12, y, mx + 12, y, '#8a6238', 3);
+  line(mx - 12, gy, mx - 12, VH, '#8a6238', 3); line(mx + 12, gy, mx + 12, VH, '#8a6238', 3);
+}
+function signPost(x, base, icon, gold) {
+  line(x, base, x, base - 34, '#6b4a2a', 4);
+  rrect(x - 15, base - 50, 30, 22, 4, gold ? '#3a2a14' : '#8a6a44', gold ? '#e9b04f' : '#5a4128');
+  emoji(x, base - 39, 14, icon);
+  if (gold) {
+    ctx.font = `700 12px ${FONT}`;
+    const t = `🪙${GOAL.cost}`;
+    const w = ctx.measureText(t).width + 14;
+    const bob = Math.sin(now / 300) * 2;
+    rrect(x - w / 2, base - 76 + bob, w, 20, 10, '#e9b04f');
+    ctx.fillStyle = '#2b1d0c'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(t, x, base - 65 + bob);
+  }
+}
+function brokenWall(x, base, w, h, d, col, seed) {
+  const ox = d * DX, oy = d * DY;
+  const pts = [[x, base]];
+  const n = 6;
+  for (let i = 0; i <= n; i++) pts.push([x + w * i / n, base - h * (0.4 + 0.6 * hash(seed + i))]);
+  pts.push([x + w, base]);
+  const rh = h * (0.4 + 0.6 * hash(seed + n));
+  poly([[x + w, base], [x + w + ox, base + oy], [x + w + ox, base - rh * 0.8 + oy], [x + w, base - rh]], rgb(col, -30));
+  poly(pts, rgb(col));
+  // 벽돌 줄
+  ctx.save(); ctx.beginPath(); pts.forEach(([a, b], i) => i ? ctx.lineTo(a, b) : ctx.moveTo(a, b)); ctx.closePath(); ctx.clip();
+  for (let yy = base - 10; yy > base - h; yy -= 10) line(x, yy, x + w, yy, rgb(col, -22), 1);
+  for (let yy = base, r = 0; yy > base - h; yy -= 10, r++) for (let xx = x + (r % 2) * 9; xx < x + w; xx += 18) line(xx, yy, xx, yy - 10, rgb(col, -22), 1);
+  ctx.restore();
+  // 뚫린 창
+  rrect(x + w * 0.2, base - h * 0.45, w * 0.16, h * 0.2, 3, 'rgba(20,12,6,.75)');
+  // 쓰러진 기둥과 돌무더기
+  line(x + w * 0.55, base - 2, x + w * 0.95, base - h * 0.55, '#6e5034', 6);
+  for (let i = 0; i < 7; i++) ellipse(x + hash(seed * 3 + i) * w, base - 2, 5 + hash(seed + i * 9) * 6, 3 + hash(i) * 3, rgb(col, -15 - hash(i * 4) * 25));
+}
+function drawSpot(s, gy, ph) {
+  const x = s.x - camX, base = gy - 12;
+  if (x < -s.w - 60 || x > VW + s.w + 60) return;
+  const night = ph >= 2;
+  switch (s.id) {
+    case 'house': {
+      const bx = x - 42;
+      box(bx, base, 70, 46, 24, '#a8805a', '#86613f', '#b8916a');
+      for (let yy = base - 8; yy > base - 46; yy -= 8) line(bx, yy, bx + 70, yy, 'rgba(60,35,15,.35)', 1);
+      gable(bx, base - 46, 70, 30, 24, '#9a6b48', '#7d3f2c', '#5e2b1d');
+      rrect(bx + 8, base - 30, 18, 30, 2, '#5a3a20');
+      rrect(bx + 40, base - 34, 18, 15, 2, night ? '#ffd27a' : '#3a4e5c');
+      if (night) circle(bx + 49, base - 27, 22, 'rgba(255,210,120,.12)');
+      line(bx + 40, base - 26, bx + 58, base - 26, '#5a3a20', 2);
+      rect(bx + 50, base - 64, 8, 14, '#6f4a33');
+      break;
+    }
+    case 'mine': {
+      // 바위 언덕과 굴 입구, 나무 망루
+      poly([[x - 60, base + 12], [x - 44, base - 40], [x - 10, base - 58], [x + 30, base - 48], [x + 58, base - 14], [x + 66, base + 12]], '#7b6a5c');
+      poly([[x - 44, base - 40], [x - 10, base - 58], [x + 30, base - 48], [x + 6, base - 40]], '#93806f');
+      ctx.beginPath(); ctx.moveTo(x - 22, base + 2); ctx.lineTo(x - 22, base - 22); ctx.arc(x, base - 22, 22, Math.PI, 0); ctx.lineTo(x + 22, base + 2); ctx.closePath();
+      ctx.fillStyle = '#140d08'; ctx.fill();
+      rect(x - 26, base - 30, 6, 32, '#8b6238'); rect(x + 20, base - 30, 6, 32, '#8b6238'); rect(x - 28, base - 34, 56, 7, '#9c6f40');
+      // 망루
+      line(x + 30, base - 40, x + 40, base - 104, '#7a5530', 4); line(x + 58, base - 14, x + 48, base - 104, '#7a5530', 4);
+      line(x + 34, base - 70, x + 54, base - 70, '#7a5530', 3);
+      ctx.beginPath(); ctx.arc(x + 44, base - 106, 11, 0, Math.PI * 2); ctx.strokeStyle = '#5a3d22'; ctx.lineWidth = 3; ctx.stroke();
+      line(x + 44, base - 106, x + 44 + 9 * Math.cos(now / 900), base - 106 + 9 * Math.sin(now / 900), '#5a3d22', 2);
+      // 등불
+      circle(x - 18, base - 38, night ? 16 : 6, night ? 'rgba(255,200,100,.22)' : 'rgba(255,220,140,.3)');
+      circle(x - 18, base - 38, 3.5, '#ffd27a');
+      // 수레
+      rect(x + 30, base - 12, 26, 12, '#6d4a2a'); circle(x + 35, base, 4, '#3a2a1a'); circle(x + 51, base, 4, '#3a2a1a');
+      poly([[x + 32, base - 12], [x + 38, base - 18], [x + 46, base - 16], [x + 54, base - 12]], '#d97a3a');
+      break;
+    }
+    case 'merchant': {
+      // 포장 수레와 상인
+      const bx = x - 40;
+      circle(bx + 14, base - 2, 10, '#4a3320'); circle(bx + 58, base - 2, 10, '#4a3320');
+      circle(bx + 14, base - 2, 4, '#8a6a44'); circle(bx + 58, base - 2, 4, '#8a6a44');
+      box(bx, base - 10, 72, 20, 18, '#8a5a32', '#6d4626', '#9c6b40');
+      ctx.beginPath(); ctx.moveTo(bx + 2, base - 30); ctx.bezierCurveTo(bx + 2, base - 72, bx + 70, base - 72, bx + 70, base - 30); ctx.closePath();
+      ctx.fillStyle = '#e8dcc0'; ctx.fill();
+      for (let i = 1; i < 4; i++) line(bx + 2 + i * 17, base - 31, bx + 2 + i * 17, base - 62 + Math.abs(i - 2) * 6, 'rgba(140,110,70,.4)', 2);
+      line(bx + 72, base - 14, bx + 92, base - 8, '#6d4626', 3);
+      rect(bx + 6, base - 44, 22, 10, '#c0483a'); rect(bx + 44, base - 46, 20, 12, '#3d7a8a');
+      person(x + 52, base + 4, 0.95, { shirt: '#3f6f5a', pants: '#3b2f28', hat: '#5b3b26', pack: true, face: -1 });
+      break;
+    }
+    case 'chief': {
+      // 우물과 촌장
+      const bx = x - 34;
+      box(bx, base, 36, 22, 16, '#8f8a83', '#6e6963', '#a29c94');
+      ellipse(bx + 23, base - 26, 13, 4, '#1d2a33');
+      line(bx + 2, base - 22, bx + 2, base - 54, '#6b4a2a', 3); line(bx + 34, base - 22, bx + 34, base - 54, '#6b4a2a', 3);
+      poly([[bx - 4, base - 50], [bx + 18, base - 66], [bx + 40, base - 50]], '#7d3f2c');
+      line(bx + 18, base - 52, bx + 18, base - 34, '#9c8a6a', 1.5);
+      rect(bx + 14, base - 36, 8, 7, '#6b4a2a');
+      person(x + 26, base + 4, 1, { shirt: '#6a4d8c', pants: '#3a2f45', beard: true, cane: true, hair: '#ddd', face: -1 });
+      if (!S.introSeen) {
+        const bob = Math.sin(now / 250) * 3;
+        rrect(x + 16, base - 70 + bob, 20, 22, 8, '#e9b04f');
+        ctx.fillStyle = '#2b1d0c'; ctx.font = `800 15px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('!', x + 26, base - 58 + bob);
+      }
+      break;
+    }
+    case 'smithy':
+      brokenWall(x - 46, base, 76, 52, 24, [120, 104, 96], 11);
+      rect(x + 22, base - 80, 14, 30, '#6d5f58'); poly([[x + 22, base - 80], [x + 36, base - 80], [x + 32, base - 88], [x + 26, base - 86]], '#6d5f58');
+      rect(x - 30, base - 12, 22, 7, '#3a3a3e'); rect(x - 25, base - 6, 12, 6, '#2a2a2e');
+      break;
+    case 'market':
+      for (let i = 0; i < 3; i++) {
+        const sx = x - 52 + i * 36;
+        line(sx, base, sx, base - 46 + i * 6, '#7a5530', 4);
+        poly([[sx - 4, base - 46 + i * 6], [sx + 30, base - 40 + i * 9], [sx + 30, base - 34 + i * 9], [sx - 4, base - 40 + i * 6]], i % 2 ? '#8a6a5a' : '#9a4a3a');
+      }
+      rect(x - 40, base - 16, 60, 6, '#7a5530');
+      ellipse(x + 10, base - 2, 14, 4, '#6e5a46');
+      break;
+    case 'kitchen':
+      brokenWall(x - 44, base, 72, 46, 22, [150, 120, 92], 37);
+      rect(x + 12, base - 70, 10, 26, '#7a6a60');
+      break;
+    case 'jewel':
+      brokenWall(x - 34, base, 56, 40, 18, [118, 110, 130], 53);
+      poly([[x - 6, base - 6], [x - 2, base - 12], [x + 2, base - 6], [x - 2, base]], '#7fdcef');
+      break;
+    case 'museum': {
+      box(x - 62, base, 108, 10, 22, '#a8a29a', '#8a847c', '#bdb7ae');
+      for (let i = 0; i < 5; i++) {
+        const h = [62, 30, 62, 18, 46][i];
+        box(x - 56 + i * 22, base - 10, 10, h, 8, '#c9c3b8', '#a8a29a', '#d9d4ca');
+      }
+      poly([[x - 62, base - 72], [x - 20, base - 92], [x - 2, base - 72]], '#b9b3a8');
+      ellipse(x + 30, base - 2, 12, 4, '#9a948a');
+      break;
+    }
+    case 'gate':
+      brokenWall(x - 70, base, 40, 74, 20, [128, 124, 116], 71);
+      brokenWall(x + 16, base, 44, 60, 20, [128, 124, 116], 83);
+      line(x - 30, base - 70, x - 2, base - 82, '#8a847c', 8);
+      rect(x - 22, base - 34, 30, 34, '#5b3b22'); line(x - 22, base - 20, x + 8, base - 26, '#3a2614', 3);
+      break;
+    case 'bridge': {
+      // 강과 무너진 다리
+      const g = ctx.createLinearGradient(0, gy - 22, 0, gy + 30);
+      g.addColorStop(0, night ? '#24406a' : '#4f9ed6'); g.addColorStop(1, night ? '#13233d' : '#2f6ea6');
+      rect(x - 62, gy - 24, 124, 56, g);
+      for (let i = 0; i < 6; i++) {
+        const wx = x - 54 + ((i * 23 + now * 0.02) % 108);
+        line(wx, gy - 14 + (i % 3) * 6, wx + 10, gy - 14 + (i % 3) * 6, 'rgba(255,255,255,.35)', 2);
+      }
+      rect(x - 62, gy + 30, 124, 8, '#3b2819');
+      box(x - 70, base, 18, 10, 10, '#8a6a44', '#6d5030', '#9c7a50');
+      for (let i = 0; i < 4; i++) rect(x - 52 + i * 11, base - 10 + i * 4, 9, 4, '#9c7a50');
+      line(x + 30, base + 20, x + 62, base - 10, '#7a5530', 4);
+      break;
+    }
+    case 'field':
+      rect(x - 56, base - 6, 104, 10, '#6b4a2c');
+      for (let i = 0; i < 6; i++) line(x - 56 + i * 20, base, x - 56 + i * 20, base - 18, '#8a6a44', 3);
+      line(x - 56, base - 12, x + 44, base - 12, '#8a6a44', 2);
+      for (let i = 0; i < 9; i++) { const wx = x - 50 + i * 11; poly([[wx, base], [wx + 3, base - 10 - hash(i) * 8], [wx + 6, base]], '#5d7a3a'); }
+      break;
+    case 'forest':
+      for (let i = 0; i < 4; i++) {
+        const tx = x - 50 + i * 30, th = 70 + hash(i * 5) * 30;
+        rect(tx - 3, base - 26, 6, 26, '#5a3d22');
+        poly([[tx - 18, base - 20], [tx, base - th], [tx + 18, base - 20]], night ? '#1f3a2c' : '#3e6b40');
+      }
+      for (let i = 0; i < 3; i++) { ellipse(x - 30 + i * 26, base - 4 - i * 6, 22, 6, '#6e4a2a'); circle(x - 52 + i * 26, base - 4 - i * 6, 6, '#8a6238'); }
+      break;
+  }
+  if (s.ruin) signPost(x + s.w / 2 - 4, base, RUINS[s.id].icon, s.id === GOAL.id);
+  label(x, gy + 18, s.name, !s.ruin || s.id === GOAL.id);
+}
+// 건물 사이 장식 (x, 종류)
+const DECOR = [[148, 'bush'], [292, 'lamp'], [418, 'bush'], [560, 'tree'], [728, 'tree'], [893, 'bush'], [1052, 'lamp'],
+  [1212, 'tree'], [1392, 'bush'], [1590, 'tree'], [1786, 'bush'], [1972, 'tree'], [2142, 'tree'], [8, 'tree']];
+function drawDecor(gy, ph) {
+  const base = gy - 12, night = ph >= 2;
+  DECOR.forEach(([wx, kind], k) => {
+    const x = wx - camX;
+    if (x < -60 || x > VW + 60) return;
+    if (kind === 'tree') {
+      line(x, base, x, base - 34, '#5a3d22', 7);
+      line(x, gy, x - 14, gy + 26, 'rgba(90,60,34,.55)', 3); line(x, gy, x + 12, gy + 34, 'rgba(90,60,34,.55)', 3);
+      const c = night ? ['#1f3a2c', '#2a4a36'] : ['#4f8a46', '#64a356'];
+      circle(x - 12, base - 40, 16, c[0]); circle(x + 12, base - 42, 16, c[0]);
+      circle(x, base - 58, 19, c[1]); circle(x - 6, base - 64, 9, 'rgba(255,255,255,.08)');
+    } else if (kind === 'bush') {
+      const c = night ? '#22402e' : '#5b9a4e';
+      circle(x - 10, base - 6, 9, c); circle(x + 4, base - 9, 11, c); circle(x + 15, base - 5, 8, c);
+      if (!night) for (let i = 0; i < 4; i++) circle(x - 10 + i * 8, base - 10 + (i % 2) * 5, 1.8, ['#f2d35b', '#f08aa0'][i % 2]);
+    } else if (kind === 'lamp') {
+      line(x, base, x, base - 50, '#3a3330', 3);
+      line(x, base - 50, x + 10, base - 50, '#3a3330', 3);
+      if (night) circle(x + 10, base - 44, 26, 'rgba(255,200,100,.16)');
+      rrect(x + 5, base - 49, 10, 11, 3, night ? '#ffd27a' : '#c9b99a');
+    }
+  });
+}
+function drawForeground(gy, ph) {
+  const top = gy - 4, c = ph === 3 ? '#26402c' : ph === 2 ? '#5f7a44' : '#6fa04f';
+  for (let k = Math.floor(camX / 9) - 1; k < (camX + VW) / 9 + 1; k++) {
+    const h1 = hash(k * 17 + 5);
+    if (h1 < 0.35) continue;
+    const x = k * 9 - camX;
+    poly([[x - 3, top + 4], [x + (h1 - 0.5) * 6, top - 4 - h1 * 9], [x + 3, top + 4]], c);
+    if (h1 > 0.96 && ph < 2) circle(x, top - 8, 2.5, '#f6f0e0');
+  }
+}
+function drawVillage(dt) {
+  const ph = phaseIndex(), sk = SKY[ph], gy = groundY();
+  // 주인공 걷기와 화면 따라가기
+  if (hero.x !== hero.tx) {
+    const d = hero.tx - hero.x, st = 260 * dt;
+    hero.face = d > 0 ? 1 : -1;
+    hero.x = Math.abs(d) <= st ? hero.tx : hero.x + Math.sign(d) * st;
+    hero.walk += dt * 14;
+    const sx = hero.x - camX;
+    if (sx < VW * 0.3) camX = clampCam(hero.x - VW * 0.3);
+    if (sx > VW * 0.7) camX = clampCam(hero.x - VW * 0.7);
+    if (hero.x === hero.tx && hero.target) { const t = hero.target; hero.target = null; ACTS[t.act](t.id); }
+  } else hero.walk = 0;
+  drawSky(gy, sk, ph);
+  drawGround(gy, ph);
+  drawDecor(gy, ph);
+  SPOTS.forEach(s => drawSpot(s, gy, ph));
+  person(hero.x - camX, gy - 6, 1.05, { shirt: '#3d6fa8', pants: '#2c3b55', helmet: true, pick: 0.15, walk: hero.walk, face: hero.face });
+  drawForeground(gy, ph);
+  if (sk.tint) rect(0, 0, VW, VH, sk.tint);
+}
+
+/* ===== 그림: 광산 ===== */
+function mineGeo() {
+  const top = hudH + 6, bottom = VH - panelH - 6;
+  const avail = bottom - top;
+  const cs = Math.floor(Math.max(28, Math.min((VW - 24) / W, (avail - 12) / (H + 1.2), 68)));
+  const bx = Math.round((VW - cs * W) / 2);
+  const by = Math.round(top + (avail - cs * (H + 1)) / 2 + cs);
+  return { cs, bx, by };
+}
+function tileCenter(i) {
+  const { cs, bx, by } = mineGeo();
+  return { x: bx + (i % W) * cs + cs / 2, y: by + ((i / W) | 0) * cs + cs / 2 };
+}
+function rockBlock(x, y, cs, col, seed, dim) {
+  const k = dim ? -38 : 0;
+  rect(x, y, cs, cs, rgb(col, k - 30));
+  rect(x + 1, y + 1, cs - 2, cs - 2, rgb(col, k));
+  rect(x + 1, y + 1, cs - 2, Math.round(cs * 0.15), rgb(col, k + 26));
+  rect(x + 1, y + cs - Math.round(cs * 0.12) - 1, cs - 2, Math.round(cs * 0.12), rgb(col, k - 24));
+  rect(x + cs - Math.round(cs * 0.1) - 1, y + 1, Math.round(cs * 0.1), cs - 2, rgb(col, k - 14));
+  for (let p = 0; p < 4; p++) {
+    const h1 = hash(seed * 7 + p * 13);
+    const px = x + 4 + h1 * (cs - 10), py = y + cs * 0.25 + hash(seed * 3 + p) * (cs * 0.6);
+    ellipse(px, py, 1.5 + h1 * cs * 0.07, 1 + h1 * cs * 0.04, rgb(col, k - 30 - h1 * 15));
+    ellipse(px - 1, py - 1, 1 + h1 * cs * 0.04, 0.8, rgb(col, k + 30));
+  }
+}
+function hollow(x, y, cs, col) {
+  rect(x, y, cs, cs, `rgb(${col.map(v => Math.round(v * 0.24)).join(',')})`);
+  let g = ctx.createLinearGradient(0, y, 0, y + cs * 0.4);
+  g.addColorStop(0, 'rgba(0,0,0,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  rect(x, y, cs, cs * 0.4, g);
+  g = ctx.createLinearGradient(x, 0, x + cs * 0.3, 0);
+  g.addColorStop(0, 'rgba(0,0,0,.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  rect(x, y, cs * 0.3, cs, g);
+}
+function drawMine(dt) {
+  const m = S.mine, col = FLOOR_ROCK[m.floor];
+  const { cs, bx, by } = mineGeo();
+  const ty = by - cs;  // 굴 통로 줄
+  rect(0, 0, VW, VH, rgb(col, -110));
+  const surface = m.floor === 1 ? ty - Math.round(cs * 0.35) : -1e9;
+  // 1층은 바로 위가 마을 땅
+  if (m.floor === 1) {
+    const sk = SKY[phaseIndex()];
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VW, surface); ctx.clip();
+    skyBand(0, surface, sk);
+    ridge(0, surface - cs * 0.2, 30, 0.01, 0.03, sk.hill, 77);
+    ctx.restore();
+    rect(0, surface - cs * 0.3, VW, cs * 0.3, '#86b25e');
+    rect(0, surface - cs * 0.06, VW, 3, 'rgba(0,0,0,.2)');
+    rect(0, surface, VW, ty - surface, '#5b3e27');
+  }
+  // 바깥 바위 (캘 수 없는 단면)
+  const c0 = Math.floor(-bx / cs) - 1, c1 = Math.ceil((VW - bx) / cs);
+  const r0 = Math.floor(-by / cs) - 1, r1 = Math.ceil((VH - by) / cs);
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+    const inBoard = c >= 0 && c < W && r >= 0 && r < H;
+    const inTunnel = r === -1 && c >= 0 && c < W;
+    if (inBoard || inTunnel) continue;
+    const x = bx + c * cs, y = by + r * cs;
+    if (y + cs <= surface) continue;
+    rockBlock(x, y, cs, col, (r + 50) * 131 + c + m.seed, true);
+  }
+  // 굴 통로와 버팀목, 사다리, 등불
+  for (let c = 0; c < W; c++) hollow(bx + c * cs, ty, cs, col);
+  const lx = bx + cs * 0.5;
+  for (let y = ty + cs; y > -10; y -= cs * 0.28) line(lx - cs * 0.18, y, lx + cs * 0.18, y, '#9c6f40', 2.5);
+  line(lx - cs * 0.18, ty + cs, lx - cs * 0.18, -10, '#8b6238', 3); line(lx + cs * 0.18, ty + cs, lx + cs * 0.18, -10, '#8b6238', 3);
+  rect(bx - 6, ty - 4, cs * W + 12, 8, '#7a5530');
+  rect(bx - 6, ty - 4, 8, cs + 4, '#7a5530'); rect(bx + cs * W - 2, ty - 4, 8, cs + 4, '#7a5530');
+  const lanX = bx + cs * W - cs * 0.8;
+  line(lanX, ty + 4, lanX, ty + cs * 0.3, '#3a2a1a', 1.5);
+  circle(lanX, ty + cs * 0.38, cs * 0.12, '#ffd27a');
+  // 판
+  m.tiles.forEach((tl, i) => {
+    const x = bx + (i % W) * cs, y = by + ((i / W) | 0) * cs;
+    if (tl.t === 'h') {
+      rect(x, y, cs, cs, '#2a2628'); rect(x + 1, y + 1, cs - 2, cs - 2, '#46413f');
+      rect(x + 1, y + 1, cs - 2, cs * 0.15, '#5c5653');
+      for (let p = 0; p < 6; p++) circle(x + 5 + hash(i * 9 + p) * (cs - 10), y + 6 + hash(i * 5 + p) * (cs - 12), 1.3, 'rgba(220,220,230,.35)');
+      line(x + cs * 0.2, y + cs * 0.8, x + cs * 0.75, y + cs * 0.25, 'rgba(255,255,255,.1)', 3);
+    } else if (tl.open) {
+      hollow(x, y, cs, col);
+      if (tl.t === 'x') {
+        rrect(x + cs * 0.18, y + cs * 0.28, cs * 0.64, cs * 0.62, 6, '#070403');
+        line(x + cs * 0.32, y + cs * 0.25, x + cs * 0.32, y + cs * 0.95, '#a8763f', 3);
+        line(x + cs * 0.68, y + cs * 0.25, x + cs * 0.68, y + cs * 0.95, '#a8763f', 3);
+        for (let k = 0; k < 4; k++) line(x + cs * 0.32, y + cs * (0.38 + k * 0.15), x + cs * 0.68, y + cs * (0.38 + k * 0.15), '#a8763f', 2.5);
+      }
+    } else {
+      rockBlock(x, y, cs, col, i * 97 + m.seed, false);
+    }
+  });
+  // 광부 (마지막으로 판 칸에 섬)
+  const target = m.pos >= 0 ? tileCenter(m.pos) : { x: bx + cs * 1.5, y: ty + cs / 2 };
+  const tx = target.x, tyy = target.y + cs / 2 - 3;
+  if (miner.x === null) { miner.x = tx; miner.y = tyy; }
+  miner.x += (tx - miner.x) * Math.min(1, dt * 14);
+  miner.y += (tyy - miner.y) * Math.min(1, dt * 14);
+  swing = Math.max(0, swing - dt * 4);
+  person(miner.x, miner.y, cs / 46, { shirt: '#3d6fa8', pants: '#2c3b55', helmet: true, pick: swing > 0 ? Math.sin(swing * Math.PI) : 0.15, face: 1 });
+  // 어둠: 광부 둘레만 밝음
+  const dark = 0.42 + m.floor * 0.06;
+  const g = ctx.createRadialGradient(miner.x, miner.y - cs * 0.4, cs * 0.6, miner.x, miner.y - cs * 0.4, cs * 4.6);
+  g.addColorStop(0, 'rgba(255,200,120,.06)'); g.addColorStop(0.35, `rgba(0,0,0,${dark * 0.35})`); g.addColorStop(1, `rgba(0,0,0,${dark})`);
+  rect(0, Math.max(surface, -1), VW, VH, g);
+  const lg = ctx.createRadialGradient(lanX, ty + cs * 0.4, 2, lanX, ty + cs * 0.4, cs * 1.4);
+  lg.addColorStop(0, 'rgba(255,200,110,.35)'); lg.addColorStop(1, 'rgba(255,200,110,0)');
+  circle(lanX, ty + cs * 0.4, cs * 1.4, lg);
+  // 어둠 위에 그리는 것: 캘 수 있는 칸 테두리, 힌트 숫자, 계단 빛
+  const pulse = 0.55 + 0.25 * Math.sin(now / 400);
+  ctx.lineWidth = 2;
+  m.tiles.forEach((tl, i) => {
+    const x = bx + (i % W) * cs, y = by + ((i / W) | 0) * cs;
+    if (!tl.open && canDig(i)) {
+      rrect(x + 2.5, y + 2.5, cs - 5, cs - 5, 5, null, `rgba(255,214,140,${pulse})`);
+    } else if (tl.open && tl.t === 'x') {
+      rrect(x + 2, y + 2, cs - 4, cs - 4, 6, `rgba(255,200,90,${0.12 + 0.1 * Math.sin(now / 300)})`, '#e9b04f');
+    } else if (tl.open) {
+      const n = hint(i);
+      if (n) {
+        ctx.font = `800 ${Math.round(cs * 0.46)}px ${FONT}`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.7)';
+        ctx.strokeText(n, x + cs / 2, y + cs / 2 + 1);
+        ctx.fillStyle = ['', '#9fd3ff', '#a7e39a', '#ffd27a', '#ffa36b', '#ff7d7d', '#ff7d7d', '#ff7d7d', '#ff7d7d'][n];
+        ctx.fillText(n, x + cs / 2, y + cs / 2 + 1);
+        ctx.lineWidth = 2;
+      }
+    }
+  });
+  bumps = bumps.filter(b => (b.t -= dt) > 0);
+  bumps.forEach(b => {
+    const x = bx + (b.i % W) * cs, y = by + ((b.i / W) | 0) * cs;
+    rrect(x + 2, y + 2, cs - 4, cs - 4, 5, `rgba(224,90,70,${b.t * 1.5})`);
+  });
+  label(bx + cs * W / 2, ty + cs / 2, `광산 ${m.floor}층`, true);
+}
+function bump(i) { bumps.push({ i, t: 0.35 }); }
+
+/* ===== 효과 ===== */
+function burst(x, y, c1, c2, n) {
+  for (let k = 0; k < n; k++) {
+    const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * 160;
+    parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, life: 0.6 + Math.random() * 0.4, s: 2 + Math.random() * 3, c: k % 3 ? c1 : c2 });
+  }
+}
+function floatText(x, y, text, color) { floats.push({ x, y, text, color, life: 1 }); }
+function drawEffects(dt) {
+  parts = parts.filter(p => (p.life -= dt) > 0);
+  parts.forEach(p => {
+    p.vy += 520 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    ctx.globalAlpha = Math.min(1, p.life * 2);
+    rect(p.x - p.s / 2, p.y - p.s / 2, p.s, p.s, p.c);
+  });
+  ctx.globalAlpha = 1;
+  floats = floats.filter(f => (f.life -= dt) > 0);
+  floats.forEach(f => {
+    f.y -= 40 * dt;
+    ctx.globalAlpha = Math.min(1, f.life * 2);
+    ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
+  });
+  ctx.globalAlpha = 1;
+}
+
+/* ===== 그리기 반복 ===== */
+let last = 0;
+function frame(t) {
+  const dt = Math.min(0.05, (t - last) / 1000 || 0);
+  last = t; now = t;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, VW, VH);
+  if (S.screen === 'mine' && S.mine) drawMine(dt); else drawVillage(dt);
+  drawEffects(dt);
+  if (fade > 0) { rect(0, 0, VW, VH, `rgba(0,0,0,${Math.min(1, fade)})`); fade = Math.max(0, fade - dt * 1.4); }
+  requestAnimationFrame(frame);
+}
+
 /* ===== 입력 ===== */
+function walkTo(s) {
+  const tx = Math.max(20, Math.min(WORLD - 20, s.x + (s.x > hero.x ? -s.w / 2 - 10 : s.w / 2 + 10)));
+  if (Math.abs(hero.x - tx) < 4 || Math.abs(hero.x - s.x) < s.w / 2) { hero.target = null; hero.tx = hero.x; ACTS[s.act](s.id); return; }
+  hero.tx = tx; hero.target = s;
+}
+function tapAt(x, y) {
+  if (S.screen === 'mine' && S.mine) {
+    const { cs, bx, by } = mineGeo();
+    const c = Math.floor((x - bx) / cs), r = Math.floor((y - by) / cs);
+    if (c >= 0 && c < W && r >= 0 && r < H) dig(r * W + c);
+    return;
+  }
+  const gy = groundY(), wx = x + camX;
+  if (y < gy - 190 || y > gy + 34) return;
+  const s = SPOTS.find(p => Math.abs(wx - p.x) <= p.w / 2 + 12);
+  if (s) walkTo(s);
+}
+let drag = null;
+cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, cam: camX, moved: false }; });
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x;
+  if (Math.abs(dx) > 8 || Math.abs(e.clientY - drag.y) > 8) drag.moved = true;
+  if (drag.moved && S.screen === 'village') camX = clampCam(drag.cam - dx);
+});
+cv.addEventListener('pointerup', e => {
+  if (drag && !drag.moved && document.getElementById('modal').hidden) tapAt(e.clientX, e.clientY);
+  drag = null;
+});
+cv.addEventListener('pointercancel', () => { drag = null; });
+
 const ACTS = {
   close: closeModal,
   none: () => {},
@@ -551,13 +1191,12 @@ const ACTS = {
   entrance: openEntrance,
   ruin: (a) => openRuin(a),
   enter: (a) => enterMine(+a),
-  dig: (a) => dig(+a),
   descend,
   leave: leaveMine,
   sleep: () => { closeModal(); sleep(); },
   sellAll,
   resetAsk: () => modal({ title: '처음부터', body: '<p>모든 기록 삭제</p>', buttons: [{ label: '취소', act: 'close' }, { label: '삭제', act: 'reset', primary: true }] }),
-  reset: () => { S = freshState(); save(); closeModal(); render(); showIntro(0); },
+  reset: () => { S = freshState(); hero.x = hero.tx = 140; camX = 0; save(); closeModal(); render(); showIntro(0); },
 };
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
@@ -567,13 +1206,20 @@ document.addEventListener('click', e => {
   if (f) f(b.dataset.arg);
 });
 document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+window.addEventListener('resize', resize);
 
 /* ===== 시작 ===== */
 S = load();
 render();
+resize();
+requestAnimationFrame(frame);
 if (!S.introSeen) showIntro(0);
-// 테스트용 읽기 창구
-window.MinerDiary = { state: () => S, hint, canDig, phaseIndex, untilNext };
+// 테스트용 창구: 상태 읽기와 칸, 건물의 화면 위치
+window.MinerDiary = {
+  state: () => S, hint, canDig, phaseIndex, untilNext,
+  tilePoint: i => tileCenter(i),
+  spotPoint: id => { const s = spot(id); camX = clampCam(s.x - VW / 2); return { x: s.x - camX, y: groundY() - 40 }; },
+};
 </script>
 </body>
 </html>
