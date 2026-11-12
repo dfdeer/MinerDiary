@@ -130,6 +130,10 @@ const shot = process.argv[2];
   ok(s.inv.copper === cu + 4 && [0, 1, 7].every(i => s.mine.tiles[i].open) && !s.mine.tiles[9].open, '광맥 잇기: 이어진 구리 3칸을 한 번에 캐고 덤 1개');
   ok(await page.evaluate(() => window.MinerDiary.hint(1) === 1 && window.MinerDiary.hint(7) === 0), '열린 1번 칸 힌트 1, 7번 칸은 0');
 
+  // 7-1. 광석 캐기 퀘스트가 확실히 끝나도록 구리 3칸을 한 번 더 (운에 따라 5개가 안 될 수 있음)
+  await page.evaluate(() => { const s = window.MinerDiary.state(); s.mine.tiles = s.mine.tiles.map(() => ({ t: 's', open: false })); [0, 1, 7].forEach(i => { s.mine.tiles[i] = { t: 'o', o: 'copper', open: false }; }); });
+  await tap(0);
+
   // 8. 시간대
   s = await st();
   const used = (s.dayStart - s.minE) / s.max * 100;
@@ -157,7 +161,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="sleep"]');
   s = await st();
   ok(s.day === day + 1 && s.energy === (late ? 90 : 100) && s.minE === s.energy, `자고 나서 ${s.day}일차 기력 ${s.energy}`);
-  ok(s.quest === 6 && (await quest()).includes('대장간 복구비'), '자고 나면 이미 간 3층은 바로 끝나고 「대장간 복구비 모으기」');
+  ok((s.quest === 6 || (s.quest === 7 && s.gold >= 500)) && (await quest()).includes('대장간 복구비'), '자고 나면 이미 간 3층은 바로 끝나고 「대장간 복구비 모으기」 (돈이 500 이상이면 그것도 끝)');
 
   // 11. 쓰러짐
   await visit('mine', '#sheet [data-a="enter"]');
