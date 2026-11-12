@@ -40,4 +40,9 @@
   1. 문법 검사: `node tools/check-syntax.js` (스크립트 문법과 금지 문자 `—` `•` `·` 확인)
   2. 브라우저 테스트: `node tools/browser-test.js [스크린숏 폴더]` (Playwright로 소개, 광산 1~5층, 힌트 숫자, 광맥, 팔기, 자기, 쓰러짐, 저장을 눌러 보고 페이지 오류 0건 확인)
 - 판이 무작위라 브라우저 테스트는 몇 번 반복해서 돌림.
+
+## 배포
+- GitHub Pages: https://dfdeer.github.io/MinerDiary/
+- main에 병합되면 `.github/workflows/pages.yml`이 문법 검사 후 `index.html`만 배포함.
+- 병합한 뒤 Actions의 「Deploy Pages」 실행이 성공했는지 확인하고 주소를 알려 줌.
 - 새 기능을 넣으면 `tools/browser-test.js`에 그 흐름도 추가.
