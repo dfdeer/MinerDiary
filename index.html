@@ -1292,7 +1292,7 @@ function bottomH() { return scene === 'mine' ? minebar.getBoundingClientRect().h
 function showHome() { closeSheet(); }
 function showIntro(k) {
   const last = k === INTRO.length - 1;
-  openSheet('촌장', `<p>${INTRO[k]}</p>`, `<span class="tag">${k + 1}/${INTRO.length}</span><button class="btn primary" data-a="${last ? 'introDone' : 'intro'}" data-n="${k + 1}">${last ? '확인' : '다음'}</button>`);
+  openSheet('촌장', `<p>${INTRO[k]}</p>`, `<span class="tag">${k + 1}/${INTRO.length}</span>${k ? `<button class="btn" data-a="introPrev" data-n="${k - 1}">이전</button>` : ''}<button class="btn primary" data-a="${last ? 'introDone' : 'intro'}" data-n="${k + 1}">${last ? '확인' : '다음'}</button>`);
 }
 function showCard(o, msg) {
   if (!o) return;
@@ -1337,7 +1337,7 @@ document.addEventListener('click', e => {
   const a = b.dataset.a, n = +b.dataset.n;
   SFX.tap();
   if (a === 'close') closeSheet();
-  else if (a === 'intro') showIntro(n);
+  else if (a === 'intro' || a === 'introPrev') showIntro(n);
   else if (a === 'introDone') { S.introSeen = true; S.chiefDay = S.day; closeSheet(); questEvent('chief'); }
   else if (a === 'sleep') sleep();
   else if (a === 'enter') enterMine(n);
