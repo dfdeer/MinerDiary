@@ -20,7 +20,11 @@ html,body{margin:0;height:100%;overflow:hidden;background:#120d09;color:var(--te
   font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
   -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:none}
 button{font:inherit;color:inherit;cursor:pointer}
-#cv{position:fixed;inset:0;display:block}
+#cv{position:fixed;top:0;left:0;display:block}
+@media (min-width:500px){
+  html,body{background:radial-gradient(ellipse at 50% 30%,#2a2018,#0d0907 70%)}
+  #cv{box-shadow:0 0 0 1px rgba(255,230,190,.08),0 0 60px rgba(0,0,0,.6)}
+}
 
 /* 위쪽 정보 */
 #hud{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:5;
@@ -152,21 +156,22 @@ const SPOTS = [
 SPOTS.forEach(s => { if (RUINS[s.id]) { s.ruin = true; s.name = RUINS[s.id].name; s.act = 'ruin'; } });
 const WORLD = 2180;
 
+// 주민 대사는 자연스러운 말투 (화면 안내 글만 간결체)
 const INTRO = [
-  '광부들이 떠난 뒤 무너진 채 남은 마을',
-  '남은 건 광산과 가끔 들르는 떠돌이 상인뿐',
-  '광산은 위에서부터 이어서 캐고, 칸의 숫자는 주변 8칸에 남은 광석 수',
-  '이어진 같은 광석은 한 번에 캐지고 길수록 덤이 붙음',
-  '캔 광석은 떠돌이 상인에게 팔고, 모은 돈으로 대장간부터 복구',
-  '기력을 쓴 만큼 해가 기울고 집에서 자면 다음 날',
+  '어서 와요. 광부들이 다 떠나고 나서 마을이 이렇게 무너져 버렸어요.',
+  '남은 건 저 광산이랑, 가끔 들르는 떠돌이 상인뿐이에요.',
+  '광산은 위에서부터 차례로 파 내려가면 돼요. 판 자리에 나오는 숫자는 주변 여덟 칸에 남은 광석 수예요.',
+  '같은 광석이 붙어 있으면 한 번에 캘 수 있어요. 길게 이어질수록 덤도 붙고요.',
+  '캔 광석은 상인한테 팔아서 돈을 모아 줘요. 대장간부터 고치면 좋겠어요.',
+  '일을 하다 보면 해가 기울어요. 지치면 집에 가서 푹 자고요.',
 ];
 const CHIEF_TIPS = [
-  '숫자가 큰 칸 옆을 파면 광석이 나올 확률이 높음',
-  '0인 칸 주변엔 광석이 없으니 다른 쪽으로',
-  '계단을 찾으면 더 깊은 층으로 가고, 깊을수록 비싼 광석',
-  '새벽에 내려간 층엔 가끔 월광석',
-  '새벽까지 버티면 다음 날 기력이 조금 덜 참',
-  '기력이 바닥나면 쓰러져서 그날 캔 것 일부를 잃음',
+  '숫자가 큰 칸 옆을 파 봐요. 광석이 나올 가능성이 높거든요.',
+  '0이 나온 칸 주변엔 광석이 없어요. 다른 쪽을 파 보는 게 좋아요.',
+  '계단을 찾으면 더 깊이 내려갈 수 있어요. 깊을수록 비싼 광석이 나와요.',
+  '새벽에 내려간 층에선 가끔 월광석이 보인대요.',
+  '새벽까지 무리하면 다음 날 몸이 덜 풀릴 거예요.',
+  '기력이 바닥나면 쓰러져요. 그날 캔 것도 조금 잃어버리고요.',
 ];
 
 /* ===== 상태 ===== */
@@ -413,7 +418,7 @@ function openMerchant() {
   const total = ORE_ORDER.reduce((a, o) => a + (S.inv[o] || 0) * ORES[o].price, 0);
   modal({
     title: '🧳 떠돌이 상인',
-    body: `<p>광석이면 무엇이든 사 감</p>${rows || '<p class="empty">팔 것 없음</p>'}<p class="note">왼쪽은 1개, 오른쪽은 전부</p>`,
+    body: `<p>광석이라면 뭐든 사 갈게요.</p>${rows || '<p class="empty">팔 것 없음</p>'}<p class="note">왼쪽은 1개, 오른쪽은 전부</p>`,
     buttons: [
       { label: `전부 🪙${total}`, act: 'sellAll', primary: true, disabled: !total },
       { label: '닫기', act: 'close' },
@@ -423,9 +428,9 @@ function openMerchant() {
 function openChief() {
   if (!S.introSeen) { showIntro(0); return; }
   let line;
-  if (S.gold >= GOAL.cost) line = '대장간 복구 비용은 모였고, 이제 대장장이가 돌아오기를 기다리는 중';
+  if (S.gold >= GOAL.cost) line = '대장간 고칠 돈은 다 모였네요. 이제 대장장이가 돌아오기만 기다리면 돼요.';
   else if (S.chiefDay !== S.day) { line = CHIEF_TIPS[(S.day - 1) % CHIEF_TIPS.length]; S.chiefDay = S.day; save(); }
-  else line = `다음 복구는 대장간이고 남은 돈은 🪙${GOAL.cost - S.gold}`;
+  else line = `다음은 대장간이에요. 🪙${GOAL.cost - S.gold}만 더 모으면 돼요.`;
   modal({ title: '👴 촌장', body: `<p>${line}</p>`, buttons: [{ label: '닫기', act: 'close' }] });
 }
 function showIntro(k) {
@@ -536,7 +541,8 @@ function toast(html) {
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 const FONT = 'system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif';
-let VW = 0, VH = 0, DPR = 1, hudH = 90, panelH = 120;
+const FRAME_W = 480;   // 넓은 화면에서도 이 폭 안에 그림
+let VW = 0, VH = 0, OX = 0, DPR = 1, hudH = 90, panelH = 120;
 let camX = 0, fade = 0, swing = 0, now = 0;
 const hero = { x: 140, tx: 140, target: null, walk: 0, face: 1 };
 const miner = { x: null, y: null };
@@ -544,9 +550,10 @@ let parts = [], floats = [], bumps = [];
 
 function resize() {
   DPR = Math.min(2, window.devicePixelRatio || 1);
-  VW = window.innerWidth; VH = window.innerHeight;
+  VW = Math.min(window.innerWidth, FRAME_W); VH = window.innerHeight;
+  OX = Math.round((window.innerWidth - VW) / 2);
   cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
-  cv.style.width = VW + 'px'; cv.style.height = VH + 'px';
+  cv.style.width = VW + 'px'; cv.style.height = VH + 'px'; cv.style.left = OX + 'px';
   layout();
 }
 function layout() {
@@ -1179,7 +1186,7 @@ cv.addEventListener('pointermove', e => {
   if (drag.moved && S.screen === 'village') camX = clampCam(drag.cam - dx);
 });
 cv.addEventListener('pointerup', e => {
-  if (drag && !drag.moved && document.getElementById('modal').hidden) tapAt(e.clientX, e.clientY);
+  if (drag && !drag.moved && document.getElementById('modal').hidden) tapAt(e.clientX - OX, e.clientY);
   drag = null;
 });
 cv.addEventListener('pointercancel', () => { drag = null; });
@@ -1221,8 +1228,8 @@ if (!S.introSeen) showIntro(0);
 // 테스트용 창구: 상태 읽기와 칸, 건물의 화면 위치
 window.MinerDiary = {
   state: () => S, hint, canDig, phaseIndex, untilNext,
-  tilePoint: i => tileCenter(i),
-  spotPoint: id => { const s = spot(id); camX = clampCam(s.x - VW / 2); return { x: s.x - camX, y: groundY() - 40 }; },
+  tilePoint: i => { const c = tileCenter(i); return { x: c.x + OX, y: c.y }; },
+  spotPoint: id => { const s = spot(id); camX = clampCam(s.x - VW / 2); return { x: s.x - camX + OX, y: groundY() - 40 }; },
 };
 </script>
 </body>
