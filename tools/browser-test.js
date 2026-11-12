@@ -25,7 +25,7 @@ const shot = process.argv[2];
     // 캔버스 위 칸 누르기
     tap: async i => { const p = await page.evaluate(i => window.MinerDiary.tilePoint(i), i); await page.mouse.click(p.x, p.y); },
     // 건물이나 사람을 화면 가운데로 옮겨 누르고, 광부가 걸어가서 아래 판이 바뀔 때까지 기다림
-    visit: async (id, sel) => { const p = await page.evaluate(id => window.MinerDiary.spotPoint(id), id); await page.mouse.click(p.x, p.y); await page.waitForSelector(sel, { timeout: 15000 }); },
+    visit: async (id, sel) => { if (await page.locator('#sheet [data-a="close"]').isVisible()) await page.click('#sheet [data-a="close"]'); const p = await page.evaluate(id => window.MinerDiary.spotPoint(id), id); await page.mouse.click(p.x, p.y); await page.waitForSelector(sel, { timeout: 15000 }); },
     canList: () => page.evaluate(() => { const m = window.MinerDiary, s = m.state(); return s.mine.tiles.map((t, i) => i).filter(i => m.canDig(i)); }),
   });
 
@@ -34,14 +34,16 @@ const shot = process.argv[2];
   const { st, tap, visit, canList } = helpers(page);
   await page.evaluate(() => window.MinerDiary.speed(10));
 
-  // 1. 촌장 소개
-  ok(await page.locator('#sheet [data-a="intro"]').count() === 1, '처음엔 촌장 소개가 뜸');
-  ok(await page.locator('#dock').isHidden(), '소개 중엔 아래 단추가 안 보임');
+  // 1. 퀘스트를 따라 촌장 만나기
+  const quest = () => page.evaluate(() => document.querySelector('.quest').innerText.replace(/\s+/g, ' ').trim());
+  ok(await page.locator('#sheet').isHidden() && (await quest()).includes('촌장 만나기'), '시작하면 첫 퀘스트 「촌장 만나기」가 보임');
+  await page.click('[data-a="quest"]');
+  await page.waitForSelector('#sheet [data-a="intro"]', { timeout: 15000 });
+  ok(true, '퀘스트를 누르면 촌장에게 걸어가서 소개가 열림');
   while (await page.locator('#sheet [data-a="intro"]').count()) await page.click('#sheet [data-a="intro"]');
   await page.click('#sheet [data-a="introDone"]');
-  ok(await page.locator('#sheet').isHidden() && await page.locator('#dock [data-a="bag"]').isVisible(), '소개가 끝나면 창이 닫히고 목표와 가방 단추가 보임');
+  ok((await st()).introSeen && (await quest()).includes('광산 들어가기'), '소개가 끝나면 다음 퀘스트 「광산 들어가기」');
   ok(!/누른 곳|끌어서|스페이스바|밝은 테두리/.test(await page.evaluate(() => document.body.innerText)), '조작 설명 문구 없음');
-  ok((await st()).introSeen, '촌장 소개를 끝까지 봄');
   if (shot) await page.screenshot({ path: path.join(shot, 'village.png') });
 
   // 2. 상호작용하는 것끼리 화면에서 겹치지 않음 (누르는 모양 기준)
@@ -61,12 +63,21 @@ const shot = process.argv[2];
   await visit('chief', '#sheet h2:has-text("촌장")');
   ok(true, '촌장까지 걸어가서 대화');
 
+  // 3-1. 대화창이 열려 있으면 다른 행동을 못 함
+  const h0 = await page.evaluate(() => [hero.x, hero.y, cam.fx]);
+  await page.mouse.click(60, 200);
+  await page.mouse.move(200, 250); await page.mouse.down(); await page.mouse.move(80, 250, { steps: 4 }); await page.mouse.up();
+  await page.waitForTimeout(300);
+  const h1 = await page.evaluate(() => [hero.x, hero.y, cam.fx, hero.path.length]);
+  ok(h0[0] === h1[0] && h0[1] === h1[1] && h0[2] === h1[2] && h1[3] === 0 && await page.locator('#sheet').isVisible(), '대화창이 열린 동안엔 걷기와 끌기가 막힘');
+
   // 4. 광산 입장
   await visit('mine', '#sheet [data-a="enter"]');
   await page.click('#sheet [data-a="enter"][data-n="1"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
   await page.waitForTimeout(300);
   ok((await st()).screen === 'mine', '광산 1층 입장');
+  ok((await quest()).includes('광석 캐기'), '광산에 들어가면 퀘스트 「광석 캐기」');
   ok((await canList()).length === 7, '처음엔 맨 윗줄 7칸만 캘 수 있음');
   const e0 = (await st()).energy;
   await tap(45);
@@ -119,6 +130,10 @@ const shot = process.argv[2];
   ok(s.inv.copper === cu + 4 && [0, 1, 7].every(i => s.mine.tiles[i].open) && !s.mine.tiles[9].open, '광맥 잇기: 이어진 구리 3칸을 한 번에 캐고 덤 1개');
   ok(await page.evaluate(() => window.MinerDiary.hint(1) === 1 && window.MinerDiary.hint(7) === 0), '열린 1번 칸 힌트 1, 7번 칸은 0');
 
+  // 7-1. 광석 캐기 퀘스트가 확실히 끝나도록 구리 3칸을 한 번 더 (운에 따라 5개가 안 될 수 있음)
+  await page.evaluate(() => { const s = window.MinerDiary.state(); s.mine.tiles = s.mine.tiles.map(() => ({ t: 's', open: false })); [0, 1, 7].forEach(i => { s.mine.tiles[i] = { t: 'o', o: 'copper', open: false }; }); });
+  await tap(0);
+
   // 8. 시간대
   s = await st();
   const used = (s.dayStart - s.minE) / s.max * 100;
@@ -130,13 +145,15 @@ const shot = process.argv[2];
   ok((await st()).screen === 'village', '마을로 돌아옴');
   s = await st();
   const value = { copper: 10, iron: 25, crystal: 60, moon: 150 };
-  const worth = Object.entries(s.inv).reduce((a, [o, n]) => a + n * value[o], 0);
+  const worth = Object.entries(s.inv).reduce((a, [o, n]) => a + n * value[o], 0), g0 = s.gold;
+  ok(s.quest === 3 && g0 === 20, '광석 5개를 캐면 보상 🪙20과 함께 「상인에게 광석 팔기」로');
   ok(worth > 0, `가방에 광석 있음 (🪙${worth}어치)`);
   await visit('merchant', '#sheet [data-a="sellAll"]');
   if (shot) await page.screenshot({ path: path.join(shot, 'merchant.png') });
   await page.click('#sheet [data-a="sellAll"]');
   s = await st();
-  ok(s.gold === worth && Object.values(s.inv).every(n => n === 0), '전부 팔아 돈이 정확히 들어옴');
+  ok(s.gold === g0 + worth + 20 && Object.values(s.inv).every(n => n === 0), '전부 팔아 돈이 정확히 들어옴 (퀘스트 보상 🪙20 포함)');
+  ok(s.quest === 4, '팔고 나면 퀘스트 「집에서 자기」');
 
   // 10. 집에서 자기
   const day = s.day, late = await page.evaluate(() => window.MinerDiary.phaseIndex()) === 3;
@@ -144,6 +161,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="sleep"]');
   s = await st();
   ok(s.day === day + 1 && s.energy === (late ? 90 : 100) && s.minE === s.energy, `자고 나서 ${s.day}일차 기력 ${s.energy}`);
+  ok((s.quest === 6 || (s.quest === 7 && s.gold >= 500)) && (await quest()).includes('대장간 복구비'), '자고 나면 이미 간 3층은 바로 끝나고 「대장간 복구비 모으기」 (돈이 500 이상이면 그것도 끝)');
 
   // 11. 쓰러짐
   await visit('mine', '#sheet [data-a="enter"]');
@@ -177,6 +195,7 @@ const shot = process.argv[2];
   ok((await page.textContent('#sheet')).includes('곡괭이 강화'), '부서진 대장간 팻말');
 
   // 14. 화면 밖으로 끌어도 계속 움직이고, 말풍선으로 돌아옴
+  await page.click('#sheet [data-a="close"]');
   await page.waitForTimeout(1500);   // 카메라가 광부를 따라가다 멈출 때까지
   const f0 = await page.evaluate(() => [cam.fx, cam.fy]);
   await page.mouse.move(200, 300); await page.mouse.down(); await page.mouse.move(200, 650, { steps: 6 }); await page.mouse.move(200, 1100, { steps: 6 }); await page.mouse.up();
