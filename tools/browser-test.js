@@ -36,6 +36,7 @@ const shot = process.argv[2];
   const { st, tap, visit, nearRock } = helpers(page);
   await page.evaluate(() => window.MinerDiary.speed(10));
 
+  ok(await page.locator('#loading').isHidden() && await page.evaluate(() => document.fonts.check('16px Jua', '광부')), '둥근 글꼴을 읽은 뒤 로딩 화면이 사라짐');
   // 1. 퀘스트를 따라 촌장 만나기
   const quest = () => page.evaluate(() => document.querySelector('.quest').innerText.replace(/\s+/g, ' ').trim());
   ok(await page.locator('#sheet').isHidden() && (await quest()).includes('촌장 만나기'), '시작하면 첫 퀘스트 「촌장 만나기」가 보임');
