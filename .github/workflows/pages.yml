@@ -32,7 +32,6 @@ jobs:
         run: |
           mkdir _site
           cp index.html _site/
-          cp -r assets _site/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
         with:
