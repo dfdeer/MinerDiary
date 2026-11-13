@@ -321,7 +321,7 @@ function faint() {
 }
 /* ===== 그림 파일 (아니마룬에서 가져온 에셋). 아직 안 읽혔으면 코드 그림으로 대신 그림 ===== */
 const IMG = {};
-['b_house', 'b_mine', 'b_smithy', 'b_kitchen', 'vl_empty', 'vm_dirt', 'vm_rock', 'vm_stair', 'tree_a', 'tree_b', 'tree_c', 'bush', 'flower', 'rock', 'bankstone', 'lily', 'reed', 'mush', 'bridge', 'worldtree', 'grass', 'path', 'water',
+['b_house', 'b_mine', 'b_smithy', 'b_kitchen', 'b_jewel', 'b_market', 'b_museum', 'vl_empty', 'vm_dirt', 'vm_rock', 'vm_stair', 'tree_a', 'tree_b', 'tree_c', 'bush', 'flower', 'rock', 'bankstone', 'lily', 'reed', 'mush', 'bridge', 'worldtree', 'grass', 'path', 'water',
   'ic_gold', 'ic_pick', 'ic_shop', 'ic_village', 'ic_lock', 'ic_hearth', 'ic_rest', 'ic_shard', 'ic_treasure'].forEach(n => { const im = new Image(); im.onload = () => { im.ok = true; PAT = {}; }; im.src = `assets/${n}.webp`; IMG[n] = im; });
 // 바닥 가운데 (cx, by)에 폭 w로 그림. 못 그리면 false
 function sprite(c, name, cx, by, w) { const im = IMG[name]; if (!im || !im.ok) return false; const h = w * im.naturalHeight / im.naturalWidth; c.drawImage(im, cx - w / 2, by - h, w, h); return true; }
@@ -588,12 +588,13 @@ function drawBuilding(c, o, night) {
     }
   }
 }
-const BUILD_IMG = { house: 'b_house', mine: 'b_mine', smithy: 'b_smithy', kitchen: 'b_kitchen' };
+const BUILD_IMG = { house: 'b_house', mine: 'b_mine', smithy: 'b_smithy', kitchen: 'b_kitchen', jewel: 'b_jewel', market: 'b_market', museum: 'b_museum' };
+const BUILD_W = { jewel: .8, market: 1.02, museum: 1.0 };   // 칸 폭 대비 그림 폭 (기본 .98)
 // 건물 그림: 차지한 칸 폭에 맞춰 앞쪽 모서리에 세움
 function buildingSprite(c, o, name, grow) {
   const z = hgt(o.gx, o.gy), ctr = iso(o.gx + o.w / 2, o.gy + o.d / 2, z), front = iso(o.gx + o.w, o.gy + o.d, z);
   // 빈 터 그림은 둥근 받침이 있어 조금 넓게, 새 건물 그림은 받침이 없어 칸 폭에 맞춤
-  const base = name === 'vl_empty', w = (o.w + o.d) * TW / 2 * (base ? 1.1 : .98) * (grow === undefined ? 1 : .6 + .4 * grow);
+  const base = name === 'vl_empty', w = (o.w + o.d) * TW / 2 * (base ? 1.1 : BUILD_W[o.kind] || .98) * (grow === undefined ? 1 : .6 + .4 * grow);
   if (!base) { const g = IMG[name]; if (g && g.ok) P(c, [iso(o.gx + .1, o.gy + o.d, z), iso(o.gx + o.w, o.gy + o.d, z), iso(o.gx + o.w, o.gy + .1, z), iso(o.gx + o.w + .35, o.gy + .45, z), iso(o.gx + o.w + .35, o.gy + o.d + .35, z), iso(o.gx + .45, o.gy + o.d + .35, z)], 'rgba(20,30,10,.22)'); }
   return sprite(c, name, ctr[0], front[1] + TH * (base ? .15 : .12), w);
 }
