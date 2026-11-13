@@ -126,22 +126,21 @@ for (let y = 18; y <= 22; y++) pave(16, y);             // 남쪽 길
 for (let y = 24; y <= 25; y++) pave(16, y);             // 강 건너
 for (let x = 17; x <= 22; x++) pave(x, 8);              // 언덕 가는 길
 for (let y = 3; y <= 8; y++) pave(23, y);
-[[14, 12], [15, 12], [20, 13], [20, 14], [12, 20], [12, 21], [13, 21], [14, 21], [15, 21], [11, 19], [20, 21], [19, 21], [18, 21], [17, 21], [24, 6], [25, 6]].forEach(([x, y]) => pave(x, y));
 // 건물: gx, gy는 뒤쪽 모서리, w×d는 차지하는 칸, door는 문 앞 칸
 const OBJ = [
   { id: 'house', gx: 12, gy: 18, w: 2, d: 2, stage: 0, kind: 'house', name: '낡은 집', icon: 'ic_village', door: [12, 20] },
-  { id: 'chief', gx: 17, gy: 14, w: 1, d: 1, stage: 0, kind: 'npc', name: '촌장', shirt: '#6a4d8c' },
+  { id: 'chief', gx: 14, gy: 13, w: 1, d: 1, stage: 0, kind: 'npc', name: '촌장', shirt: '#6a4d8c' },
   { id: 'merchant', gx: 18, gy: 13, w: 1, d: 1, stage: 0, kind: 'wagon', name: '떠돌이 상인' },
   { id: 'mine', gx: 27, gy: 18, w: 3, d: 3, stage: 0, kind: 'mine', name: '광산', icon: 'ic_pick', door: [28, 21] },
   { id: 'tree', gx: 16, gy: 16, w: 1, d: 1, stage: 0, kind: 'bigtree', name: '광장 큰 나무' },
-  { id: 'smithy', gx: 11, gy: 11, w: 3, d: 3, stage: 2, kind: 'smithy', name: '대장간', ruin: '부서진 대장간', icon: 'ic_hearth', sign: '고치면 제련과 곡괭이 강화', door: [14, 12] },
+  { id: 'smithy', gx: 10, gy: 7, w: 3, d: 3, stage: 2, kind: 'smithy', name: '대장간', ruin: '부서진 대장간', icon: 'ic_hearth', sign: '고치면 제련과 곡괭이 강화', door: [13, 8] },
   { id: 'bridge', gx: 16, gy: 23, w: 1, d: 1, stage: 4, kind: 'bridge', name: '강가 다리', ruin: '무너진 강가 다리', sign: '고치면 강 건너 밭과 낚시' },
   { id: 'field', gx: 9, gy: 26, w: 6, d: 4, stage: 5, kind: 'field', name: '밭', ruin: '거친 밭', sign: '일구면 농사' },
   { id: 'forest', gx: 4, gy: 16, w: 1, d: 1, stage: 6, kind: 'logs', name: '숲길', ruin: '막힌 숲길', sign: '치우면 채집' },
-  { id: 'kitchen', gx: 19, gy: 10, w: 3, d: 3, stage: 7, kind: 'kitchen', name: '식당', ruin: '닫힌 식당', icon: 'ic_rest', sign: '고치면 요리와 주민 의뢰', door: [20, 13] },
+  { id: 'kitchen', gx: 21, gy: 11, w: 3, d: 3, stage: 7, kind: 'kitchen', name: '식당', ruin: '닫힌 식당', icon: 'ic_rest', sign: '고치면 요리와 주민 의뢰', door: [22, 14] },
   { id: 'market', gx: 19, gy: 18, w: 4, d: 3, stage: 8, kind: 'market', name: '시장', ruin: '빈 시장 터', icon: 'ic_shop', sign: '고치면 매일 바뀌는 시세', door: [20, 21] },
   { id: 'gate', gx: 16, gy: -1, w: 1, d: 1, stage: 9, kind: 'gate', name: '성벽 문', ruin: '닫힌 성벽 문', sign: '고치면 성 밖 사냥터로' },
-  { id: 'jewel', gx: 9, gy: 19, w: 2, d: 2, stage: 10, kind: 'jewel', name: '세공소', ruin: '부서진 세공소', icon: 'ic_shard', sign: '고치면 보석 세공', door: [11, 19] },
+  { id: 'jewel', gx: 8, gy: 12, w: 2, d: 2, stage: 10, kind: 'jewel', name: '세공소', ruin: '부서진 세공소', icon: 'ic_shard', sign: '고치면 보석 세공', door: [10, 12] },
   { id: 'museum', gx: 24, gy: 2, w: 4, d: 4, stage: 12, kind: 'museum', name: '박물관', ruin: '무너진 박물관', icon: 'ic_treasure', sign: '고치면 도감과 기증', door: [25, 6] },
 ];
 OBJ.forEach(o => { o.done = o.stage === 0; o.grow = o.done ? 1 : 0; });
@@ -152,7 +151,21 @@ const inField = (x, y) => inside(field, x, y);
 // 나무: 서쪽 숲은 빽빽하게, 나머지는 드문드문 (길, 건물과 그 둘레, 광장 둘레, 밭은 비움)
 const nearObj = (x, y) => OBJ.some(o => x >= o.gx - 1 && x <= o.gx + o.w && y >= o.gy - 1 && y <= o.gy + o.d);
 // 소품 (장식, 지나갈 수 없음)
-const PROPS = [[14, 15, 'bench'], [18, 17, 'bench'], [22, 13, 'barrel'], [14, 14, 'well'], [15, 26, 'hay'], [8, 25, 'hay'], [26, 22, 'barrel']];
+// 문 앞에서 가장 가까운 길까지 길을 이어 깖 (건물을 옮겨도 길이 따라옴)
+OBJ.forEach(o => {
+  if (!o.door) return;
+  const key = (x, y) => x + ',' + y, prev = new Map([[key(...o.door), null]]), q = [o.door];
+  while (q.length) {
+    const [x, y] = q.shift();
+    if (PAVED.has(key(x, y))) { let k = key(x, y); while (k) { PAVED.add(k); k = prev.get(k); } return; }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy, k = key(nx, ny);
+      if (prev.has(k) || nx < 0 || ny < 0 || nx >= N || ny >= N || isWater(nx, ny) || objAt(nx, ny) || Math.abs(hgt(nx, ny) - hgt(x, y)) > 1) continue;
+      prev.set(k, key(x, y)); q.push([nx, ny]);
+    }
+  }
+});
+const PROPS = [[14, 15, 'bench'], [18, 17, 'bench'], [24, 15, 'barrel'], [11, 15, 'well'], [15, 26, 'hay'], [8, 25, 'hay'], [26, 22, 'barrel']];
 const propAtXY = (x, y) => PROPS.some(([a, b]) => a === x && b === y);
 const DECO_TREES = [];
 for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) {
