@@ -571,14 +571,16 @@ function chibi(c, X, Y, s, o) {
   // 다리: p는 걸음 박자. 발은 F 쪽으로 나갔다 들어오고, 앞으로 옮기는 동안 들림
   const leg = (side, p) => {
     const st = Math.sin(p) * mv, lift = mv ? Math.max(0, Math.cos(p)) * 6 : 0;
-    const hx = side * 6.5, hy = -25, ax = side * 6.5 + Fx * st * 10, ay = -7 + bob + Fy * st * 6 - lift;
+    const hx = side * (side === far ? 5 : 7), hy = -25, ax = hx + Fx * st * 10, ay = -7 + bob + Fy * st * 6 - lift;
     const [kx, ky] = ik(hx, hy, ax, ay, 10.5, 10.5, Fx, -.15);
     limb(c, hx, hy, kx, ky, L.legs, 11); limb(c, kx, ky, ax, ay, L.legs, 10);
     shape(c, () => c.ellipse(ax + Fx * 3, ay + 3.5, 8.5, 6, 0, 0, 7), L.boot, 3);
   };
-  // 앞뒤 순서: 얼굴이 보이면 앞으로 내딛은 쪽이 보는 사람 쪽(나중에 그림), 등이 보이면 반대
-  const near = st => (back ? -1 : 1) * Math.sin(st) * mv;
-  const legs = [[leftSide, ph], [-leftSide, ph + Math.PI]].sort((a, b) => near(a[1]) - near(b[1]) || (a[0] === far ? -1 : 1));
+  // 그리는 순서는 걷는 중에도 바뀌지 않음 (뒤에서 앞으로):
+  // 얼굴이 보일 때: 짐, 곡괭이 자루, 먼 팔(쥔 손이 먼 쪽이면 그 손도), 먼 다리, 가까운 다리, 몸, 가까운 팔, 곡괭이 쥔 손, 머리, 모자
+  // 등이 보일 때: 먼 팔, 먼 다리, 가까운 다리, 몸, 짐, 가까운 팔, 곡괭이와 쥔 손, 머리, 모자
+  // 먼 쪽: 몸이 돌아간 쪽 (얼굴이 오른쪽 아래를 보면 화면 오른쪽, 등이 오른쪽 위를 보면 화면 왼쪽). 먼 쪽 팔다리는 몸 안쪽으로 조금 붙임
+  const legs = [[leftSide, ph], [-leftSide, ph + Math.PI]].sort((a, b) => (a[0] === far ? -1 : 1));
   const pack = () => { shape(c, () => c.roundRect(-fx * 3 - 15, -60, 30, 30, 9), '#9a6638'); shape(c, () => c.roundRect(-fx * 3 - 15, -60, 30, 9, 5), '#b47a44', 2.5); };
   if (L.pack && !back) pack();
   // 곡괭이 (얼굴이 보이면 몸 뒤에 그림)
@@ -603,14 +605,15 @@ function chibi(c, X, Y, s, o) {
   // 팔: 반대쪽 다리와 함께 앞뒤로 흔들림. 곡괭이나 지팡이가 있으면 오른손이 쥠
   const arm = (side, p, hold) => {
     if (hold) return;
-    const st = Math.sin(p) * mv, sx = side * 15, sy = -49, hx = side * 18 + Fx * st * 8, hy = -32 + Fy * st * 5;
+    const inn = side === far ? .8 : 1, st = Math.sin(p) * mv, sx = side * 15 * inn, sy = -49, hx = side * 18 * inn + Fx * st * 8, hy = -32 + Fy * st * 5;
     const [ex, ey] = ik(sx, sy, hx, hy, 9, 9, -Fx + side * .3, .2);
     limb(c, sx, sy, ex, ey, L.sleeve, 9); limb(c, ex, ey, hx, hy, L.sleeve, 8.5);
     shape(c, () => c.arc(hx, hy, 6.5, 0, 7), L.glove, 3);
   };
-  legs.forEach(([side, f]) => leg(side, f));
   const arms = [[-rs, ph + Math.PI, false], [rs, ph, !!L.pick || !!L.cane]];
-  arms.forEach(([side, p2, hold]) => { if (near(p2) < -.2) arm(side, p2, hold); });
+  arms.forEach(([side, p2, hold]) => { if (side === far) arm(side, p2, hold); });
+  if (L.pick && !back && rs === far) gripArm();   // 곡괭이 쥔 손이 먼 쪽이면 몸 뒤
+  legs.forEach(([side, f]) => leg(side, f));
   // 몸: 둥근 통
   if (L.robe) shape(c, () => { c.moveTo(-14, -56); c.quadraticCurveTo(0, -60, 14, -56); c.quadraticCurveTo(21, -34, 19, -14); c.quadraticCurveTo(0, -9, -19, -14); c.quadraticCurveTo(-21, -34, -14, -56); }, L.body);
   else shape(c, () => c.roundRect(-16, -56, 32, 34, 12), L.body);
@@ -627,8 +630,9 @@ function chibi(c, X, Y, s, o) {
   } else if (L.helmet) { LN(c, -10, -55, 10, -32, L.bodyDk, 3.5); LN(c, 10, -55, -10, -32, L.bodyDk, 3.5); }
   if (!L.robe) { R(c, -16, -28, 32, 4.5, '#6b4424'); if (!back) shape(c, () => c.roundRect(fx * 3 - 4, -29.5, 8, 7, 2), '#e8b830', 2); }
   if (L.pack && back) pack();
-  arms.sort((a, b) => near(a[1]) - near(b[1])).forEach(([side, p2, hold]) => { if (near(p2) >= -.2) arm(side, p2, hold); });
-  if (L.pick && !back) gripArm();
+  arms.forEach(([side, p2, hold]) => { if (side !== far) arm(side, p2, hold); });
+  if (L.pick && !back && rs !== far) gripArm();
+  if (L.pick && back) pickaxe();   // 등이 보이면 곡괭이는 등 위, 머리보다는 뒤
   if (L.cane) { limb(c, rs * 22, -36, rs * 25, -1, '#8a5a32', 4); shape(c, () => c.arc(rs * 22, -38, 7, Math.PI, 0), '#8a5a32', 3); limb(c, rs * 15, -49, rs * 21, -36, L.sleeve, 9); shape(c, () => c.arc(rs * 21, -36, 6.5, 0, 7), L.glove, 3); }
   // 머리
   const hx = fx * 1.5, hy = -78;
@@ -655,7 +659,6 @@ function chibi(c, X, Y, s, o) {
     shape(c, () => c.roundRect(hx - 16, hy - 19, 32, 6, 2), '#c0483a', 2);
     shape(c, () => c.ellipse(hx, hy - 11, 33, 7.5, 0, 0, 7), L.hat);
   } else if (L.beard && back) { /* 뒷모습 흰머리는 머리색으로 이미 그림 */ }
-  if (L.pick && back) pickaxe();
   c.restore();
 }
 // 예전 호출 모양을 그대로 받음: helmet이면 광부, beard면 촌장, 나머지는 상인
