@@ -297,7 +297,7 @@ function load() {
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* 무시 */ } }
 
 let phase = 0, scene = 'village';
-const hero = { x: HOME[0], y: HOME[1], path: [], walk: 0, target: null, speed: 5.2 };
+const hero = { x: HOME[0], y: HOME[1], path: [], walk: 0, target: null, speed: 5.2, fx: 1, back: false };
 let follow = true;   // 카메라가 광부를 따라감 (끌어서 둘러보면 잠시 멈춤)
 let cam = { s: 1, fx: 0, fy: 0, t: 1, from: null, to: null, done: null };
 let selected = null, fade = 0, dust = [], tnow = 0;
@@ -341,7 +341,7 @@ function faint() {
 }
 /* ===== 그림 파일. 모두 읽힌 뒤에 게임을 시작함 (읽는 동안은 로딩 화면) ===== */
 const IMG = {};
-const IMG_NAMES = ['b_house', 'b_mine', 'b_smithy', 'b_kitchen', 'b_jewel', 'b_market', 'b_museum', 'p_miner_f0', 'p_miner_f1', 'p_miner_f2', 'p_miner_b0', 'p_miner_b1', 'p_miner_b2', 'vl_empty', 'vm_dirt', 'vm_rock', 'vm_stair', 'tree_a', 'tree_b', 'tree_c', 'bush', 'flower', 'rock', 'bankstone', 'lily', 'reed', 'mush', 'bridge', 'worldtree', 'grass', 'path', 'water',
+const IMG_NAMES = ['b_house', 'b_mine', 'b_smithy', 'b_kitchen', 'b_jewel', 'b_market', 'b_museum', 'vl_empty', 'vm_dirt', 'vm_rock', 'vm_stair', 'tree_a', 'tree_b', 'tree_c', 'bush', 'flower', 'rock', 'bankstone', 'lily', 'reed', 'mush', 'bridge', 'worldtree', 'grass', 'path', 'water',
   'ic_gold', 'ic_pick', 'ic_shop', 'ic_village', 'ic_lock', 'ic_hearth', 'ic_rest', 'ic_shard', 'ic_treasure', 'ic_bag', 'ic_settings', 'ic_check', 'ic_warn', 'ic_sound', 'ic_mute'];
 function loadImages(onProgress) {
   let done = 0;
@@ -417,32 +417,111 @@ function prism(c, x, y, w, d, z0, h, top, left, right) {
   P(c, [cc, b, iso(x + w, y, z0), iso(x + w, y + d, z0)], right);
   P(c, [a, b, cc, e], top);
 }
-// 광부 그림: 앞모습(f, 오른쪽 아래를 봄)과 뒷모습(b, 왼쪽 위를 봄). 0은 서기, 1과 2는 걸음. 나머지 두 방향은 좌우를 뒤집음.
-// 모든 장면은 560×560 판에서 헬멧 크기와 위치를 맞춰 둠(머리가 흔들리지 않게). MINER_ANCHOR는 판 안의 발 위치
-const MINER_ANCHOR = { f: [299, 369], b: [272, 450] }, MINER_TOP = 36;
-function minerSprite(c, a, b, s, bob, pick) {
-  const inMine = scene === 'mine', walking = !inMine && hero.path.length > 0;
-  const k = !inMine && hero.back ? 'b' : 'f';
-  // 걸음 네 박자: 한 발, 모음, 다른 발, 모음
-  const beat = Math.floor(hero.walk / 2.4) % 4, im = IMG['p_miner_' + k + (walking ? [1, 0, 2, 0][beat] : 0)];
-  const [ax, ay] = MINER_ANCHOR[k], z = s * 37 / (ay - MINER_TOP);   // 키: 칸 폭의 약 0.84배
-  E(c, a, b, s * 8, s * 2.6, 'rgba(0,0,0,.25)');
-  c.save(); c.translate(a, b + s * 2 - (walking && beat % 2 ? s * 1.6 : 0));
-  if (!inMine && hero.flip) c.scale(-1, 1);
-  if (typeof pick === 'number') c.rotate(pick * .22);
-  c.drawImage(im, -ax * z, -ay * z, 560 * z, 560 * z); c.restore();
-  return true;
+/* ===== 사람 (코드 그림). 건물 그림에 맞춰 굵은 외곽선, 큰 머리, 밝은 색 =====
+   단위: 발밑이 (0, 0), 키가 약 100. fx는 화면에서 보는 방향(1 오른쪽, -1 왼쪽), back은 등을 보임.
+   곡괭이는 늘 몸 기준 오른손: 얼굴이 보이면 화면 왼쪽, 등이 보이면 화면 오른쪽에 있음 (좌우 뒤집지 않음) */
+const OUT = '#2b1a12';
+const LOOKS = {
+  miner:    { skin: '#f4cfa6', hair: '#7a4026', shirt: '#f3ede2', body: '#2f6fd6', bodyDk: '#2457b0', legs: '#2f6fd6', legsDk: '#2457b0', glove: '#7a4a2a', boot: '#6e4024', helmet: true, pick: true },
+  chief:    { skin: '#f1cba3', hair: '#ebe6dc', shirt: '#f3ede2', body: '#6a4d8c', bodyDk: '#523a6e', legs: '#4a3a52', legsDk: '#3a2d42', glove: '#f1cba3', boot: '#5a3a22', beard: true, robe: true, cane: true },
+  merchant: { skin: '#f0c9a0', hair: '#5a3a22', shirt: '#efe2c8', body: '#3f7a5a', bodyDk: '#2f6046', legs: '#5a4636', legsDk: '#463628', glove: '#f0c9a0', boot: '#5a3a22', hat: '#7a5230', pack: true },
+};
+function shape(c, draw, fill, lw = 3) { c.beginPath(); draw(); c.fillStyle = fill; c.fill(); c.lineWidth = lw; c.strokeStyle = OUT; c.stroke(); }
+function limb(c, x0, y0, x1, y1, col, w) { c.lineCap = 'round'; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.strokeStyle = OUT; c.lineWidth = w + 5; c.stroke(); c.strokeStyle = col; c.lineWidth = w; c.stroke(); }
+// o: { who, fx, back, phase(걸음 박자), moving, swing(0~1, 곡괭이질 진행) }
+function chibi(c, X, Y, s, o) {
+  const L = LOOKS[o.who], fx = o.fx || 1, back = !!o.back, mv = o.moving ? 1 : 0;
+  const sw = Math.sin(o.phase || 0) * mv, bob = mv ? Math.abs(Math.cos(o.phase || 0)) * 3 : 0;
+  const k = s * .37;
+  c.save(); c.translate(X, Y); c.scale(k, k); c.lineJoin = 'round';
+  E(c, 0, 0, 21, 7, 'rgba(0,0,0,.22)');
+  c.translate(0, -bob);
+  const leftSide = back ? -1 : 1, rs = back ? 1 : -1;      // 몸 기준 왼쪽과 오른쪽이 화면에서 놓이는 쪽
+  // 다리 (멀리 있는 다리 먼저). f: 1이면 앞으로 내딛음, -1이면 뒤로 빼고 뒤꿈치를 듦
+  const leg = (side, f) => {
+    const hx = side * 8, fxo = f * fx * 13, fyo = f * (back ? -5 : 5), lift = Math.max(0, -f) * 6;
+    const footX = hx + fxo, footY = -4 + fyo - lift;
+    limb(c, hx, -30, footX, footY - 3, L.legs, 10);
+    shape(c, () => c.ellipse(footX + fx * 2.5, footY, 8, 5.5, 0, 0, 7), L.boot, 2.5);
+  };
+  const legs = [[leftSide, sw], [-leftSide, -sw]].sort((a, b) => (a[0] === (back ? fx : -fx) ? -1 : 1));
+  if (L.pack) shape(c, () => c.roundRect(-fx * 4 - 14, -66, 28, 32, 7), '#8a5a32');
+  // 곡괭이 (얼굴이 보이면 몸 뒤에 그림)
+  const swing = o.swing || 0, t = 1 - swing;
+  const ang = swing > 0 ? (t < .3 ? -.55 * t / .3 : -.55 + 3.1 * (t - .3) / .7) * -rs : 0;
+  const pickaxe = () => {
+    c.save(); c.translate(rs * 17, -54); c.rotate(ang); c.translate(-rs * 17, 54);
+    limb(c, rs * 6, -34, rs * 24, -92, '#9a6232', 5);
+    c.lineCap = 'round'; c.beginPath(); c.moveTo(rs * 6, -99); c.quadraticCurveTo(rs * 28, -106, rs * 44, -80);
+    c.strokeStyle = OUT; c.lineWidth = 11; c.stroke(); c.strokeStyle = '#a7b0ba'; c.lineWidth = 6; c.stroke();
+    c.beginPath(); c.moveTo(rs * 12, -100); c.quadraticCurveTo(rs * 28, -104, rs * 38, -88); c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 2; c.stroke();
+    if (back) shape(c, () => c.arc(rs * 13, -46, 6.5, 0, 7), L.glove, 2.5);
+    c.restore();
+  };
+  // 얼굴이 보일 때 곡괭이를 쥔 팔과 손은 몸 앞에 그림
+  const gripArm = () => {
+    c.save(); c.translate(rs * 17, -54); c.rotate(ang); c.translate(-rs * 17, 54);
+    limb(c, rs * 17, -53, rs * 13, -46, L.shirt, 6);
+    shape(c, () => c.arc(rs * 13, -46, 6.5, 0, 7), L.glove, 2.5);
+    c.restore();
+  };
+  if (L.pick && !back) pickaxe();
+  legs.forEach(([side, f]) => leg(side, f));
+  // 몸
+  if (L.robe) shape(c, () => { c.moveTo(-15, -60); c.lineTo(15, -60); c.lineTo(20, -16); c.quadraticCurveTo(0, -11, -20, -16); c.closePath(); }, L.body);
+  else shape(c, () => c.roundRect(-16, -60, 32, 32, 10), L.body);
+  if (!back && !L.robe) {
+    if (L.helmet) { shape(c, () => c.roundRect(-9, -61, 18, 9, 3), L.shirt, 2); R(c, -11, -60, 3, 22, L.bodyDk); R(c, 8, -60, 3, 22, L.bodyDk); Cc(c, -9.5, -52, 2.6, '#f2c230'); Cc(c, 9.5, -52, 2.6, '#f2c230'); }
+    else { shape(c, () => c.roundRect(-7, -60, 14, 30, 3), L.shirt, 2); }
+  }
+  if (L.robe) R(c, -3, -58, 6, 40, L.bodyDk);
+  else { R(c, -16, -35, 32, 5, '#6b4424'); shape(c, () => c.roundRect(fx * 3 - 4, -36.5, 8, 8, 2), '#e8b830', 2); }
+  if (back && L.helmet) { limb(c, -12, -58, 12, -32, L.bodyDk, 3); limb(c, 12, -58, -12, -32, L.bodyDk, 3); }
+  // 팔: 왼팔은 다리와 반대로 흔들고, 오른팔은 곡괭이를 쥠 (곡괭이가 없으면 왼팔과 반대로)
+  const arm = (side, swingAmt, hold) => {
+    Cc(c, side * 17, -54, 7, OUT); Cc(c, side * 17, -54, 5.5, L.shirt);
+    if (hold) return;
+    const hx = side * 19 - swingAmt * fx * 7, hy = -38;
+    limb(c, side * 17, -53, hx, hy, L.robe ? L.body : L.shirt, 6);
+    shape(c, () => c.arc(hx, hy, 6, 0, 7), L.glove, 2.5);
+  };
+  arm(-rs, -sw, false);
+  arm(rs, sw, !!L.pick);
+  if (L.pick && !back) gripArm();
+  if (L.cane) { limb(c, rs * 22, -40, rs * 26, -2, '#7a5230', 3.5); shape(c, () => c.arc(rs * 21, -40, 5.5, 0, 7), L.glove, 2.5); }
+  // 머리
+  const hx = fx * 1.5;
+  shape(c, () => c.arc(hx, -80, 22, 0, 7), back ? L.hair : L.skin);
+  if (!back) {
+    if (!L.helmet && !L.hat && L.beard) { shape(c, () => c.arc(hx, -88, 18, Math.PI * 1.05, Math.PI * 1.95), L.hair, 2); }
+    shape(c, () => { c.moveTo(hx - 21, -86); c.quadraticCurveTo(hx - 24, -72, hx - 17, -70); c.lineTo(hx - 14, -84); c.closePath(); }, L.hair, 2);
+    shape(c, () => { c.moveTo(hx + 21, -86); c.quadraticCurveTo(hx + 24, -72, hx + 17, -70); c.lineTo(hx + 14, -84); c.closePath(); }, L.hair, 2);
+    const ex = hx + fx * 5;
+    for (const d of [-7.5, 7.5]) { E(c, ex + d, -76, 3, 4.6, OUT); Cc(c, ex + d - .8, -77.6, 1.2, '#fff'); }
+    E(c, ex - 12, -69, 3.5, 2, 'rgba(240,120,110,.45)'); E(c, ex + 12, -69, 3.5, 2, 'rgba(240,120,110,.45)');
+    if (L.beard) shape(c, () => { c.moveTo(ex - 13, -70); c.quadraticCurveTo(ex, -48, ex + 13, -70); c.quadraticCurveTo(ex, -64, ex - 13, -70); }, L.hair, 2.5);
+    else { c.beginPath(); c.moveTo(ex - 2.5, -66.5); c.lineTo(ex + 2.5, -66.5); c.strokeStyle = OUT; c.lineWidth = 2; c.stroke(); }
+  }
+  if (L.helmet) {
+    shape(c, () => { c.arc(hx, -86, 25, Math.PI, 0); c.closePath(); }, '#f5c330');
+    E(c, hx - 9, -100, 7, 4, 'rgba(255,255,255,.4)');
+    R(c, hx - 24, -92, 48, 4.5, '#5a5e66');
+    shape(c, () => c.ellipse(hx, -86, 30, 6, 0, 0, 7), '#e7ad24', 2.5);
+    if (!back) { shape(c, () => c.arc(hx + fx * 13, -93, 7, 0, 7), '#6b6f78', 2.5); Cc(c, hx + fx * 13, -93, 4.4, '#fff3b0'); }
+  } else if (L.hat) {
+    shape(c, () => c.ellipse(hx, -91, 31, 7, 0, 0, 7), L.hat);
+    shape(c, () => { c.moveTo(hx - 16, -92); c.lineTo(hx - 13, -110); c.quadraticCurveTo(hx, -114, hx + 13, -110); c.lineTo(hx + 16, -92); c.closePath(); }, L.hat);
+    R(c, hx - 15, -97, 30, 4, '#c0483a');
+  } else if (back && L.beard) shape(c, () => c.arc(hx, -88, 18, Math.PI * 1.05, Math.PI * 1.95), L.hair, 2);
+  if (L.pick && back) pickaxe();
+  c.restore();
 }
+// 예전 호출 모양을 그대로 받음: helmet이면 광부, beard면 촌장, 나머지는 상인
 function person(c, a, b, s, shirt, helmet, bob, pick, beard) {
-  if (helmet && minerSprite(c, a, b, s, bob, pick)) return;
-  const y = b - (bob || 0) * s;
-  E(c, a, b, 6 * s, 2 * s, 'rgba(0,0,0,.25)');
-  R(c, a - 3 * s, y - 10 * s, 2.6 * s, 10 * s, '#2c3b55'); R(c, a + .4 * s, y - 10 * s, 2.6 * s, 10 * s, '#2c3b55');
-  c.fillStyle = shirt; c.beginPath(); c.roundRect(a - 5 * s, y - 21 * s, 10 * s, 12 * s, 3 * s); c.fill();
-  Cc(c, a, y - 25 * s, 4.6 * s, '#f0c79c');
-  if (beard) P(c, [[a - 3 * s, y - 24 * s], [a + 3 * s, y - 24 * s], [a, y - 18 * s]], '#eeeae2');
-  if (helmet) { c.beginPath(); c.arc(a, y - 26 * s, 5.3 * s, Math.PI, 0); c.fillStyle = '#f2c230'; c.fill(); Cc(c, a + 4 * s, y - 28 * s, 1.4 * s, '#fff6c2'); }
-  if (pick !== false && pick != null) { c.save(); c.translate(a + 4 * s, y - 16 * s); c.rotate(-.5 + pick); L(c, 0, 0, 0, -12 * s, '#8b5e34', 2 * s); L(c, -5 * s, -12 * s, 5 * s, -13 * s, '#aab3bb', 2.4 * s); c.restore(); }
+  if (helmet) {
+    const inMine = scene === 'mine';
+    chibi(c, a, b, s, { who: 'miner', fx: inMine ? 1 : hero.fx, back: !inMine && hero.back, phase: hero.walk * .55, moving: !inMine && hero.path.length > 0, swing: inMine ? mswing : 0 });
+  } else chibi(c, a, b, s * 1.05, { who: beard ? 'chief' : 'merchant', fx: -1, back: false });
 }
 // 면 하나 (왼쪽 앞면: y 고정, 오른쪽 앞면: x 고정)
 function faceL(c, x0, x1, y, z0, z1, col) { P(c, [iso(x0, y, z0), iso(x1, y, z0), iso(x1, y, z1), iso(x0, y, z1)], col); }
@@ -812,7 +891,7 @@ function walkStep(dt) {
   if (!hero.path.length) return;
   const [tx, ty] = hero.path[0];
   const dx = tx - hero.x, dy = ty - hero.y, d = Math.hypot(dx, dy), st = dt * hero.speed;
-  if (d > .001) { hero.back = dx + dy < 0; hero.flip = hero.back ? dx - dy > 0 : dx - dy < 0; }
+  if (d > .001) { hero.back = dx + dy < 0; if (Math.abs(dx - dy) > .01) hero.fx = dx - dy > 0 ? 1 : -1; }
   hero.walk += dt * 14;
   if (d <= st) { hero.x = tx; hero.y = ty; hero.path.shift(); if (!hero.path.length && hero.target) { const o = hero.target; hero.target = null; arrive(o); } }
   else { hero.x += dx / d * st; hero.y += dy / d * st; }
