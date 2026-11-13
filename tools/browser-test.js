@@ -16,7 +16,7 @@ const shot = process.argv[2];
     page.on('console', m => { if (m.type() === 'error') errors.push(`[${w}] console: ${m.text()}`); });
     await page.goto(url);
     await page.evaluate(() => localStorage.clear());
-    await page.reload();
+    await page.reload(); await page.waitForFunction(() => window.MinerDiary && window.MinerDiary.ready, null, { timeout: 15000 });
     await page.waitForTimeout(500);
     return page;
   }
@@ -34,6 +34,7 @@ const shot = process.argv[2];
   const { st, tap, visit, canList } = helpers(page);
   await page.evaluate(() => window.MinerDiary.speed(10));
 
+  ok(await page.locator('#loading').isHidden(), '그림을 다 읽으면 로딩 화면이 사라짐');
   // 1. 퀘스트를 따라 촌장 만나기
   const quest = () => page.evaluate(() => document.querySelector('.quest').innerText.replace(/\s+/g, ' ').trim());
   ok(await page.locator('#sheet').isHidden() && (await quest()).includes('촌장 만나기'), '시작하면 첫 퀘스트 「촌장 만나기」가 보임');
@@ -198,7 +199,7 @@ const shot = process.argv[2];
   if (shot) await page.screenshot({ path: path.join(shot, 'faint.png') });
 
   // 12. 저장
-  await page.reload(); await page.waitForTimeout(400);
+  await page.reload(); await page.waitForFunction(() => window.MinerDiary && window.MinerDiary.ready, null, { timeout: 15000 }); await page.waitForTimeout(400);
   ok((await st()).day === s.day, '새로고침 후에도 날짜 유지');
 
   // 13. 대장간 팻말
