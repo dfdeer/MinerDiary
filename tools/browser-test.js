@@ -23,15 +23,17 @@ const shot = process.argv[2];
   const helpers = page => ({
     st: () => page.evaluate(() => JSON.parse(JSON.stringify(window.MinerDiary.state()))),
     // 캔버스 위 칸 누르기
-    tap: async i => { const p = await page.evaluate(i => window.MinerDiary.tilePoint(i), i); await page.mouse.click(p.x, p.y); },
+    // 광산 칸을 화면 가운데로 옮겨 누르고, 광부가 멈출 때까지 기다림
+    tap: async (x, y) => { const p = await page.evaluate(([x, y]) => window.MinerDiary.cellSpot(x, y), [x, y]); await page.mouse.click(p.x, p.y); await page.waitForTimeout(60); await page.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 15000 }); await page.waitForTimeout(40); },
     // 건물이나 사람을 화면 가운데로 옮겨 누르고, 광부가 걸어가서 아래 판이 바뀔 때까지 기다림
     visit: async (id, sel) => { if (await page.locator('#sheet [data-a="close"]').isVisible()) await page.click('#sheet [data-a="close"]'); const p = await page.evaluate(id => window.MinerDiary.spotPoint(id), id); await page.mouse.click(p.x, p.y); await page.waitForSelector(sel, { timeout: 15000 }); },
-    canList: () => page.evaluate(() => { const m = window.MinerDiary, s = m.state(); return s.mine.tiles.map((t, i) => i).filter(i => m.canDig(i)); }),
+    // 광부에게서 가까운, 본 적 있는 캘 수 있는 바위 (광석 있는 것 먼저 고를 수 있음)
+    nearRock: oreFirst => page.evaluate(of => { const m = window.MinerDiary.state().mine, h = window.MinerDiary.hero(); let best = null, bd = 1e9; for (let i = 0; i < m.t.length; i++) { if (!m.seen[i] || (m.t[i] !== 'r' && m.t[i] !== 'b')) continue; const x = i % m.w, y = Math.floor(i / m.w); if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const j = (y + dy) * m.w + x + dx; return m.seen[j] && 'fud'.includes(m.t[j]) && !m.hid[j]; })) continue; const d = Math.abs(x - h.x) + Math.abs(y - h.y) - (of && m.o[i] ? 100 : 0); if (d < bd) { bd = d; best = [x, y]; } } return best; }, oreFirst),
   });
 
   /* ===== 폰 크기 ===== */
   const page = await open(390, 844);
-  const { st, tap, visit, canList } = helpers(page);
+  const { st, tap, visit, nearRock } = helpers(page);
   await page.evaluate(() => window.MinerDiary.speed(10));
 
   // 1. 퀘스트를 따라 촌장 만나기
@@ -83,6 +85,7 @@ const shot = process.argv[2];
   const h1 = await page.evaluate(() => [hero.x, hero.y, cam.fx, hero.path.length]);
   ok(h0[0] === h1[0] && h0[1] === h1[1] && h0[2] === h1[2] && h1[3] === 0 && await page.locator('#sheet').isVisible(), '대화창이 열린 동안엔 걷기와 끌기가 막힘');
 
+  let s0;
   // 4. 광산 입장
   await visit('mine', '#sheet [data-a="enter"]');
   await page.click('#sheet [data-a="enter"][data-n="1"]');
@@ -90,61 +93,62 @@ const shot = process.argv[2];
   await page.waitForTimeout(300);
   ok((await st()).screen === 'mine', '광산 1층 입장');
   ok((await quest()).includes('광석 캐기'), '광산에 들어가면 퀘스트 「광석 캐기」');
-  ok((await canList()).length === 7, '처음엔 맨 윗줄 7칸만 캘 수 있음');
-  const e0 = (await st()).energy;
-  await tap(45);
-  ok((await st()).energy === e0, '닿지 않은 칸은 못 캐고 기력 그대로');
+  s0 = await st();
+  ok(s0.mine.hid.every((h, i) => !h || !s0.mine.seen[i]), '숨은 방은 처음엔 안 보임');
+  ok(s0.mine.seen.filter(Boolean).length < s0.mine.t.length / 3, '등불이 닿는 곳만 보임');
+  const e0 = s0.energy, edge = s0.mine.t.findIndex((t, i) => t === 'e' && s0.mine.seen[i]);
+  await tap(edge % s0.mine.w, Math.floor(edge / s0.mine.w));
+  ok((await st()).energy === e0, '끝 벽은 못 캐고 기력 그대로');
 
-  // 5. 계단을 찾아 5층까지
-  async function digUntilStairs() {
-    for (let k = 0; k < 60; k++) {
-      const s = await st();
-      if (s.screen !== 'mine') return false;
-      if (s.mine.tiles.some(t => t.t === 'x' && t.open)) return true;
-      const target = s.mine.tiles.findIndex(t => t.t === 'x');
-      const can = await canList();
-      const dist = i => Math.abs(i % 7 - target % 7) + Math.abs(((i / 7) | 0) - ((target / 7) | 0));
-      can.sort((a, b) => dist(a) - dist(b));
-      await tap(can[0]);
-    }
-    return false;
-  }
-  for (let f = 1; f < 5; f++) {
-    ok(await digUntilStairs(), `${f}층 계단 발견`);
-    if (f === 1 && shot) await page.screenshot({ path: path.join(shot, 'mine.png') });
-    await page.click('[data-a="descend"]');
-    await page.waitForTimeout(100);
-    ok((await st()).mine.floor === f + 1, `${f + 1}층으로 내려감`);
+  // 5. 계단으로 5층까지. 1층은 본 계단을 아래 막대 단추로, 2~4층은 못 본 계단 쪽을 눌러 걸어가서 (막히면 길을 다시 짬)
+  ok(!(await page.isEnabled('[data-a="descend"]')) || (await st()).mine.seen[(await st()).mine.t.indexOf('d')], '계단을 보기 전엔 아래층 단추가 꺼져 있음');
+  await page.evaluate(() => { const m = window.MinerDiary.state().mine; m.seen[m.t.indexOf('d')] = 1; renderDock(); });
+  if (shot) await page.screenshot({ path: path.join(shot, 'mine.png') });
+  ok(await page.isEnabled('[data-a="descend"]'), '계단을 보면 아래층 단추가 켜짐');
+  await page.click('[data-a="descend"]');
+  await page.waitForFunction(() => window.MinerDiary.state().mine.floor === 2, null, { timeout: 15000 });
+  ok(true, '단추를 누르면 계단까지 걸어가서 2층으로');
+  for (let f = 2; f < 5; f++) {
+    for (let k = 0; k < 30 && (await st()).mine.floor === f; k++) { const m = (await st()).mine, si = m.t.indexOf('d'); await tap(si % m.w, Math.floor(si / m.w)); }
+    ok((await st()).mine.floor === f + 1, `${f}층 못 본 계단을 눌러 걸어가서 ${f + 1}층으로`);
   }
   let s = await st();
   ok(s.deepest === 5, '가장 깊은 층 5층 기록');
-  ok(s.mine.tiles.slice(42).every(t => t.t === 'h'), '5층 맨 아래 줄은 단단한 바위');
-  ok(!s.mine.tiles.some(t => t.t === 'x'), '5층엔 계단 없음');
+  ok(!s.mine.t.includes('d'), '5층엔 계단 없음');
 
-  // 6. 힌트 숫자: 게임이 쓰는 숫자 = 따로 센 주변 8칸의 남은 광석 수
+  // 6. 숨은 방: 돌무더기를 치우면 열림 (기력 1)
+  await page.evaluate(() => { for (let k = 0; k < 30; k++) { window.MinerDiary.newFloor(2); if (window.MinerDiary.state().mine.t.includes('b')) break; } });
+  s = await st();
+  const rb = s.mine.t.indexOf('b');
+  ok(rb >= 0, '숨은 방을 막은 돌무더기가 있음');
+  await page.evaluate(i => { window.MinerDiary.state().mine.seen[i] = 1; }, rb);
+  const eR = s.energy, hid0 = s.mine.hid.filter(Boolean).length;
+  await tap(rb % s.mine.w, Math.floor(rb / s.mine.w));
+  s = await st();
+  ok(s.mine.t[rb] === 'f' && s.energy === eR - 1, '돌무더기를 치우면 기력 1');
+  ok(s.mine.hid.filter(Boolean).length === hid0 - 9, '돌무더기 뒤 숨은 방(3×3)이 열림');
+
+  // 7. 광석 캐기: 벽에 박힌 광석을 누르면 걸어가서 캠 (기력 2, 광석 1)
+  let cu = (await st()).inv.copper || 0;
+  for (let k = 0; k < 5; k++) {
+    const r = await nearRock(false);
+    await page.evaluate(([x, y]) => { const m = window.MinerDiary.state().mine; m.o[y * m.w + x] = 'copper'; m.t[y * m.w + x] = 'r'; }, r);
+    const eK = (await st()).energy;
+    await tap(r[0], r[1]);
+    s = await st();
+    ok(s.mine.t[r[1] * s.mine.w + r[0]] === 'f' && s.energy === eK - 2 && s.inv.copper === cu + 1, `광석 바위를 캐면 구리 1개, 기력 2 (${k + 1})`);
+    cu++;
+  }
+  // 7-1. 반짝임: 벽 너머 못 본 칸에 광석이 있으면 그 벽이 반짝임
   ok(await page.evaluate(() => {
-    const m = window.MinerDiary, t = m.state().mine.tiles;
-    return t.every((_, i) => { const x = i % 7, y = (i / 7) | 0; let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const a = x + dx, b = y + dy; if ((dx || dy) && a >= 0 && a < 7 && b >= 0 && b < 7 && t[b * 7 + a].t === 'o' && !t[b * 7 + a].open) n++; } return m.hint(i) === n; });
-  }), '힌트 숫자가 실제 주변 광석 수와 같음');
-
-  // 6-1. 연쇄: 광석이 하나도 없는 판에서 한 칸을 캐면 기력 2로 판 전체가 열림
-  await page.evaluate(() => { const s = window.MinerDiary.state(); s.mine.tiles = s.mine.tiles.map(() => ({ t: 's', open: false })); });
-  const eC = (await st()).energy;
-  await tap(3);
-  s = await st();
-  ok(s.mine.tiles.every(t => t.open) && s.energy === eC - 2, '숫자 없는 칸은 이웃까지 연쇄로 열리고 기력은 한 번만 씀');
-
-  // 7. 광맥 잇기 (정해진 판)
-  await page.evaluate(() => { const s = window.MinerDiary.state(); s.mine.tiles = s.mine.tiles.map(() => ({ t: 's', open: false })); [0, 1, 7].forEach(i => { s.mine.tiles[i] = { t: 'o', o: 'copper', open: false }; }); s.mine.tiles[9] = { t: 'o', o: 'iron', open: false }; });
-  const cu = (await st()).inv.copper || 0;
-  await tap(0);
-  s = await st();
-  ok(s.inv.copper === cu + 4 && [0, 1, 7].every(i => s.mine.tiles[i].open) && !s.mine.tiles[9].open, '광맥 잇기: 이어진 구리 3칸을 한 번에 캐고 덤 1개');
-  ok(await page.evaluate(() => window.MinerDiary.hint(1) === 1 && window.MinerDiary.hint(7) === 0), '열린 1번 칸 힌트 1, 7번 칸은 0');
-
-  // 7-1. 광석 캐기 퀘스트가 확실히 끝나도록 구리 3칸을 한 번 더 (운에 따라 5개가 안 될 수 있음)
-  await page.evaluate(() => { const s = window.MinerDiary.state(); s.mine.tiles = s.mine.tiles.map(() => ({ t: 's', open: false })); [0, 1, 7].forEach(i => { s.mine.tiles[i] = { t: 'o', o: 'copper', open: false }; }); });
-  await tap(0);
+    const MD = window.MinerDiary, m = MD.state().mine;
+    for (let i = 0; i < m.t.length; i++) {
+      if (!m.seen[i] || m.t[i] !== 'r') continue;
+      const x = i % m.w, y = Math.floor(i / m.w);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const j = (y + dy) * m.w + x + dx; if (x + dx > 0 && y + dy > 0 && x + dx < m.w - 1 && y + dy < m.h - 1 && !m.seen[j] && m.t[j] === 'r') { const o0 = m.o[j]; m.o[j] = ''; const before = MD.glintDir(x, y).some(g => g[0] === dx && g[1] === dy); m.o[j] = 'iron'; const after = MD.glintDir(x, y).some(g => g[0] === dx && g[1] === dy && g[2] === 'iron'); m.o[j] = o0; return !before && after; } }
+    }
+    return false;
+  }), '못 본 벽 너머 광석이 있을 때만 반짝임');
 
   // 8. 시간대
   s = await st();
@@ -184,10 +188,9 @@ const shot = process.argv[2];
   for (let k = 0; k < 200; k++) {
     s = await st();
     if (s.day !== dayBefore) break;
-    if (s.mine.tiles.some(t => t.t === 'x' && t.open)) { await page.click('[data-a="descend"]'); continue; }
-    const can = await canList();
-    if (!can.length) { await page.click('[data-a="leave"]'); await page.waitForTimeout(1200); await visit('mine', '#sheet [data-a="enter"]'); await page.click('#sheet [data-a="enter"][data-n="1"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'mine'); continue; }
-    await tap(can[0]);
+    const r = await nearRock(false);
+    if (!r) break;
+    await tap(r[0], r[1]);
     if (await page.locator('#sheet [data-a="digForce"]').count()) { guarded = true; await page.click('#sheet [data-a="digForce"]'); }
   }
   ok(guarded, '마지막 기력에서는 쓰러지기 전에 한 번 물어봄');
@@ -227,10 +230,10 @@ const shot = process.argv[2];
   await d.visit('mine', '#sheet [data-a="enter"]');
   await desk.click('#sheet [data-a="enter"][data-n="1"]');
   await desk.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
-  await desk.evaluate(() => { const s = window.MinerDiary.state(); s.mine.tiles = s.mine.tiles.map(() => ({ t: 'o', o: 'copper', open: false })); [3, 10, 17].forEach(i => { s.mine.tiles[i] = { t: 's', open: false }; }); });
-  for (const i of [3, 10, 17]) await d.tap(i);
+  const dug = [];
+  for (let k = 0; k < 3; k++) { const r = await d.nearRock(false); await desk.evaluate(([x, y]) => { const m = window.MinerDiary.state().mine; m.t[y * m.w + x] = 'r'; m.o[y * m.w + x] = ''; }, r); const fBefore = (await d.st()).mine.t.filter(t => t === 'f').length; await d.tap(r[0], r[1]); const s2 = await d.st(); dug.push(s2.mine.t[r[1] * s2.mine.w + r[0]] === 'f' && s2.mine.t.filter(t => t === 'f').length === fBefore + 1); }
   s = await d.st();
-  ok([3, 10, 17].every(i => s.mine.tiles[i].open) && s.mine.tiles.filter(t => t.open).length === 3 && s.energy === 94, '컴퓨터 화면에서도 누른 칸이 정확히 캐짐');
+  ok(dug.every(Boolean) && s.energy === 94, '컴퓨터 화면에서도 누른 칸이 정확히 캐짐');
   if (shot) await desk.screenshot({ path: path.join(shot, 'desktop.png') });
   await desk.close();
 
