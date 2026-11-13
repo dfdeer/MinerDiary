@@ -157,9 +157,15 @@ const shot = process.argv[2];
   ok(await page.evaluate(() => window.MinerDiary.phaseIndex()) === (used >= 90 ? 3 : used >= 60 ? 2 : used >= 30 ? 1 : 0), `시간대가 쓴 기력 ${used}%와 맞음`);
 
   // 9. 마을로 나와서 팔기
+  const keepT = (await st()).mine.t.join('');
   await page.click('[data-a="leave"]');
-  await page.waitForTimeout(1300);
-  ok((await st()).screen === 'village', '마을로 돌아옴');
+  ok(await page.evaluate(() => window.MinerDiary.hero().moving), '나가기를 누르면 사다리까지 걸어감');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 15000 });
+  await page.waitForTimeout(1000);
+  ok((await st()).screen === 'village', '사다리에서 마을로 돌아옴');
+  await page.evaluate(() => enterMine(2)); await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
+  ok((await st()).mine.t.join('') === keepT, '같은 날 다시 들어가면 판 곳이 그대로');
+  await page.evaluate(() => leaveMine()); await page.waitForTimeout(1000);
   s = await st();
   const value = { copper: 10, iron: 25, crystal: 60, moon: 150 };
   const worth = Object.entries(s.inv).reduce((a, [o, n]) => a + n * value[o], 0), g0 = s.gold;
@@ -219,10 +225,10 @@ const shot = process.argv[2];
   const ir = (await st()).inv.iron || 0;
   await tap(rC[0], rC[1]);
   ok((await st()).inv.iron === ir + 1, '동굴에서도 벽 광석을 캠');
-  await page.click('[data-a="leave"]'); await page.waitForTimeout(300);
+  await page.click('[data-a="leave"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'forest', null, { timeout: 15000 });
   ok(await page.evaluate(() => window.MinerDiary.scene()) === 'forest' && (await page.textContent('#minebar')).includes('1/3'), '동굴을 나오면 숲, 찾은 동굴 1/3');
-  await page.click('[data-a="leave"]'); await page.waitForTimeout(300);
-  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'village', '숲에서 마을로');
+  await page.click('[data-a="leave"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 });
+  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'village', '숲에서 마을 길까지 걸어가서 마을로');
 
   // 11. 쓰러짐
   await visit('mine', '#sheet [data-a="enter"]');
