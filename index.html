@@ -24,11 +24,6 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 [hidden]{display:none!important}
 #cv{position:fixed;inset:0;width:100%;height:100%;display:block}
-#loading{position:fixed;inset:0;z-index:50;background:#1b140d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
-#loading b{font-size:28px;letter-spacing:2px;color:var(--accent)}
-#loading p{margin:0;color:var(--dim);font-size:14px}
-.lbar{width:min(260px,60vw);height:10px;border-radius:5px;background:#33251a;border:1px solid var(--edge);overflow:hidden}
-.lbar i{display:block;height:100%;width:0;background:linear-gradient(var(--accent),var(--accent2));transition:width .15s}
 
 /* 나무판 느낌의 공통 판 */
 .plate{background:linear-gradient(var(--wood),var(--wood2));border:2px solid var(--edge);box-shadow:inset 0 1px 0 var(--hi),0 3px 0 rgba(0,0,0,.35),0 6px 14px rgba(0,0,0,.3)}
@@ -105,7 +100,6 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </head>
 <body>
 <canvas id="cv" aria-label="광부일기"></canvas>
-<div id="loading"><b>광부일기</b><div class="lbar"><i></i></div><p>불러오는 중</p><button class="btn" hidden>다시 시도</button></div>
 <div class="hud" id="hud"></div>
 <div class="dock" id="dock"></div>
 <div class="minebar plate" id="minebar" hidden></div>
@@ -339,32 +333,146 @@ function faint() {
   const ls = ORE_ORDER.filter(o => lost[o]).map(o => `<span><span class="ore ${o}"></span> -${lost[o]}</span>`).join(' ');
   openSheet(ico('ic_warn') + '쓰러짐', `<p>${S.day}일차 아침 ${PWR}${S.energy}/${S.max}</p>` + (ls ? `<p class="warn">${ls}</p>` : ''));
 }
-/* ===== 그림 파일. 모두 읽힌 뒤에 게임을 시작함 (읽는 동안은 로딩 화면) ===== */
-const IMG = {};
-const IMG_NAMES = ['b_house', 'b_mine', 'b_smithy', 'b_kitchen', 'b_jewel', 'b_market', 'b_museum', 'vl_empty', 'vm_dirt', 'vm_rock', 'vm_stair', 'tree_a', 'tree_b', 'tree_c', 'bush', 'flower', 'rock', 'bankstone', 'lily', 'reed', 'mush', 'bridge', 'worldtree', 'grass', 'path', 'water',
-  'ic_gold', 'ic_pick', 'ic_shop', 'ic_village', 'ic_lock', 'ic_hearth', 'ic_rest', 'ic_shard', 'ic_treasure', 'ic_bag', 'ic_settings', 'ic_check', 'ic_warn', 'ic_sound', 'ic_mute'];
-function loadImages(onProgress) {
-  let done = 0;
-  return Promise.all(IMG_NAMES.map(n => new Promise((res, rej) => {
-    const im = new Image();
-    im.onload = () => { im.ok = true; IMG[n] = im; onProgress(++done / IMG_NAMES.length); res(); };
-    im.onerror = () => rej(new Error(n));
-    im.src = `assets/${n}.webp`;
-  })));
+/* ===== 아이콘 (코드 도형). 24×24 판 위의 SVG 경로. 화면 글에는 ico(), 그림 위에는 emo() ===== */
+function gearPath() {
+  let d = '';
+  for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, r = i % 2 ? 7.4 : 10.4; d += (i ? 'L' : 'M') + (12 + Math.cos(a) * r).toFixed(2) + ' ' + (12 + Math.sin(a) * r).toFixed(2); }
+  return d + 'Z';
 }
-// 바닥 가운데 (cx, by)에 폭 w로 그림. 못 그리면 false
-function sprite(c, name, cx, by, w) { const im = IMG[name]; const h = w * im.naturalHeight / im.naturalWidth; c.drawImage(im, cx - w / 2, by - h, w, h); return true; }
-// 가운데 (x, y)에 크기 s로 아이콘
-function emo(c, name, x, y, s) { c.drawImage(IMG[name], x - s / 2, y - s / 2, s, s); }
-// 바닥 무늬: 위에서 본 그림을 쿼터뷰 칸 모양으로 눕혀서 채움
-let PAT = {};
-function pattern(c, name, tiles, ox) {
-  const im = IMG[name];
-  const key = name + TW;
-  if (!PAT[key]) PAT[key] = c.createPattern(im, 'repeat');
-  const k = 1 / (im.naturalWidth / tiles);     // 그림 폭이 칸 tiles개
-  PAT[key].setTransform(new DOMMatrix([TW / 2 * k, TH / 2 * k, -TW / 2 * k, TH / 2 * k, (ox || 0) * TW, (ox || 0) * TH * .4]));
-  return PAT[key];
+const ICONS = {
+  ic_gold: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#f2c230'], ['M12 6.2a5.8 5.8 0 1 0 .01 0Z', '#e0a81e', 0], ['M10.8 8.5h2.4v7h-2.4Z', '#fff2b0', 0]],
+  ic_check: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#4fb35a'], ['M7 12.5l3.2 3.2L17.2 8.6', 'none', 2.6, '#fff']],
+  ic_warn: [['M12 2.8 22 20.5H2Z', '#f2c230'], ['M10.9 8.5h2.2l-.4 6.3h-1.4Z', '#2b1a12', 0], ['M12 16.4a1.3 1.3 0 1 0 .01 0Z', '#2b1a12', 0]],
+  ic_bag: [['M8.5 6.5a3.5 3.5 0 0 1 7 0', 'none', 1.8], ['M4.5 7.5h15l-1.4 13H5.9Z', '#a8723f'], ['M4.5 7.5h15v3.5H4.5Z', '#8a5a2e'], ['M10.5 12h3v2.5h-3Z', '#f2c230']],
+  ic_settings: [[gearPath(), '#b9c0c8'], ['M12 8.6a3.4 3.4 0 1 0 .01 0Z', '#5a6068']],
+  ic_sound: [['M3.5 9h4l5-4v14l-5-4h-4Z', '#b9c0c8'], ['M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12', 'none', 1.8]],
+  ic_mute: [['M3.5 9h4l5-4v14l-5-4h-4Z', '#b9c0c8'], ['M15.5 9l5.5 6M21 9l-5.5 6', 'none', 2, '#d9583c']],
+  ic_pick: [['M5 20.5 15.5 7.8', 'none', 3.2, '#9a6232'], ['M6.5 7.2C11 3.2 17 3 21 7.5 17.4 6 13.6 5.8 10.5 7.4Z', '#b9c0c8']],
+  ic_shop: [['M4 10.5h16v9.5H4Z', '#c09060'], ['M3 6h18l-1 4.5H4Z', '#e04a3a'], ['M7.5 6h3l-.4 4.5h-2.6ZM13.5 6h3l.4 4.5h-2.6Z', '#fff4e6', 0], ['M7 14h4v6H7Z', '#7a4a2a']],
+  ic_village: [['M5.5 11h13v9.5h-13Z', '#e8c99a'], ['M2.5 11.8 12 3.5l9.5 8.3Z', '#d4473a'], ['M10 14.5h4v6h-4Z', '#8a5a32']],
+  ic_lock: [['M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10', 'none', 2.2], ['M5 10h14v10.5H5Z', '#f2c230'], ['M12 13.5a1.5 1.5 0 1 0 .01 0Zm-.7 2h1.4v2.5h-1.4Z', '#2b1a12', 0]],
+  ic_hearth: [['M3 8.5h15.5c0 2.4-2.4 3.6-4.8 3.6V15h2.6v2.6H7.2V15h2.6v-2.9C5.6 12.1 3 10.8 3 8.5Z', '#6a6f78'], ['M6 18.8h11v2H6Z', '#4a4e55'], ['M20 4.5l1.6 1.6-3 3-1.6-1.6Z', '#f2a33a']],
+  ic_rest: [['M3 11.5h18a9 7.5 0 0 1-18 0Z', '#f4efe6'], ['M7.5 9C7 7.5 8.5 6.5 8 5M12 9c-.5-1.5 1-2.5.5-4M16.5 9c-.5-1.5 1-2.5.5-4', 'none', 1.6, '#c9bfae'], ['M6 13h12', 'none', 1.4, '#e04a3a']],
+  ic_shard: [['M12 2.5 19.5 9 12 21.5 4.5 9Z', '#5fc9e0'], ['M4.5 9h15M12 2.5 9 9l3 12.5L15 9Z', 'none', 1.1, '#2b6f86'], ['M8 5.8 9.6 9 5.6 9Z', '#d7f6ff', 0]],
+  ic_treasure: [['M3 9.5 12 3.5l9 6Z', '#e9e3d6'], ['M4.5 10h15v1.8h-15ZM4 19h16v2H4Z', '#d9d2c4'], ['M6 12h2v7H6ZM11 12h2v7h-2ZM16 12h2v7h-2Z', '#f4f0e8']],
+};
+const ICON_P2D = {};
+function ico(name) {
+  const parts = ICONS[name].map(([d, fill, sw = 1.5, st = '#2b1a12']) => `<path d="${d}" fill="${fill}"${sw ? ` stroke="${st}" stroke-width="${sw}" stroke-linejoin="round" stroke-linecap="round"` : ''}/>`).join('');
+  return `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${parts}</svg>`;
+}
+function emo(c, name, x, y, s) {
+  if (!ICON_P2D[name]) ICON_P2D[name] = ICONS[name].map(([d, fill, sw = 1.5, st = '#2b1a12']) => [new Path2D(d), fill, sw, st]);
+  c.save(); c.translate(x - s / 2, y - s / 2); c.scale(s / 24, s / 24); c.lineJoin = 'round'; c.lineCap = 'round';
+  ICON_P2D[name].forEach(([p, fill, sw, st]) => { if (fill !== 'none') { c.fillStyle = fill; c.fill(p); } if (sw) { c.lineWidth = sw; c.strokeStyle = st; c.stroke(p); } });
+  c.restore();
+}
+
+/* ===== 자연물 (코드 그림, 굵은 외곽선). u는 칸 폭의 1/100 ===== */
+// 동그라미 여러 개를 하나로 합쳐 바깥 테두리만 그림
+function blobs(c, list, fill, ink) {
+  c.beginPath(); list.forEach(([x, y, r]) => { c.moveTo(x + r, y); c.arc(x, y, r, 0, 7); });
+  c.lineWidth = ink * 2; c.strokeStyle = OUT; c.lineJoin = 'round'; c.stroke(); c.fillStyle = fill; c.fill();
+}
+function inkPoly(c, pts, fill, ink) { c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.fillStyle = fill; c.fill(); c.lineWidth = ink; c.strokeStyle = OUT; c.lineJoin = 'round'; c.stroke(); }
+function treeAt(c, x, y) {
+  const p = iso(x + .5, y + .5, hgt(x, y)), h = H32(x * 311 + y * 733), u = TW / 100 * (.9 + h * .3), ink = Math.max(1.5, TW * .022);
+  const sway = Math.sin(tnow * 1.1 + x * .7 + y) * u * .8;
+  c.save(); c.translate(p[0], p[1]);
+  E(c, u * 6, u * 4, u * 30, u * 13, 'rgba(0,0,0,.16)');
+  if (H32(x * 53 + y * 97) < .35) {   // 침엽수
+    inkPoly(c, [[-u * 5, 0], [u * 5, 0], [u * 4, -u * 22], [-u * 4, -u * 22]], '#7a4a28', ink);
+    [[0, 34], [1, 27], [2, 20]].forEach(([k, w]) => {
+      const y0 = -u * (16 + k * 24), y1 = y0 - u * 40, tx = sway * (k + 1) * .5;
+      inkPoly(c, [[-u * w, y0], [tx, y1], [u * w, y0]], ['#2f7a45', '#378a4e', '#42985a'][k], ink);
+      c.beginPath(); c.moveTo(tx, y1 + u * 6); c.lineTo(-u * w * .5, y0 - u * 3); c.lineTo(-u * w * .15, y0 - u * 3); c.closePath(); c.fillStyle = 'rgba(255,255,255,.14)'; c.fill();
+    });
+  } else {                            // 활엽수
+    inkPoly(c, [[-u * 6, 0], [u * 6, 0], [u * 4, -u * 42], [-u * 4, -u * 42]], '#7a4a28', ink);
+    const crown = [[sway, -u * 74, u * 30], [-u * 25 + sway, -u * 56, u * 22], [u * 25 + sway, -u * 56, u * 22], [sway, -u * 50, u * 24]];
+    blobs(c, crown, h < .5 ? '#4f9a45' : '#58a34a', ink);
+    [[-u * 10 + sway, -u * 82, u * 13], [-u * 26 + sway, -u * 60, u * 9]].forEach(([a, b, r]) => Cc(c, a, b, r, 'rgba(160,220,120,.45)'));
+    [[u * 14 + sway, -u * 52, u * 3], [-u * 6 + sway, -u * 64, u * 2.6]].forEach(([a, b, r]) => Cc(c, a, b, r, 'rgba(30,70,30,.35)'));
+  }
+  c.restore();
+}
+function bushAt(c, x, y) {
+  const p = iso(x + .5, y + .5, hgt(x, y)), h = H32(x * 17 + y * 29), u = TW / 100 * (.85 + h * .3), ink = Math.max(1.5, TW * .02);
+  c.save(); c.translate(p[0], p[1]);
+  E(c, u * 4, u * 3, u * 22, u * 9, 'rgba(0,0,0,.14)');
+  blobs(c, [[-u * 13, -u * 11, u * 12], [u * 12, -u * 11, u * 12], [0, -u * 20, u * 15]], '#4f9a45', ink);
+  Cc(c, -u * 6, -u * 26, u * 6, 'rgba(160,220,120,.45)');
+  if (h < .45) [[-u * 12, -u * 14], [u * 2, -u * 25], [u * 13, -u * 13], [-u * 2, -u * 12]].forEach(([a, b], k) => { Cc(c, a, b, u * 3.4, OUT); Cc(c, a, b, u * 2.4, h < .2 ? '#e0566a' : ['#fff4d0', '#f2d35b'][k % 2]); });
+  c.restore();
+}
+function rockAt(c, x, y) {
+  const p = iso(x + .5, y + .5, hgt(x, y)), u = TW / 100, ink = Math.max(1.5, TW * .02);
+  c.save(); c.translate(p[0], p[1]);
+  E(c, u * 3, u * 3, u * 26, u * 9, 'rgba(0,0,0,.16)');
+  inkPoly(c, [[-u * 24, 0], [-u * 20, -u * 16], [-u * 6, -u * 26], [u * 12, -u * 24], [u * 24, -u * 10], [u * 22, 0]], '#9a9088', ink);
+  c.beginPath(); c.moveTo(-u * 18, -u * 15); c.lineTo(-u * 6, -u * 24); c.lineTo(u * 10, -u * 22); c.lineTo(u * 2, -u * 14); c.closePath(); c.fillStyle = '#b3aaa1'; c.fill();
+  blobs(c, [[-u * 4, -u * 24, u * 6], [u * 4, -u * 23, u * 5]], '#6fae54', ink * .7);
+  c.restore();
+}
+function mushAt(c, px, py) {
+  const u = TW / 100, ink = Math.max(1.2, TW * .018);
+  c.save(); c.translate(px, py);
+  inkPoly(c, [[-u * 4, 0], [u * 4, 0], [u * 3, -u * 10], [-u * 3, -u * 10]], '#f4ede0', ink);
+  c.beginPath(); c.arc(0, -u * 10, u * 11, Math.PI, 0); c.closePath(); c.fillStyle = '#d9483a'; c.fill(); c.lineWidth = ink; c.strokeStyle = OUT; c.stroke();
+  [[-u * 5, -u * 15], [u * 4, -u * 17], [u * 6, -u * 12]].forEach(([a, b]) => Cc(c, a, b, u * 2, '#fff'));
+  c.restore();
+}
+function lilyAt(c, px, py) {
+  const u = TW / 100, ink = Math.max(1.2, TW * .016);
+  c.save(); c.translate(px, py);
+  c.beginPath(); c.ellipse(0, 0, u * 18, u * 8, 0, .35, Math.PI * 2 - .05); c.lineTo(0, 0); c.closePath(); c.fillStyle = '#4c9a4a'; c.fill(); c.lineWidth = ink; c.strokeStyle = OUT; c.stroke();
+  blobs(c, [[u * 2, -u * 4, u * 4], [-u * 3, -u * 4, u * 4], [0, -u * 7, u * 4]], '#f6b8cf', ink * .8);
+  Cc(c, 0, -u * 5, u * 2, '#f2d35b');
+  c.restore();
+}
+function reedAt(c, px, py) {
+  const u = TW / 100, ink = Math.max(1.2, TW * .016);
+  for (let k = 0; k < 3; k++) {
+    const x = px + (k - 1) * u * 6, top = py - u * (26 + k * 6);
+    L(c, x, py, x + (k - 1) * u * 2, top, OUT, u * 3.4); L(c, x, py, x + (k - 1) * u * 2, top, '#5d8a3a', u * 1.8);
+    c.beginPath(); c.ellipse(x + (k - 1) * u * 2, top + u * 4, u * 2.6, u * 6, 0, 0, 7); c.fillStyle = '#8a5a2e'; c.fill(); c.lineWidth = ink; c.strokeStyle = OUT; c.stroke();
+  }
+}
+function bankStoneAt(c, px, py) {
+  const u = TW / 100, ink = Math.max(1.2, TW * .016);
+  inkPoly(c, [[px - u * 16, py], [px - u * 12, py - u * 9], [px - u * 2, py - u * 11], [px + u * 2, py]], '#9a9088', ink);
+  inkPoly(c, [[px + u * 2, py + u * 2], [px + u * 6, py - u * 6], [px + u * 15, py - u * 5], [px + u * 16, py + u * 2]], '#a8a097', ink);
+}
+// 광장 큰 나무: 굵은 줄기와 뿌리, 넓게 퍼진 가지
+function bigTreeAt(c, px, py) {
+  const u = TW / 100, ink = Math.max(2, TW * .028), sway = Math.sin(tnow * .8) * u;
+  c.save(); c.translate(px, py);
+  E(c, u * 8, u * 6, u * 70, u * 26, 'rgba(0,0,0,.18)');
+  inkPoly(c, [[-u * 34, u * 4], [-u * 16, -u * 10], [-u * 12, -u * 90], [u * 12, -u * 90], [u * 16, -u * 10], [u * 36, u * 6], [u * 8, 0], [0, u * 8], [-u * 10, 0]], '#7a4a28', ink);
+  L(c, -u * 4, -u * 20, -u * 6, -u * 70, 'rgba(255,220,180,.25)', u * 4);
+  const crown = [[sway, -u * 160, u * 52], [-u * 52 + sway, -u * 128, u * 40], [u * 52 + sway, -u * 128, u * 40], [-u * 26 + sway, -u * 104, u * 34], [u * 28 + sway, -u * 104, u * 34], [sway, -u * 120, u * 40]];
+  blobs(c, crown, '#4a9a48', ink);
+  [[-u * 20 + sway, -u * 176, u * 22], [-u * 58 + sway, -u * 136, u * 14], [u * 30 + sway, -u * 156, u * 12]].forEach(([a, b, r]) => Cc(c, a, b, r, 'rgba(170,230,130,.4)'));
+  for (let k = 0; k < 7; k++) { const a = H32(k * 13) * 6.28, r = u * (30 + H32(k * 7) * 50); Cc(c, Math.cos(a) * r * 1.2 + sway, -u * 130 + Math.sin(a) * r * .7, u * 4, ['#f6b8cf', '#fff4d0'][k % 2]); }
+  c.restore();
+}
+// 다리: 강을 가로지르는 나무 다리 (y 방향으로 놓임)
+function bridgeAt(c, o) {
+  const x = o.gx, y = o.gy, g = o.grow, z = .12, d = o.d;
+  const p0 = INK; INK = Math.max(1.5, TW * .02);
+  if (g > .05) {
+    prism(c, x + .12, y - .25, .76, d + .5, z - .1, .1, '#c39563', '#9c7448', '#7a5530');
+    for (let k = 1; k < (d + .5) * 4; k++) { const yy = y - .25 + k / 4, a = iso(x + .12, yy, z), b = iso(x + .88, yy, z); L(c, a[0], a[1], b[0], b[1], 'rgba(90,60,30,.5)', TW * .012); }
+    for (const xx of [x + .14, x + .86]) {
+      for (let k = 0; k <= d + .5; k += (d + .5) / 3) { const a = iso(xx, y - .25 + k, z), b = iso(xx, y - .25 + k, z + .5 * g); L(c, a[0], a[1], b[0], b[1], OUT, TW * .07); L(c, a[0], a[1], b[0], b[1], '#8a6238', TW * .045); }
+      const a = iso(xx, y - .25, z + .45 * g), b = iso(xx, y + d + .25, z + .45 * g); L(c, a[0], a[1], b[0], b[1], OUT, TW * .06); L(c, a[0], a[1], b[0], b[1], '#9c7448', TW * .035);
+    }
+  } else {
+    prism(c, x + .12, y - .3, .76, .35, -.05, .12, '#a8875c', '#8a6a44', '#6d5030');
+    prism(c, x + .12, y + d - .05, .76, .35, -.05, .12, '#a8875c', '#8a6a44', '#6d5030');
+    const a = iso(x + .3, y + .2, .05), b = iso(x + .6, y + .7, -.2); L(c, a[0], a[1], b[0], b[1], OUT, TW * .1); L(c, a[0], a[1], b[0], b[1], '#7a5530', TW * .07);
+  }
+  INK = p0;
 }
 
 /* ===== 색과 시간대 ===== */
@@ -385,7 +493,8 @@ let W = 0, H = 0, DPR = 1, TW = 40, TH = 20, ZU = 17, OX = 0, OY = 0;
 const DEPTH = 5.5;
 const FONT = '"Noto Sans KR",system-ui,sans-serif';
 function shade(hex, k) { const n = parseInt(hex.slice(1), 16); return `rgb(${[n >> 16, (n >> 8) & 255, n & 255].map(v => Math.max(0, Math.min(255, v + k)))})`; }
-function P(c, pts, f) { c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.fillStyle = f; c.fill(); }
+let INK = 0;   // 0보다 크면 다각형에 짙은 테두리 (건물을 그릴 때 켬). 반투명 무늬는 테두리 없음
+function P(c, pts, f) { c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.fillStyle = f; c.fill(); if (INK && typeof f === 'string' && !f.startsWith('rgba')) { c.lineWidth = INK; c.strokeStyle = '#2b1a12'; c.lineJoin = 'round'; c.stroke(); } }
 function R(c, a, b, w, h, f) { c.fillStyle = f; c.fillRect(a, b, w, h); }
 function Cc(c, a, b, r, f) { c.beginPath(); c.arc(a, b, Math.max(0, r), 0, 7); c.fillStyle = f; c.fill(); }
 function E(c, a, b, rx, ry, f) { c.beginPath(); c.ellipse(a, b, rx, ry, 0, 0, 7); c.fillStyle = f; c.fill(); }
@@ -526,22 +635,200 @@ function person(c, a, b, s, shirt, helmet, bob, pick, beard) {
 // 면 하나 (왼쪽 앞면: y 고정, 오른쪽 앞면: x 고정)
 function faceL(c, x0, x1, y, z0, z1, col) { P(c, [iso(x0, y, z0), iso(x1, y, z0), iso(x1, y, z1), iso(x0, y, z1)], col); }
 function faceR(c, x, y0, y1, z0, z1, col) { P(c, [iso(x, y0, z0), iso(x, y1, z0), iso(x, y1, z1), iso(x, y0, z1)], col); }
-const BUILD_IMG = { house: 'b_house', mine: 'b_mine', smithy: 'b_smithy', kitchen: 'b_kitchen', jewel: 'b_jewel', market: 'b_market', museum: 'b_museum' };
-const BUILD_W = { jewel: .8, market: 1.02, museum: 1.0 };   // 칸 폭 대비 그림 폭 (기본 .98)
-// 건물 그림: 차지한 칸 폭에 맞춰 앞쪽 모서리에 세움
-function buildingSprite(c, o, name, grow) {
-  const z = hgt(o.gx, o.gy), ctr = iso(o.gx + o.w / 2, o.gy + o.d / 2, z), front = iso(o.gx + o.w, o.gy + o.d, z);
-  // 빈 터 그림은 둥근 받침이 있어 조금 넓게, 새 건물 그림은 받침이 없어 칸 폭에 맞춤
-  const base = name === 'vl_empty', w = (o.w + o.d) * TW / 2 * (base ? 1.1 : BUILD_W[o.kind] || .98) * (grow === undefined ? 1 : .6 + .4 * grow);
-  if (!base) P(c, [iso(o.gx + .1, o.gy + o.d, z), iso(o.gx + o.w, o.gy + o.d, z), iso(o.gx + o.w, o.gy + .1, z), iso(o.gx + o.w + .35, o.gy + .45, z), iso(o.gx + o.w + .35, o.gy + o.d + .35, z), iso(o.gx + .45, o.gy + o.d + .35, z)], 'rgba(20,30,10,.22)');
-  return sprite(c, name, ctr[0], front[1] + TH * (base ? .15 : .12), w);
+// 박공지붕: 긴 쪽을 따라 용마루
+function gable(c, x0, y0, x1, y1, z, rh, roof, wall) {
+  if (x1 - x0 >= y1 - y0) {
+    const ym = (y0 + y1) / 2;
+    P(c, [iso(x0, y0, z), iso(x1, y0, z), iso(x1, ym, z + rh), iso(x0, ym, z + rh)], shade(roof, -40));
+    P(c, [iso(x1, y0, z), iso(x1, y1, z), iso(x1, ym, z + rh)], wall);
+    P(c, [iso(x0, y1, z), iso(x1, y1, z), iso(x1, ym, z + rh), iso(x0, ym, z + rh)], roof);
+    for (let k = 1; k < 5; k++) { const t = k / 5; const a = iso(x0, y1 + (ym - y1) * t, z + rh * t), b = iso(x1, y1 + (ym - y1) * t, z + rh * t); L(c, a[0], a[1], b[0], b[1], 'rgba(0,0,0,.12)', 1); }
+  } else {
+    const xm = (x0 + x1) / 2;
+    P(c, [iso(x0, y0, z), iso(x0, y1, z), iso(xm, y1, z + rh), iso(xm, y0, z + rh)], shade(roof, -40));
+    P(c, [iso(x1, y0, z), iso(x1, y1, z), iso(xm, y1, z + rh), iso(xm, y0, z + rh)], shade(roof, -22));
+    P(c, [iso(x0, y1, z), iso(x1, y1, z), iso(xm, y1, z + rh)], wall);
+  }
+}
+function pyramidRoof(c, x0, y0, x1, y1, z, rh, roof) {
+  const ap = iso((x0 + x1) / 2, (y0 + y1) / 2, z + rh);
+  P(c, [iso(x0, y1, z), iso(x1, y1, z), ap], roof); P(c, [iso(x1, y1, z), iso(x1, y0, z), ap], shade(roof, -28));
+}
+// 간판: 문 위에 걸린 판과 그림
+function signBoard(c, o, z, hgtZ, alpha) {
+  if (!o.icon || !o.door) return;
+  const [dx, dy] = o.door, onLeft = dy === o.gy + o.d;
+  const p = onLeft ? iso(dx + .5, o.gy + o.d, z + hgtZ) : iso(o.gx + o.w, dy + .5, z + hgtZ);
+  const s = TW * .42;
+  c.globalAlpha *= alpha;
+  c.fillStyle = 'rgba(40,26,14,.92)'; c.beginPath(); c.roundRect(p[0] - s / 2, p[1] - s / 2, s, s, s * .22); c.fill();
+  c.strokeStyle = '#e9b04f'; c.lineWidth = Math.max(1.5, TW * .025); c.stroke();
+  emo(c, o.icon, p[0], p[1] + s * .04, (s * .66) * 1.3);
+  c.globalAlpha /= alpha;
+}
+function doorOn(c, o, z, w, h, col) {
+  const [dx, dy] = o.door;
+  if (dy === o.gy + o.d) faceL(c, dx + .5 - w / 2, dx + .5 + w / 2, o.gy + o.d - .1, z, z + h, col);
+  else faceR(c, o.gx + o.w - .1, dy + .5 - w / 2, dy + .5 + w / 2, z, z + h, col);
+}
+function windowL(c, x, y, z, w, h, night) { faceL(c, x, x + w, y, z, z + h, night ? '#ffd27a' : '#4b6070'); faceL(c, x, x + w, y, z + h * .45, z + h * .55, 'rgba(255,255,255,.35)'); }
+function windowR(c, x, y, z, w, h, night) { faceR(c, x, y, y + w, z, z + h, night ? '#ffd27a' : '#3f5260'); }
+function smoke(c, x, y, z, seed, dark) { for (let k = 0; k < 4; k++) { const ph = (tnow * .32 + k / 4 + seed * .13) % 1; const p = iso(x, y, z + ph * 2.4); Cc(c, p[0] + Math.sin(ph * 6 + seed) * TW * .1, p[1], TW * (.07 + ph * .16), dark ? `rgba(90,85,80,${.5 * (1 - ph)})` : `rgba(245,245,245,${.5 * (1 - ph)})`); } }
+
+// 무너진 터 (여러 칸)
+function ruinSite(c, o) {
+  const z = hgt(o.gx, o.gy), x0 = o.gx, y0 = o.gy, x1 = o.gx + o.w, y1 = o.gy + o.d;
+  if (o.kind === 'bridge' || o.kind === 'field' || o.kind === 'logs' || o.kind === 'gate') return;
+  // 뒤쪽 두 벽만 무너진 채 남음
+  for (let i = 0; i < o.w; i++) { const h = .25 + H32(o.gx * 7 + i) * .9; prism(c, x0 + i + .05, y0 + .1, .9, .22, z, h, '#a39a8e', '#8f867b', '#776f65'); }
+  for (let j = 1; j < o.d; j++) { const h = .2 + H32(o.gy * 5 + j) * .8; prism(c, x0 + .1, y0 + j + .05, .22, .9, z, h, '#a39a8e', '#8f867b', '#776f65'); }
+  for (let k = 0; k < o.w * o.d * 3; k++) { const p = iso(x0 + .3 + H32(k * 13 + o.gx) * (o.w - .6), y0 + .5 + H32(k * 7 + o.gy) * (o.d - .8), z); E(c, p[0], p[1] - 2, TW * (.08 + H32(k) * .07), TW * .05, ['#8a7f75', '#776d64', '#9a8f84'][k % 3]); }
+  const a = iso(x0 + .6, y0 + .8, z + .9), b = iso(x1 - .4, y1 - .5, z); L(c, a[0], a[1], b[0], b[1], '#6e5034', TW * .07);
+  // 팻말과 간판 그림 (흐리게)
+  if (o.door) {
+    const [dx, dy] = o.door, sp = iso(dx + .5, dy + .5, hgt(dx, dy));
+    L(c, sp[0], sp[1], sp[0], sp[1] - ZU * 1.5, '#6b4a2a', TW * .05);
+    const s = TW * .38; c.fillStyle = '#8a6a44'; c.beginPath(); c.roundRect(sp[0] - s / 2, sp[1] - ZU * 1.5 - s * .8, s, s * .8, 3); c.fill();
+    c.globalAlpha *= .7; emo(c, o.icon, sp[0], sp[1] - ZU * 1.5 - s * .4, (s * .5) * 1.3); c.globalAlpha /= .7;
+  }
+}
+
+// 건물별 생김새 (g: 솟아오르는 정도 0~1)
+function drawBuilding(c, o, night) {
+  const g = o.grow, z = hgt(o.gx, o.gy), x0 = o.gx, y0 = o.gy, x1 = o.gx + o.w, y1 = o.gy + o.d;
+  if (g < .02) return;
+  const mid = (a, b) => (a + b) / 2;
+  switch (o.kind) {
+    case 'house': {   // 나무 오두막: 빨간 박공지붕, 굴뚝, 꽃 상자
+      const h = 1.6 * g, i = .15;
+      prism(c, x0 + i, y0 + i, o.w - 2 * i, o.d - 2 * i, z, h, '#e2c08f', '#d8b07f', '#b98f60');
+      for (let k = 1; k < 5; k++) { faceL(c, x0 + i, x1 - i, y1 - i, z + h * k / 5 - .02, z + h * k / 5, 'rgba(90,55,25,.25)'); faceR(c, x1 - i, y0 + i, y1 - i, z + h * k / 5 - .02, z + h * k / 5, 'rgba(70,40,15,.25)'); }
+      windowL(c, x0 + 1.2, y1 - i, z + h * .45, .45, .45 * g, night); windowR(c, x1 - i, y0 + .5, z + h * .45, .5, .45 * g, night);
+      faceL(c, x0 + 1.15, x0 + 1.7, y1 - i + .01, z + h * .38, z + h * .45, '#7a4a2a'); for (let k = 0; k < 4; k++) { const p = iso(x0 + 1.2 + k * .14, y1 - i, z + h * .47); Cc(c, p[0], p[1], TW * .035, ['#f08aa0', '#f2d35b'][k % 2]); }
+      doorOn(c, o, z, .42, 1.0 * g, '#6a4226');
+      if (g > .6) { prism(c, x0 + .55, y0 + .35, .3, .3, z + h, 1.3, '#9a5a44', '#8a4a3a', '#6e3a2c'); gable(c, x0 + i - .12, y0 + i - .12, x1 - i + .12, y1 - i + .12, z + h, 1.1 * g, '#b5473a', '#d9b48a'); smoke(c, x0 + .7, y0 + .5, z + h + 1.4, 1); }
+      if (night) { const w = iso(x0 + 1.4, y1, z + h * .6); Cc(c, w[0], w[1], TW * .6, 'rgba(255,200,110,.16)'); }
+      signBoard(c, o, z, 1.3 * g, 1);
+      break;
+    }
+    case 'smithy': {  // 돌 대장간: 큰 벽돌 굴뚝, 불빛 나는 화덕 입구, 모루
+      const h = 1.8 * g, i = .12;
+      prism(c, x0 + i, y0 + i, o.w - 2 * i, o.d - 2 * i, z, h, '#a29c94', '#9a948c', '#7c766f');
+      for (let k = 0; k < 18; k++) { const u = H32(k * 3 + 1), v = H32(k * 5 + 2); faceL(c, x0 + .2 + u * 2.4, x0 + .45 + u * 2.4, y1 - i, z + v * h * .9, z + v * h * .9 + .18, 'rgba(60,55,50,.25)'); faceR(c, x1 - i, y0 + .2 + v * 2.4, y0 + .45 + v * 2.4, z + u * h * .9, z + u * h * .9 + .18, 'rgba(40,36,32,.3)'); }
+      // 화덕 입구 (오른쪽 앞면)
+      faceR(c, x1 - i + .01, y0 + .7, y0 + 1.9, z, z + 1.3 * g, '#1c120c');
+      const fire = .6 + .4 * Math.sin(tnow * 9);
+      faceR(c, x1 - i + .02, y0 + .9, y0 + 1.7, z, z + .55 * g, `rgba(255,${120 + 60 * fire},40,.85)`);
+      const fp = iso(x1, y0 + 1.3, z + .4); Cc(c, fp[0], fp[1], TW * (.9 + .15 * fire), 'rgba(255,140,50,.16)');
+      windowL(c, x0 + .6, y1 - i, z + h * .5, .5, .4 * g, night);
+      if (g > .6) {
+        gable(c, x0 + i - .1, y0 + i - .1, x1 - i + .1, y1 - i + .1, z + h, .9 * g, '#4b4f5a', '#8d8780');
+        prism(c, x0 + .3, y0 + .3, .55, .55, z, 3.9 * g, '#9a5240', '#8a4a3a', '#6e3a2c');
+        const top = iso(x0 + .57, y0 + .57, z + 3.9 * g); Cc(c, top[0], top[1], TW * .14, `rgba(255,150,60,${.5 + .3 * fire})`);
+        smoke(c, x0 + .57, y0 + .57, z + 4, 3, true);
+      }
+      // 모루와 물통
+      const an = iso(x1 + .45, y0 + .45, z); P(c, [[an[0] - TW * .14, an[1] - ZU * .55], [an[0] + TW * .16, an[1] - ZU * .55], [an[0] + TW * .08, an[1] - ZU * .35], [an[0] - TW * .06, an[1] - ZU * .35]], '#3a3a40'); R(c, an[0] - TW * .04, an[1] - ZU * .36, TW * .08, ZU * .36, '#2e2e33');
+      const br = iso(x1 + .45, y1 - .3, z); E(c, br[0], br[1] - ZU * .5, TW * .12, TW * .06, '#5a8ab0'); R(c, br[0] - TW * .12, br[1] - ZU * .5, TW * .24, ZU * .5, '#8a6238');
+      signBoard(c, o, z, 1.55 * g, 1);
+      break;
+    }
+    case 'kitchen': { // 식당: 크림색 벽, 줄무늬 차양, 바깥 식탁, 연기
+      const h = 1.6 * g, i = .12;
+      prism(c, x0 + i, y0 + i, o.w - 2 * i, o.d - 2 * i, z, h, '#f6e2bc', '#efd6a8', '#cfb48a');
+      for (let k = 0; k < 2; k++) windowL(c, x0 + .3 + k * 1.8, y1 - i, z + h * .45, .55, .5 * g, true);
+      windowR(c, x1 - i, y0 + .5, z + h * .45, .7, .5 * g, true);
+      doorOn(c, o, z, .5, 1.05 * g, '#7a4a2a');
+      if (g > .5) {
+        // 줄무늬 차양 (왼쪽 앞면 위)
+        for (let k = 0; k < 10; k++) { const a = x0 + .15 + k * .27, b = a + .27; P(c, [iso(a, y1 - i, z + h * .82), iso(b, y1 - i, z + h * .82), iso(b, y1 + .35, z + h * .6), iso(a, y1 + .35, z + h * .6)], k % 2 ? '#f4efe6' : '#c8463a'); }
+        gable(c, x0 + i - .1, y0 + i - .1, x1 - i + .1, y1 - i + .1, z + h, 1.0 * g, '#c0704a', '#ead1a4');
+        prism(c, x1 - .9, y0 + .4, .3, .3, z + h, 1.2, '#b0705a', '#9a5a44', '#7e4836'); smoke(c, x1 - .75, y0 + .55, z + h + 1.3, 5);
+        // 바깥 식탁
+        const tp = [x0 + .6, y1 + .55]; prism(c, tp[0], tp[1], .45, .45, z, .4, '#a8784a', '#8a5a32', '#6d4626');
+        const st = iso(tp[0] - .1, tp[1] + .7, z); Cc(c, st[0], st[1] - ZU * .2, TW * .06, '#7a5530');
+        const bowl = iso(tp[0] + .22, tp[1] + .22, z + .42); E(c, bowl[0], bowl[1], TW * .08, TW * .04, '#fff'); Cc(c, bowl[0], bowl[1] - 2, TW * .05, 'rgba(255,255,255,.4)');
+      }
+      signBoard(c, o, z, 1.5 * g, 1);
+      break;
+    }
+    case 'jewel': {   // 세공소: 보라 뾰족 지붕, 큰 유리창, 지붕 위 보석
+      const h = 1.5 * g, i = .15;
+      prism(c, x0 + i, y0 + i, o.w - 2 * i, o.d - 2 * i, z, h, '#e8dcf2', '#e2d6ee', '#c3b4d4');
+      faceR(c, x1 - i, y0 + .35, y1 - .55, z + h * .3, z + h * .8, '#7fd0e6');
+      const gl = (tnow * .5) % 1; faceR(c, x1 - i + .01, y0 + .35 + gl * .9, y0 + .5 + gl * .9, z + h * .3, z + h * .8, 'rgba(255,255,255,.55)');
+      doorOn(c, o, z, .42, 1.0 * g, '#5a3a6a');
+      if (g > .6) {
+        pyramidRoof(c, x0 + i - .12, y0 + i - .12, x1 - i + .12, y1 - i + .12, z + h, 1.5 * g, '#7a5a9a');
+        const gp = iso(mid(x0, x1), mid(y0, y1), z + h + 1.5 * g + .35), r = TW * .14, tw = Math.sin(tnow * 2) * .3;
+        P(c, [[gp[0], gp[1] - r * 1.3], [gp[0] + r, gp[1]], [gp[0], gp[1] + r * 1.3], [gp[0] - r, gp[1]]], '#5fd6ef'); P(c, [[gp[0], gp[1] - r * 1.3], [gp[0] + r * (.3 + tw), gp[1]], [gp[0], gp[1] + r * 1.3]], '#c9f6ff');
+      }
+      signBoard(c, o, z, 1.25 * g, 1);
+      break;
+    }
+    case 'market': {  // 시장: 나무 바닥에 색색 천막 가판대와 물건 상자
+      prism(c, x0 + .1, y0 + .1, o.w - .2, o.d - .2, z, .12, '#c9a477', '#a8845a', '#8a6a44');
+      const cols = ['#c8463a', '#3d8a9a', '#e0a83a', '#6a9a4a'];
+      for (let k = 0; k < 3; k++) {
+        const sx = x0 + .25 + k * 1.25, sy = y0 + .5;
+        prism(c, sx, sy + .9, 1, .5, z + .12, .45 * g, '#b08655', '#8a6a44', '#6d5030');
+        for (let q = 0; q < 5; q++) { const p = iso(sx + .15 + q * .18, sy + 1.15, z + .12 + .45 * g); Cc(c, p[0], p[1] - TW * .04, TW * .06, ['#e05a3a', '#f2c230', '#7fbf4f', '#d97a3a', '#8a5aa0'][(q + k) % 5]); }
+        if (g > .5) {
+          [[0, 0], [1, 0], [0, 1.4], [1, 1.4]].forEach(([a, b]) => { const p0 = iso(sx + a, sy + b, z + .12), p1 = iso(sx + a, sy + b, z + 1.6 * g); L(c, p0[0], p0[1], p1[0], p1[1], '#6d5030', TW * .04); });
+          for (let s2 = 0; s2 < 4; s2++) P(c, [iso(sx + s2 * .25, sy, z + 1.75 * g), iso(sx + s2 * .25 + .25, sy, z + 1.75 * g), iso(sx + s2 * .25 + .25, sy + 1.5, z + 1.45 * g), iso(sx + s2 * .25, sy + 1.5, z + 1.45 * g)], s2 % 2 ? '#f4efe6' : cols[k]);
+        }
+      }
+      for (let k = 0; k < 3; k++) prism(c, x1 - .55, y0 + .3 + k * .45, .35, .35, z + .12, .3, '#b88a58', '#9a7046', '#7a5634');
+      const pole = iso(x0 + .2, y1 - .15, z); L(c, pole[0], pole[1], pole[0], pole[1] - ZU * 2.6 * g, '#6b4a2a', TW * .05);
+      if (g > .5) { const s = TW * .42, p = [pole[0], pole[1] - ZU * 2.6 * g]; c.fillStyle = 'rgba(40,26,14,.92)'; c.beginPath(); c.roundRect(p[0] - s / 2, p[1] - s, s, s, s * .22); c.fill(); c.strokeStyle = '#e9b04f'; c.lineWidth = 2; c.stroke(); emo(c, o.icon, p[0], p[1] - s / 2, (s * .66) * 1.3); }
+      break;
+    }
+    case 'museum': {  // 박물관: 계단, 흰 기둥, 삼각 박공
+      prism(c, x0, y0, o.w, o.d, z, .25, '#e6e0d4', '#cfc9bd', '#b3ad a2'.replace(' ', ''));
+      prism(c, x0 + .2, y0 + .2, o.w - .4, o.d - .4, z + .25, .2, '#ece6da', '#d8d2c6', '#bcb6aa');
+      const zb = z + .45, h = 2.0 * g;
+      prism(c, x0 + .55, y0 + .55, o.w - 1.1, o.d - 1.1, zb, h, '#cfc8ba', '#bdb6a8', '#a19a8d');
+      for (let k = 0; k < 6; k++) prism(c, x0 + .3 + k * .62, y1 - .48, .16, .16, zb, h, '#f4f0e8', '#e6e0d4', '#c9c3b7');
+      for (let k = 0; k < 5; k++) prism(c, x1 - .48, y0 + .3 + k * .72, .16, .16, zb, h, '#f4f0e8', '#e6e0d4', '#c9c3b7');
+      if (g > .6) {
+        prism(c, x0 + .2, y0 + .2, o.w - .4, o.d - .4, zb + h, .3, '#ece6da', '#ddd7cb', '#c2bcb0');
+        gable(c, x0 + .2, y0 + .2, x1 - .2, y1 - .2, zb + h + .3, 1.0 * g, '#9a948a', '#efe9dd');
+      }
+      signBoard(c, o, zb, 1.5 * g, 1);
+      break;
+    }
+    case 'mine': {    // 광산: 바위 언덕, 나무틀 굴 입구, 망루와 바퀴, 레일과 수레
+      const h = 1.7;
+      prism(c, x0 + .1, y0 + .1, o.w - .2, o.d - .2, z, h, '#9a8b7c', '#8a7a6c', '#6e6156');
+      for (let k = 0; k < 9; k++) { const p = iso(x0 + .4 + H32(k * 3) * 2.2, y0 + .4 + H32(k * 7) * 2.2, z + h); E(c, p[0], p[1], TW * (.25 + H32(k) * .2), ZU * (.35 + H32(k * 2) * .3), ['#a39383', '#958676', '#ab9b8b'][k % 3]); }
+      // 입구 (왼쪽 앞면)
+      const ex = o.door[0] + .5, ey = y1 - .1;
+      const a = iso(ex - .38, ey, z), b = iso(ex + .38, ey, z), top = iso(ex, ey, z + 1.25);
+      c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(a[0], a[1] - ZU * .8); c.quadraticCurveTo(top[0], top[1] - ZU * .4, b[0], b[1] - ZU * .8); c.lineTo(b[0], b[1]); c.closePath(); c.fillStyle = '#120b07'; c.fill();
+      faceL(c, ex - .48, ex - .38, ey + .02, z, z + 1.1, '#8b6238'); faceL(c, ex + .38, ex + .48, ey + .02, z, z + 1.1, '#8b6238'); faceL(c, ex - .52, ex + .52, ey + .02, z + 1.05, z + 1.2, '#9c6f40');
+      const lp = iso(ex - .62, ey, z + .9); Cc(c, lp[0], lp[1], night ? TW * .6 : TW * .14, night ? 'rgba(255,200,110,.22)' : 'rgba(255,220,140,.35)'); Cc(c, lp[0], lp[1], TW * .05, '#ffd27a');
+      // 레일과 수레
+      for (let k = 0; k < 4; k++) { const p0 = iso(ex - .25, ey + k * .3, z), p1 = iso(ex + .25, ey + k * .3, z); L(c, p0[0], p0[1], p1[0], p1[1], '#6d4a2a', TW * .04); }
+      const r0 = iso(ex - .18, ey, z), r1 = iso(ex - .18, ey + 1.1, z), r2 = iso(ex + .18, ey, z), r3 = iso(ex + .18, ey + 1.1, z); L(c, r0[0], r0[1], r1[0], r1[1], '#555', TW * .025); L(c, r2[0], r2[1], r3[0], r3[1], '#555', TW * .025);
+      prism(c, ex - .22, ey + .55, .44, .4, z + .08, .32, '#7a7f86', '#5d6268', '#4a4e54');
+      for (let k = 0; k < 4; k++) { const p = iso(ex - .1 + k * .08, ey + .7, z + .42); Cc(c, p[0], p[1], TW * .045, ['#d97a3a', '#aeb7c2', '#d97a3a', '#5fc9e0'][k]); }
+      // 망루
+      const t0 = iso(x0 + 1, y0 + .9, z + h), t1 = iso(x0 + 2, y0 + .9, z + h), tt = iso(x0 + 1.5, y0 + .9, z + h + 2.6);
+      L(c, t0[0], t0[1], tt[0], tt[1], '#7a5530', TW * .06); L(c, t1[0], t1[1], tt[0], tt[1], '#7a5530', TW * .06);
+      c.beginPath(); c.arc(tt[0], tt[1], TW * .18, 0, 7); c.strokeStyle = '#5a3d22'; c.lineWidth = TW * .05; c.stroke();
+      L(c, tt[0], tt[1], tt[0] + TW * .15 * Math.cos(tnow), tt[1] + TW * .15 * Math.sin(tnow), '#5a3d22', TW * .03);
+      signBoard(c, o, z, 1.55, 1);
+      break;
+    }
+  }
 }
 function drawObj(c, o, night) {
   const z0 = hgt(o.gx, o.gy), x = o.gx, y = o.gy;
   if (o.door && o.w >= 2) {
-    const q = iso(o.gx + o.w / 2, o.gy + o.d / 2, z0);
-    if (!o.done && o.grow < .3) { buildingSprite(c, o, 'vl_empty'); c.globalAlpha *= .9; emo(c, o.icon, q[0], q[1] - ZU * .9, TW * .5); c.globalAlpha /= .9; }
-    else { buildingSprite(c, o, BUILD_IMG[o.kind], o.grow); if (o.kind === 'mine' && night) Cc(c, q[0], q[1] - ZU * .6, TW * .9, 'rgba(255,200,110,.14)'); }
+    const p0 = INK; INK = Math.max(1.5, TW * .02);
+    if (!o.done && o.grow < .3) ruinSite(c, o); else drawBuilding(c, o, night);
+    INK = p0;
+    if (o.kind === 'mine' && night) { const q = iso(o.gx + o.w / 2, o.gy + o.d / 2, z0); Cc(c, q[0], q[1] - ZU * .6, TW * .9, 'rgba(255,200,110,.14)'); }
     return;
   }
   switch (o.kind) {
@@ -559,12 +846,11 @@ function drawObj(c, o, night) {
     }
     case 'bigtree': {
       const p = iso(x + .5, y + .5, z0);
-      sprite(c, 'worldtree', p[0], p[1] + TH * .9, TW * 2.2);
+      bigTreeAt(c, p[0], p[1]);
       break;
     }
     case 'bridge': {
-      if (o.grow > .05) { const q = iso(x + .5, y + o.d / 2, 0); sprite(c, 'bridge', q[0] + TW * .02, q[1] + TH * 1.5, TW * 2.7 * (.6 + .4 * o.grow));
-      } else { for (let k = 0; k < 3; k++) { const a = iso(x + k + .1, y + .3, .05), b = iso(x + k + .5, y + .75, -.18); L(c, a[0], a[1], b[0], b[1], '#7a5530', TW * .08); } }
+      bridgeAt(c, o);
       break;
     }
     case 'field': {
@@ -592,18 +878,6 @@ function drawObj(c, o, night) {
       break;
     }
   }
-}
-function treeAt(c, x, y) {
-  const p = iso(x + .5, y + .5, hgt(x, y)), h = H32(x * 311 + y * 733);
-  sprite(c, ['tree_a', 'tree_b', 'tree_c'][h * 3 | 0], p[0], p[1] + TH * .32, TW * (1.0 + h * .3));
-}
-function bushAt(c, x, y) {
-  const p = iso(x + .5, y + .5, hgt(x, y)), h = H32(x * 17 + y * 29);
-  sprite(c, h < .4 ? 'flower' : 'bush', p[0], p[1] + TH * .3, TW * (.72 + h * .16));
-}
-function rockAt(c, x, y) {
-  const p = iso(x + .5, y + .5, hgt(x, y));
-  sprite(c, 'rock', p[0], p[1] + TH * .32, TW * .92);
 }
 function propAt(c, x, y, kind, night) {
   const z = hgt(x, y), p = iso(x + .5, y + .5, z);
@@ -633,16 +907,14 @@ function groundTile(c, x, y, z, town) {
   const n = H32(x * 92821 + y * 68917), n2 = H32(x * 7 + y * 53);
   if (isWater(x, y)) {
     const wz = -.15;
-    tileTop(c, x, y, wz, pattern(c, 'water', 4, (tnow * .05) % 4) || (n < .5 ? '#4f9fd8' : '#4b99d3'));
+    tileTop(c, x, y, wz, n < .5 ? '#4f9fd8' : '#4b99d3');
     c.globalAlpha = .18 + .08 * Math.sin(tnow * 1.5 + x * .9); tileTop(c, x, y, wz, '#8fd0f5'); c.globalAlpha = 1;
     faceL(c, x, x + 1, y, wz, 0, '#6b5238');
     edgeLine(c, x, y + .07, x + 1, y + .07, wz, 'rgba(255,255,255,.6)', TW * .03);
     edgeLine(c, x, y + .96, x + 1, y + .96, wz, 'rgba(255,255,255,.35)', TW * .03);
     for (let k = 0; k < 2; k++) { const u = (tnow * .22 + n + k * .5) % 1, yy = y + .32 + k * .34, a = iso(x + u * .7, yy, wz), b = iso(x + u * .7 + .3, yy, wz); c.globalAlpha = Math.sin(u * Math.PI) * .55; L(c, a[0], a[1], b[0], b[1], '#e4f5ff', TW * .025); c.globalAlpha = 1; }
-    if (n2 < .13 && !objAt(x, y) && sprite(c, 'lily', iso(x + .5, y + .6, wz)[0], iso(x + .5, y + .6, wz)[1] + TH * .2, TW * .6)) { /* 수련 그림 */ }
-    else if (n2 > .88 && !objAt(x, y) && sprite(c, n2 > .95 ? 'bankstone' : 'reed', iso(x + .5, y + .22, wz)[0], iso(x + .5, y + .22, wz)[1] + TH * .15, TW * (n2 > .95 ? .7 : .42))) { /* 갈대와 물가 돌 */ }
-    else if (n2 < .13 && !objAt(x, y)) { const p = iso(x + .3 + n * .4, y + .55, wz); E(c, p[0], p[1], TW * .1, TW * .05, '#4c9a4a'); E(c, p[0] + TW * .09, p[1] + TW * .03, TW * .06, TW * .03, '#58a854'); if (n2 < .05) Cc(c, p[0], p[1] - 1.5, TW * .03, '#f6c1d8'); }
-    else if (n2 > .88) for (let k = 0; k < 3; k++) { const q = iso(x + .25 + k * .12, y + .14, wz); L(c, q[0], q[1], q[0] + (k - 1) * 1.5, q[1] - ZU * (.5 + k * .1), '#5d7a3a', TW * .025); Cc(c, q[0] + (k - 1) * 1.5, q[1] - ZU * (.5 + k * .1), TW * .025, '#7a5530'); }
+    if (n2 < .13 && !objAt(x, y)) { const q = iso(x + .5, y + .6, wz); lilyAt(c, q[0], q[1]); }
+    else if (n2 > .88 && !objAt(x, y)) { const q = iso(x + .5, y + .22, wz); if (n2 > .95) bankStoneAt(c, q[0], q[1]); else reedAt(c, q[0], q[1]); }
     return;
   }
   const paved = pavedAt(x, y), plaza = paved && inPlaza(x, y), field = town && inField(x, y), forest = town && inForest(x, y);
@@ -653,12 +925,7 @@ function groundTile(c, x, y, z, town) {
   else if (forest) col = ['#6da552', '#74ac58', '#67a04d'][n * 3 | 0];
   else if (!town) col = ['#7fb35a', '#86ba5f', '#79ab55'][n * 3 | 0];
   else col = ['#8fc465', '#95ca6b', '#8abf61', '#9bce71'][n * 4 | 0];
-  const tex = plaza || field ? null : paved ? pattern(c, 'path', 3) : pattern(c, 'grass', 5);
-  tileTop(c, x, y, z, tex || col);
-  if (tex && !paved) {   // 무늬 위에 구역 색을 살짝: 숲은 어둡게, 성 밖은 차분하게
-    if (forest) { c.globalAlpha = .28; tileTop(c, x, y, z, '#1f5a2c'); c.globalAlpha = 1; }
-    else if (!town) { c.globalAlpha = .16; tileTop(c, x, y, z, '#3f7a4a'); c.globalAlpha = 1; }
-  }
+  tileTop(c, x, y, z, col);
   if (!paved && !field && H32((x >> 2) * 7349 + (y >> 2) * 9151) < .35) { c.globalAlpha = .055; tileTop(c, x, y, z, '#2f6a34'); c.globalAlpha = 1; }
   if (isWall(x, y)) return;
   if (paved) {
@@ -673,7 +940,7 @@ function groundTile(c, x, y, z, town) {
     return;
   }
   if (field || (town && objAt(x, y))) return;
-  if (tex) { if (forest && n2 > .9) { const q = iso(x + .5, y + .5, z); sprite(c, 'mush', q[0], q[1] + TH * .2, TW * .5); } return; }
+  if (forest && n2 > .9) { const q = iso(x + .5, y + .55, z); mushAt(c, q[0], q[1]); return; }
   if (n2 < .42) for (let k = 0; k < 2; k++) { const q = iso(x + .2 + H32(x * 13 + y * 3 + k) * .6, y + .2 + H32(x * 3 + y * 19 + k) * .6, z); P(c, [[q[0] - TW * .03, q[1]], [q[0] - TW * .01, q[1] - ZU * .22], [q[0] + TW * .01, q[1]], [q[0] + TW * .035, q[1] - ZU * .17], [q[0] + TW * .05, q[1]]], forest ? '#4f8a40' : '#6aa84c'); }
   else if (n2 > .84) { const cols = ['#f6f0e0', '#f2d35b', '#f08aa0', '#b9a2e8']; for (let k = 0; k < 1 + (n * 3 | 0); k++) { const q = iso(x + .25 + H32(x + y * 9 + k) * .5, y + .25 + H32(x * 9 + y + k) * .5, z); Cc(c, q[0], q[1], TW * .035, cols[(n * 97 + k | 0) % 4]); Cc(c, q[0], q[1], TW * .012, '#fff8d0'); } }
   else if (n2 > .78) { const q = iso(x + .5, y + .5, z); E(c, q[0], q[1], TW * .06, TW * .035, '#a59c8f'); }
@@ -1048,8 +1315,10 @@ function mineGeo() {
 function tileCenter(i) { const { cs, bx, by } = mineGeo(); return { x: bx + (i % MW) * cs + cs / 2, y: by + ((i / MW) | 0) * cs + cs / 2 }; }
 function rgbk(c, k) { return `rgb(${c.map(v => Math.max(0, Math.min(255, Math.round(v + k)))).join(',')})`; }
 function rockBlock(c, x, y, cs, col, seed, dim) {
-  c.drawImage(IMG.vm_dirt, x, y, cs, cs); R(c, x, y, cs, cs, `rgba(${col.map(v => Math.round(v * .5))},.22)`);
-  if (dim) R(c, x, y, cs, cs, 'rgba(10,6,3,.5)');
+  const k = dim ? -46 : 0;
+  R(c, x, y, cs, cs, rgbk(col, k - 30)); R(c, x + 1, y + 1, cs - 2, cs - 2, rgbk(col, k));
+  R(c, x + 1, y + 1, cs - 2, cs * .15, rgbk(col, k + 26)); R(c, x + 1, y + cs * .86, cs - 2, cs * .12, rgbk(col, k - 24));
+  for (let p = 0; p < 3; p++) { const h = H32(seed * 7 + p); E(c, x + 5 + h * (cs - 12), y + cs * .3 + H32(seed + p * 3) * cs * .5, 1.5 + h * cs * .06, 1 + h * cs * .03, rgbk(col, k - 32)); }
 }
 function hollow(c, x, y, cs, col) {
   R(c, x, y, cs, cs, `rgb(${col.map(v => Math.round(v * .3)).join(',')})`);
@@ -1075,10 +1344,10 @@ function drawMine(c, dt) {
   Object.keys(mrev).forEach(k => { const v = mrev[k]; if (tnow >= v.at) { const p = tileCenter(+k); burst(p.x, p.y, v.c1, v.c2, v.n); delete mrev[k]; } });
   m.tiles.forEach((tl, i) => {
     const x = bx + (i % MW) * cs, y = by + ((i / MW) | 0) * cs;
-    if (tl.t === 'h') c.drawImage(IMG.vm_rock, x, y, cs, cs);
+    if (tl.t === 'h') { R(c, x, y, cs, cs, '#2a2628'); R(c, x + 1, y + 1, cs - 2, cs - 2, '#46413f'); R(c, x + 1, y + 1, cs - 2, cs * .15, '#5c5653'); for (let p = 0; p < 6; p++) Cc(c, x + 5 + H32(i * 9 + p) * (cs - 10), y + 6 + H32(i * 5 + p) * (cs - 12), 1.3, 'rgba(220,220,230,.35)'); }
     else if (shown(i)) {
       hollow(c, x, y, cs, col);
-      if (tl.t === 'x') c.drawImage(IMG.vm_stair, x + 1, y + 1, cs - 2, cs - 2);
+      if (tl.t === 'x') { R(c, x + cs * .2, y + cs * .3, cs * .6, cs * .7, '#070403'); for (let k = 0; k < 4; k++) L(c, x + cs * .3, y + cs * (.42 + k * .15), x + cs * .7, y + cs * (.42 + k * .15), '#b98448', 2.5); L(c, x + cs * .3, y + cs * .3, x + cs * .3, y + cs, '#b98448', 2.5); L(c, x + cs * .7, y + cs * .3, x + cs * .7, y + cs, '#b98448', 2.5); }
     } else {
       rockBlock(c, x, y, cs, col, i * 97 + m.seed, !canDig(i) && !tl.open);
       if (tl.t === 'x') {   // 계단이 있는 칸은 갈라진 틈으로 빛이 샘
@@ -1126,8 +1395,7 @@ function mineTap(px, py) {
   const { cs, bx, by } = mineGeo(), q = Math.floor((px - bx) / cs), r = Math.floor((py - by) / cs);
   if (q >= 0 && q < MW && r >= 0 && r < MH) dig(r * MW + q);
 }
-/* ===== 글 속 아이콘 (그림 파일) ===== */
-const ico = n => `<img class="ico" src="assets/${n}.webp" alt="">`;
+/* ===== 글 속 아이콘 (위의 ICONS를 SVG로) ===== */
 const GOLD = ico('ic_gold');
 // 기력은 번개 모양을 직접 그림 (동전 모양 아이콘과 헷갈리지 않게)
 const PWR = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 1 3 14h6.5L8 23l11-14h-6.5z" fill="#ffe27a" stroke="#6b4310" stroke-width="1.6" stroke-linejoin="round"/></svg>';
@@ -1351,7 +1619,7 @@ cv.addEventListener('pointercancel', () => { down = null; });
 cv.addEventListener('lostpointercapture', () => { if (down && down.moved) down = null; });
 window.addEventListener('resize', () => { resize(); if (scene === 'village') snapCam(); });
 
-/* ===== 시작: 그림을 다 읽을 때까지 로딩 화면 ===== */
+/* ===== 시작 ===== */
 S = load();
 if (S.introSeen && S.quest === 0) S.quest = 1;   // 퀘스트가 없던 때의 기록
 function startGame() {
@@ -1360,18 +1628,9 @@ function startGame() {
   if (S.screen === 'mine' && S.mine) scene = 'mine'; else { S.screen = 'village'; S.mine = null; }
   snapCam(); renderHud(); renderDock(); showHome();
   fade = 1;
-  document.getElementById('loading').hidden = true;
   requestAnimationFrame(frame);
   window.MinerDiary.ready = true;
 }
-function boot() {
-  const box = document.getElementById('loading');
-  box.hidden = false; box.querySelector('p').textContent = '불러오는 중'; box.querySelector('button').hidden = true;
-  loadImages(f => { box.querySelector('i').style.width = Math.round(f * 100) + '%'; })
-    .then(startGame)
-    .catch(() => { box.querySelector('p').textContent = '불러오기 실패'; box.querySelector('button').hidden = false; });
-}
-document.getElementById('loading').querySelector('button').addEventListener('click', boot);
 // 테스트용 창구: 상태 읽기, 칸과 건물의 화면 위치, 걷는 빠르기
 window.MinerDiary = {
   state: () => S, hint, canDig, phaseIndex, untilNext, objects: () => OBJ, scene: () => scene,
@@ -1384,7 +1643,7 @@ window.MinerDiary = {
   },
   speed: k => { hero.speed = 5.2 * k; },
 };
-boot();
+startGame();
 </script>
 </body>
 </html>

@@ -34,7 +34,6 @@ const shot = process.argv[2];
   const { st, tap, visit, canList } = helpers(page);
   await page.evaluate(() => window.MinerDiary.speed(10));
 
-  ok(await page.locator('#loading').isHidden(), '그림을 다 읽으면 로딩 화면이 사라짐');
   // 1. 퀘스트를 따라 촌장 만나기
   const quest = () => page.evaluate(() => document.querySelector('.quest').innerText.replace(/\s+/g, ' ').trim());
   ok(await page.locator('#sheet').isHidden() && (await quest()).includes('촌장 만나기'), '시작하면 첫 퀘스트 「촌장 만나기」가 보임');
