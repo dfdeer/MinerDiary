@@ -321,7 +321,7 @@ function faint() {
 }
 /* ===== 그림 파일 (아니마룬에서 가져온 에셋). 아직 안 읽혔으면 코드 그림으로 대신 그림 ===== */
 const IMG = {};
-['b_house', 'b_mine', 'b_smithy', 'b_kitchen', 'b_jewel', 'b_market', 'b_museum', 'p_miner_1', 'p_miner_2', 'p_miner_3', 'p_miner_4', 'p_miner_5', 'p_miner_6', 'vl_empty', 'vm_dirt', 'vm_rock', 'vm_stair', 'tree_a', 'tree_b', 'tree_c', 'bush', 'flower', 'rock', 'bankstone', 'lily', 'reed', 'mush', 'bridge', 'worldtree', 'grass', 'path', 'water',
+['b_house', 'b_mine', 'b_smithy', 'b_kitchen', 'b_jewel', 'b_market', 'b_museum', 'p_miner_f0', 'p_miner_f1', 'p_miner_f2', 'p_miner_b0', 'p_miner_b1', 'p_miner_b2', 'vl_empty', 'vm_dirt', 'vm_rock', 'vm_stair', 'tree_a', 'tree_b', 'tree_c', 'bush', 'flower', 'rock', 'bankstone', 'lily', 'reed', 'mush', 'bridge', 'worldtree', 'grass', 'path', 'water',
   'ic_gold', 'ic_pick', 'ic_shop', 'ic_village', 'ic_lock', 'ic_hearth', 'ic_rest', 'ic_shard', 'ic_treasure'].forEach(n => { const im = new Image(); im.onload = () => { im.ok = true; PAT = {}; }; im.src = `assets/${n}.webp`; IMG[n] = im; });
 // 바닥 가운데 (cx, by)에 폭 w로 그림. 못 그리면 false
 function sprite(c, name, cx, by, w) { const im = IMG[name]; if (!im || !im.ok) return false; const h = w * im.naturalHeight / im.naturalWidth; c.drawImage(im, cx - w / 2, by - h, w, h); return true; }
@@ -388,20 +388,21 @@ function prism(c, x, y, w, d, z0, h, top, left, right) {
   P(c, [cc, b, iso(x + w, y, z0), iso(x + w, y + d, z0)], right);
   P(c, [a, b, cc, e], top);
 }
-// 광부 그림: 앞모습(오른쪽 아래를 봄)과 뒷모습(왼쪽 위를 봄), 각각 서기와 걷기. 나머지 두 방향은 좌우를 뒤집음.
-// 앞모습 걷기는 걷는 장면과 서 있는 장면을 번갈아 보여 줌. 광산에서는 캘 때 몸을 숙임
+// 광부 그림: 앞모습(f, 오른쪽 아래를 봄)과 뒷모습(b, 왼쪽 위를 봄). 0은 서기, 1과 2는 걸음. 나머지 두 방향은 좌우를 뒤집음.
+// 모든 장면은 560×560 판에서 헬멧 크기와 위치를 맞춰 둠(머리가 흔들리지 않게). MINER_ANCHOR는 판 안의 발 위치
+const MINER_ANCHOR = { f: [299, 369], b: [272, 450] }, MINER_TOP = 36;
 function minerSprite(c, a, b, s, bob, pick) {
   const inMine = scene === 'mine', walking = !inMine && hero.path.length > 0;
-  const back = !inMine && hero.back, step = Math.sin(hero.walk * .5) > 0;
-  let im = IMG[back ? (walking ? (step ? 'p_miner_5' : 'p_miner_6') : 'p_miner_4') : (walking && step ? 'p_miner_2' : 'p_miner_1')];
-  if (back && (!im || !im.ok)) im = IMG.p_miner_1;
+  const k = !inMine && hero.back ? 'b' : 'f';
+  // 걸음 네 박자: 한 발, 모음, 다른 발, 모음
+  const beat = Math.floor(hero.walk / 2.4) % 4, im = IMG['p_miner_' + k + (walking ? [1, 0, 2, 0][beat] : 0)];
   if (!im || !im.ok) return false;
-  const h = s * 46, w = h * im.naturalWidth / im.naturalHeight;
-  E(c, a, b, h * .22, h * .07, 'rgba(0,0,0,.25)');
-  c.save(); c.translate(a, b + h * .04 - (walking ? Math.abs(Math.sin(hero.walk * .5)) * h * .04 : 0));
+  const [ax, ay] = MINER_ANCHOR[k], z = s * 46 / (ay - MINER_TOP);
+  E(c, a, b, s * 10, s * 3.2, 'rgba(0,0,0,.25)');
+  c.save(); c.translate(a, b + s * 2 - (walking && beat % 2 ? s * 1.6 : 0));
   if (!inMine && hero.flip) c.scale(-1, 1);
   if (typeof pick === 'number') c.rotate(pick * .22);
-  c.drawImage(im, -w / 2, -h, w, h); c.restore();
+  c.drawImage(im, -ax * z, -ay * z, 560 * z, 560 * z); c.restore();
   return true;
 }
 function person(c, a, b, s, shirt, helmet, bob, pick, beard) {
