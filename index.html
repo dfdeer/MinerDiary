@@ -578,7 +578,7 @@ function chibi(c, X, Y, s, o) {
   };
   // 그리는 순서는 걷는 중에도 바뀌지 않음 (뒤에서 앞으로):
   // 얼굴이 보일 때: 짐, 곡괭이 자루, 먼 팔(쥔 손이 먼 쪽이면 그 손도), 먼 다리, 가까운 다리, 몸, 가까운 팔, 곡괭이 쥔 손, 머리, 모자
-  // 등이 보일 때: 먼 팔, 먼 다리, 가까운 다리, 몸, 짐, 가까운 팔, 곡괭이와 쥔 손, 머리, 모자
+  // 등이 보일 때: 곡괭이(자루와 쥔 손은 몸에 가려짐), 먼 팔, 먼 다리, 가까운 다리, 몸, 짐, 가까운 팔, 머리, 모자
   // 먼 쪽: 몸이 돌아간 쪽 (얼굴이 오른쪽 아래를 보면 화면 오른쪽, 등이 오른쪽 위를 보면 화면 왼쪽). 먼 쪽 팔다리는 몸 안쪽으로 조금 붙임
   const legs = [[leftSide, ph], [-leftSide, ph + Math.PI]].sort((a, b) => (a[0] === far ? -1 : 1));
   const pack = () => { shape(c, () => c.roundRect(-fx * 3 - 15, -60, 30, 30, 9), '#9a6638'); shape(c, () => c.roundRect(-fx * 3 - 15, -60, 30, 9, 5), '#b47a44', 2.5); };
@@ -592,7 +592,6 @@ function chibi(c, X, Y, s, o) {
     c.beginPath(); c.moveTo(rs * 5, -90); c.quadraticCurveTo(rs * 27, -98, rs * 42, -72);
     c.strokeStyle = OUT; c.lineWidth = 12; c.stroke(); c.strokeStyle = '#b7c0ca'; c.lineWidth = 6.5; c.stroke();
     c.beginPath(); c.moveTo(rs * 12, -92); c.quadraticCurveTo(rs * 27, -96, rs * 36, -80); c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 2; c.stroke();
-    if (back) { limb(c, rs * 15, -49, rs * 13, -38, L.sleeve, 8.5); shape(c, () => c.arc(rs * 13, -38, 6.5, 0, 7), L.glove, 3); }
     c.restore();
   };
   const gripArm = () => {
@@ -601,7 +600,8 @@ function chibi(c, X, Y, s, o) {
     shape(c, () => c.arc(rs * 13, -38, 6.5, 0, 7), L.glove, 3);
     c.restore();
   };
-  if (L.pick && !back) pickaxe();
+  // 곡괭이는 몸 앞에서 쥐고 어깨에 걸침: 얼굴이 보이면 자루 위쪽이 몸 뒤로, 등이 보이면 쥔 손과 자루 아래쪽이 몸에 가려짐
+  if (L.pick) pickaxe();
   // 팔: 반대쪽 다리와 함께 앞뒤로 흔들림. 곡괭이나 지팡이가 있으면 오른손이 쥠
   const arm = (side, p, hold) => {
     if (hold) return;
@@ -632,7 +632,7 @@ function chibi(c, X, Y, s, o) {
   if (L.pack && back) pack();
   arms.forEach(([side, p2, hold]) => { if (side !== far) arm(side, p2, hold); });
   if (L.pick && !back && rs !== far) gripArm();
-  if (L.pick && back) pickaxe();   // 등이 보이면 곡괭이는 등 위, 머리보다는 뒤
+  if (L.pick && back) { c.save(); c.translate(rs * 16, -48); c.rotate(ang); c.translate(-rs * 16, 48); limb(c, rs * 15, -50, rs * 13, -41, L.sleeve, 9); c.restore(); }   // 등이 보이면 앞으로 뻗은 오른팔은 어깨만 보임
   if (L.cane) { limb(c, rs * 22, -36, rs * 25, -1, '#8a5a32', 4); shape(c, () => c.arc(rs * 22, -38, 7, Math.PI, 0), '#8a5a32', 3); limb(c, rs * 15, -49, rs * 21, -36, L.sleeve, 9); shape(c, () => c.arc(rs * 21, -36, 6.5, 0, 7), L.glove, 3); }
   // 머리
   const hx = fx * 1.5, hy = -78;
