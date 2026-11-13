@@ -209,7 +209,7 @@ const blocked = (x, y) => {
 
 /* ===== 게임 규칙 설정 ===== */
 const KEY = 'minerdiary.v1';
-const MAX_ENERGY = 100, DIG_COST = 2, MW = 7, MH = 7, MAX_FLOOR = 5;
+const MAX_ENERGY = 100, DIG_COST = 2, MW = 18, MH = 18, MAX_FLOOR = 5;
 const FAINT_LOSS = 0.3;                                    // 쓰러지면 그날 캔 광석 중 잃는 비율 (1단계 임시값)
 const START_FRAC = { normal: 1, late: 0.9, faint: 0.7 };
 const ORES = {
@@ -229,13 +229,13 @@ const HOME = OBJ.find(o => o.id === 'house').door;   // 낡은 집 문 앞
 const INTRO = [
   '어서 와요. 광부들이 다 떠나고 마을이 이렇게 무너져 버렸어요.',
   '광산에서 광석을 캐다가 떠돌이 상인한테 팔아 줘요. 그 돈으로 대장간부터 고치면 좋겠어요.',
-  '판 자리에 나오는 숫자는 주변 여덟 칸에 남은 광석 수예요. 같은 광석이 붙어 있으면 한 번에 캐지고요.',
+  '광산 굴은 걸어서 둘러보면 돼요. 벽에 박힌 광석을 누르면 캐고요. 벽 틈이 반짝이면 그 안쪽에도 광석이 숨어 있어요.',
   '기력이 다 떨어지기 전에 집에 가서 자요. 무리하면 쓰러져요.',
 ];
 const CHIEF_TIPS = [
-  '숫자가 큰 칸 옆을 파 봐요. 광석이 나올 가능성이 높거든요.',
-  '숫자가 없는 칸은 주변에 광석이 없어서, 옆 칸까지 저절로 무너져요.',
-  '틈으로 빛이 새는 바위 아래엔 계단이 있어요. 깊을수록 비싼 광석이 나와요.',
+  '반짝이는 틈이 보이면 그 벽을 파 봐요. 안쪽에 광석이 숨어 있거든요.',
+  '돌무더기로 막힌 곳 뒤엔 숨은 방이 있어요. 광석이 잔뜩 박혀 있대요.',
+  '계단은 굴 깊숙한 곳에 있어요. 깊을수록 비싼 광석이 나와요.',
   '새벽에 내려간 층에선 가끔 월광석이 보인대요.',
   '새벽까지 무리하면 다음 날 몸이 덜 풀릴 거예요.',
   '기력이 바닥나면 쓰러져요. 그날 캔 것도 조금 잃어버리고요.',
@@ -628,8 +628,7 @@ function chibi(c, X, Y, s, o) {
 // 예전 호출 모양을 그대로 받음: helmet이면 광부, beard면 촌장, 나머지는 상인
 function person(c, a, b, s, shirt, helmet, bob, pick, beard) {
   if (helmet) {
-    const inMine = scene === 'mine';
-    chibi(c, a, b, s, { who: 'miner', fx: inMine ? 1 : hero.fx, back: !inMine && hero.back, phase: hero.walk * .55, moving: !inMine && hero.path.length > 0, swing: inMine ? mswing : 0 });
+    chibi(c, a, b, s, { who: 'miner', fx: hero.fx, back: hero.back, phase: hero.walk * .55, moving: hero.path.length > 0, swing: scene === 'mine' ? mswing : 0 });
   } else chibi(c, a, b, s * 1.05, { who: beard ? 'chief' : 'merchant', fx: -1, back: false });
 }
 // 면 하나 (왼쪽 앞면: y 고정, 오른쪽 앞면: x 고정)
@@ -1122,6 +1121,7 @@ function viewTiles() {
   return { x0: Math.floor(Math.min(...xs)) - 2, x1: Math.ceil(Math.max(...xs)) + 2, y0: Math.floor(Math.min(...ys)) - 2, y1: Math.ceil(Math.max(...ys)) + 2 };
 }
 function heroZ() {
+  if (scene === 'mine') return 0;
   const x0 = Math.floor(hero.x + .001), y0 = Math.floor(hero.y + .001), x1 = Math.ceil(hero.x - .001), y1 = Math.ceil(hero.y - .001);
   const z0 = isWater(x0, y0) ? .2 : hgt(x0, y0), z1 = isWater(x1, y1) ? .2 : hgt(x1, y1);
   const f = Math.max(hero.x - x0, hero.y - y0);
@@ -1130,14 +1130,15 @@ function heroZ() {
 
 /* ===== 걷기 ===== */
 function bfs(sx, sy, goal) {
+  const mine = scene === 'mine';
   const key = (x, y) => x + ',' + y, prev = new Map([[key(sx, sy), null]]), q = [[sx, sy]];
   while (q.length) {
     const [x, y] = q.shift();
     if (goal(x, y)) { const out = []; let k = key(x, y); while (k) { const [a, b] = k.split(',').map(Number); out.unshift([a, b]); k = prev.get(k); } return out.slice(1); }
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = x + dx, ny = y + dy, k = key(nx, ny);
-      if (prev.has(k) || blocked(nx, ny)) continue;
-      if (Math.abs(hgt(nx, ny) - hgt(x, y)) > 1) continue;
+      if (prev.has(k)) continue;
+      if (mine ? mBlocked(nx, ny) : blocked(nx, ny) || Math.abs(hgt(nx, ny) - hgt(x, y)) > 1) continue;
       prev.set(k, key(x, y)); q.push([nx, ny]);
     }
   }
@@ -1160,7 +1161,11 @@ function walkStep(dt) {
   const dx = tx - hero.x, dy = ty - hero.y, d = Math.hypot(dx, dy), st = dt * hero.speed;
   if (d > .001) { hero.back = dx + dy < 0; if (Math.abs(dx - dy) > .01) hero.fx = dx - dy > 0 ? 1 : -1; }
   hero.walk += dt * 14;
-  if (d <= st) { hero.x = tx; hero.y = ty; hero.path.shift(); if (!hero.path.length && hero.target) { const o = hero.target; hero.target = null; arrive(o); } }
+  if (d <= st) {
+    hero.x = tx; hero.y = ty; hero.path.shift();
+    if (scene === 'mine') { mineStep(); if (!hero.path.length) mineArrive(); }
+    else if (!hero.path.length && hero.target) { const o = hero.target; hero.target = null; arrive(o); }
+  }
   else { hero.x += dx / d * st; hero.y += dy / d * st; }
 }
 function arrive(o) {
@@ -1217,42 +1222,108 @@ function camStep(dt) {
   if (cam.t >= 1) { const d = cam.done; cam.to = null; cam.done = null; if (d) d(); }
 }
 
-/* ===== 광산 규칙 ===== */
+/* ===== 광산 규칙 (걸어 다니는 굴) =====
+   층마다 원래 뚫린 굴(굽이치는 길, 방, 갈림길)이 있고 걸어서 둘러봄. 등불이 닿는 곳만 보임.
+   파는 것: 벽에 박힌 광석, 길을 내는 바위, 숨은 방을 막은 돌무더기. 벽 너머 한 칸에 광석이 있으면 벽 틈이 반짝임.
+   칸 종류: r 바위, f 바닥, e 끝 벽(못 팜), b 돌무더기, h 단단한 바위, u 올라가는 사다리, d 내려가는 계단 */
 function rnd(n) { return Math.floor(Math.random() * n); }
 function pickOre(floor) { const list = FLOOR_ORES[floor]; let r = Math.random(), acc = 0; for (const [o, w] of list) { acc += w; if (r < acc) return o; } return list[list.length - 1][0]; }
-function morth(i) { const x = i % MW, y = (i / MW) | 0, out = []; if (x > 0) out.push(i - 1); if (x < MW - 1) out.push(i + 1); if (y > 0) out.push(i - MW); if (y < MH - 1) out.push(i + MW); return out; }
-function maround(i) { const x = i % MW, y = (i / MW) | 0, out = []; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; const nx = x + dx, ny = y + dy; if (nx >= 0 && nx < MW && ny >= 0 && ny < MH) out.push(ny * MW + nx); } return out; }
+const FLOORISH = t => t === 'f' || t === 'u' || t === 'd';
+const ROCKISH = t => t === 'r' || t === 'b' || t === 'h' || t === 'e';
+const D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 function genBoard(floor, dawn) {
-  const t = Array.from({ length: MW * MH }, () => ({ t: 's', open: false }));
-  const bottom = floor === MAX_FLOOR ? MH - 1 : MH;           // 5층 맨 아래 줄은 단단한 바위
-  if (floor === MAX_FLOOR) for (let x = 0; x < MW; x++) t[(MH - 1) * MW + x].t = 'h';
-  const stoneAt = minRow => { const c = []; for (let i = 0; i < MW * MH; i++) { const r = (i / MW) | 0; if (t[i].t === 's' && r >= minRow && r < bottom) c.push(i); } return c.length ? c[rnd(c.length)] : -1; };
-  for (let k = 0; k < 3 + Math.floor(floor / 2); k++) {
-    const o = pickOre(floor), size = 1 + rnd(4), seed = stoneAt(1);
-    if (seed < 0) break;
-    t[seed] = { t: 'o', o, open: false }; const vein = [seed];
-    while (vein.length < size) { const cand = []; vein.forEach(i => morth(i).forEach(j => { if (t[j].t === 's' && ((j / MW) | 0) < bottom) cand.push(j); })); if (!cand.length) break; const j = cand[rnd(cand.length)]; t[j] = { t: 'o', o, open: false }; vein.push(j); }
+  const w = MW, h = MH, I = (x, y) => y * w + x, inner = (x, y) => x > 0 && y > 0 && x < w - 1 && y < h - 1;
+  const t = Array(w * h).fill('r'), o = Array(w * h).fill(''), hid = Array(w * h).fill(0);
+  const carve = (x, y) => { if (inner(x, y)) t[I(x, y)] = 'f'; };
+  const room = (cx, cy, r) => { for (let y = cy - r - 1; y <= cy + r + 1; y++) for (let x = cx - r - 1; x <= cx + r + 1; x++) if (Math.hypot(x - cx, y - cy) <= r + .35) carve(x, y); };
+  // 큰 길: 사다리(위쪽 모서리)에서 아래쪽 모서리로 굽이치며, 사이사이 방
+  let x = 2, y = 2; const rooms = [[2, 2]]; room(2, 2, 1);
+  let step = 0;
+  while (x < w - 3 || y < h - 3) {
+    carve(x, y); carve(x + (step % 2), y + 1 - (step % 2));
+    const r = Math.random();
+    if (r < .42 && x < w - 3) x++; else if (r < .84 && y < h - 3) y++; else if (r < .92) x = Math.max(2, x - 1); else y = Math.max(2, y - 1);
+    if (x >= w - 3 && y < h - 3) y++; if (y >= h - 3 && x < w - 3) x++;
+    step++;
+    if (step % 7 === 0) { rooms.push([x, y]); room(x, y, 1 + rnd(2)); }
   }
-  if (dawn) for (let k = 0; k < (floor >= 4 ? 2 : 1); k++) { const i = stoneAt(2); if (i >= 0) t[i] = { t: 'o', o: 'moon', open: false }; }
-  if (floor < MAX_FLOOR) { const i = stoneAt(3); if (i >= 0) t[i].t = 'x'; }
-  return { floor, tiles: t, pos: -1, seed: rnd(100000) };
+  rooms.push([x, y]); room(x, y, 1);
+  // 갈림길
+  for (let k = 0; k < 3; k++) {
+    const [bx, by] = rooms[1 + rnd(rooms.length - 1)]; let x2 = bx, y2 = by; const [dx, dy] = Math.random() < .5 ? [1, -1] : [-1, 1];
+    for (let i = 0; i < 5 + rnd(4); i++) { carve(x2, y2); if (Math.random() < .5) x2 += dx; else y2 += dy; x2 = Math.max(1, Math.min(w - 2, x2)); y2 = Math.max(1, Math.min(h - 2, y2)); }
+    room(x2, y2, 1);
+  }
+  // 숨은 방: 바위 속 3×3 방, 길 쪽 한 칸을 돌무더기(5층은 단단한 바위)로 막음
+  const better = floor >= 4 ? 'crystal' : floor >= 2 ? 'iron' : 'copper';
+  for (let k = 0; k < 2; k++) for (let tries = 0; tries < 80; tries++) {
+    const hx = 3 + rnd(w - 6), hy = 3 + rnd(h - 6);
+    let ok = true;
+    for (let yy = hy - 2; yy <= hy + 2 && ok; yy++) for (let xx = hx - 2; xx <= hx + 2; xx++) if (!inner(xx, yy) || t[I(xx, yy)] !== 'r') { ok = false; break; }
+    if (!ok) continue;
+    const door = D4.map(([dx, dy]) => [dx, dy]).filter(([dx, dy]) => inner(hx + dx * 3, hy + dy * 3) && t[I(hx + dx * 3, hy + dy * 3)] === 'f');
+    if (!door.length) continue;
+    const [dx, dy] = door[rnd(door.length)];
+    for (let yy = hy - 1; yy <= hy + 1; yy++) for (let xx = hx - 1; xx <= hx + 1; xx++) { t[I(xx, yy)] = 'f'; hid[I(xx, yy)] = 1; }
+    t[I(hx + dx * 2, hy + dy * 2)] = floor === MAX_FLOOR ? 'h' : 'b';
+    for (const [ax, ay] of [[-2, -1], [-2, 1], [2, -1], [2, 1], [-1, -2], [1, -2], [-1, 2], [1, 2]]) if (t[I(hx + ax, hy + ay)] === 'r') o[I(hx + ax, hy + ay)] = Math.random() < .7 ? better : pickOre(floor);
+    break;
+  }
+  // 광맥: 대부분 길 벽에 드러나고, 일부는 한 칸 안쪽에 숨음
+  const wallRocks = [], anyRocks = [];
+  for (let yy = 1; yy < h - 1; yy++) for (let xx = 1; xx < w - 1; xx++) { const i = I(xx, yy); if (t[i] !== 'r' || o[i]) continue; anyRocks.push(i); if (D4.some(([dx, dy]) => t[I(xx + dx, yy + dy)] === 'f' && !hid[I(xx + dx, yy + dy)])) wallRocks.push(i); }
+  for (let k = 0; k < 4 + floor; k++) {
+    const pool = Math.random() < .6 ? wallRocks : anyRocks; if (!pool.length) break;
+    let i = pool[rnd(pool.length)]; const ore = pickOre(floor), size = 2 + rnd(3);
+    for (let n = 0; n < size; n++) { if (t[i] === 'r') o[i] = ore; const nb = D4.map(([dx, dy]) => I(i % w + dx, ((i / w) | 0) + dy)).filter(j => j >= 0 && j < w * h && t[j] === 'r' && inner(j % w, (j / w) | 0)); if (!nb.length) break; i = nb[rnd(nb.length)]; }
+  }
+  if (dawn) for (let k = 0; k < (floor >= 4 ? 2 : 1) && wallRocks.length; k++) o[wallRocks[rnd(wallRocks.length)]] = 'moon';
+  for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) if (!inner(xx, yy)) { t[I(xx, yy)] = 'e'; o[I(xx, yy)] = ''; }
+  t[I(1, 1)] = 'u';
+  // 계단: 사다리에서 걸어서 가장 먼 바닥
+  if (floor < MAX_FLOOR) {
+    const dist = new Map([[I(2, 2), 0]]), q = [I(2, 2)]; let far = I(2, 2);
+    while (q.length) { const i = q.shift(); if (dist.get(i) > dist.get(far)) far = i; D4.forEach(([dx, dy]) => { const j = I(i % w + dx, ((i / w) | 0) + dy); if (!dist.has(j) && t[j] === 'f' && !hid[j]) { dist.set(j, dist.get(i) + 1); q.push(j); } }); }
+    t[far] = 'd';
+  }
+  for (let i = 0; i < w * h; i++) if (t[i] !== 'r') o[i] = o[i] && ROCKISH(t[i]) && t[i] !== 'e' ? o[i] : '';
+  return { floor, w, h, t, o, hid, seen: Array(w * h).fill(0), hx: 2, hy: 2, seed: rnd(100000) };
 }
-function canDig(i) { const tl = S.mine.tiles[i]; if (tl.open || tl.t === 'h') return false; if (i < MW) return true; return morth(i).some(j => S.mine.tiles[j].open); }
-function hint(i) { return maround(i).filter(j => S.mine.tiles[j].t === 'o' && !S.mine.tiles[j].open).length; }
-// 돌 칸을 열고, 숫자가 0이면(주변에 광석 없음) 이웃 칸도 기력 없이 연쇄로 열림
-function openCascade(start, order) {
-  const q = [start];
-  while (q.length) {
-    const j = q.shift(), t = S.mine.tiles[j];
-    if (t.open || t.t === 'h' || t.t === 'o') continue;
-    t.open = true; order.push(j);
-    if (hint(j) === 0) maround(j).forEach(k => { if (!S.mine.tiles[k].open) q.push(k); });
+const mI = (x, y) => y * S.mine.w + x;
+const mIn = (x, y) => S.mine && x >= 0 && y >= 0 && x < S.mine.w && y < S.mine.h;
+const mT = (x, y) => (mIn(x, y) ? S.mine.t[mI(x, y)] : 'e');
+// 등불: 가로막는 바위가 없으면 보임 (숨은 방은 막은 것을 치울 때까지 안 보임)
+const LIGHT = 4.6;
+function mineSee() {
+  const m = S.mine, hx = Math.round(hero.x), hy = Math.round(hero.y);
+  for (let y = hy - 5; y <= hy + 5; y++) for (let x = hx - 5; x <= hx + 5; x++) {
+    if (!mIn(x, y) || Math.hypot(x - hx, y - hy) > LIGHT) continue;
+    const i = mI(x, y); if (m.seen[i] || m.hid[i]) continue;
+    const n = Math.max(Math.abs(x - hx), Math.abs(y - hy)); let clear = true;
+    for (let k = 1; k < n && clear; k++) { const ax = Math.round(hx + (x - hx) * k / n), ay = Math.round(hy + (y - hy) * k / n), j = mI(ax, ay); if (!FLOORISH(m.t[j]) || m.hid[j]) clear = false; }
+    if (clear) m.seen[i] = 1;
   }
 }
-let mparts = [], mfloats = [], mbumps = [], mswing = 0, mshake = 0, miner = { x: null, y: null }, mrev = {};
+// 길 찾기용: 아직 못 본 곳은 지나갈 수 있다고 보고 가다가, 막힌 게 보이면 다시 짬
+function mBlocked(x, y) {
+  if (!mIn(x, y)) return true;
+  const i = mI(x, y), t = S.mine.t[i];
+  if (t === 'e' || S.mine.hid[i]) return true;
+  if (!S.mine.seen[i]) return false;
+  return !FLOORISH(t);
+}
+// 비어 있는 칸에 광석이 있는 바위가 닿아 있는지 (반짝임)
+function glintDir(x, y) {
+  const m = S.mine, out = [];
+  D4.forEach(([dx, dy]) => { const nx = x + dx, ny = y + dy; if (!mIn(nx, ny)) return; const j = mI(nx, ny); if (!m.seen[j] && m.o[j] && m.t[j] === 'r') out.push([dx, dy, m.o[j]]); });
+  return out;
+}
+let mparts = [], mfloats = [], mbumps = [], mswing = 0, mshake = 0;
 function startFloor(floor) {
   S.mine = genBoard(floor, phaseIndex() === 3); S.screen = 'mine'; scene = 'mine';
-  S.deepest = Math.max(S.deepest, floor); miner.x = null; mparts = []; mfloats = []; mrev = {};
+  S.deepest = Math.max(S.deepest, floor); mparts = []; mfloats = []; mbumps = [];
+  hero.x = S.mine.hx; hero.y = S.mine.hy; hero.path = []; hero.target = null; hero.dig = null; hero.goal = null; hero.fx = 1; hero.back = false;
+  mineSee(); cam.s = 1; cam.to = null; follow = true; snapCam();
   questEvent('enter'); save(); renderHud(); renderDock();
   if (floor === MAX_FLOOR) toast('더 아래는 단단한 바위');
 }
@@ -1263,138 +1334,197 @@ function enterMine(floor) {
 }
 function leaveMine() {
   S.mine = null; S.screen = 'village'; scene = 'village'; fade = .8;
-  { const d = OBJ.find(o => o.id === 'mine').door; hero.x = d[0]; hero.y = d[1]; } hero.path = [];
+  { const d = OBJ.find(o => o.id === 'mine').door; hero.x = d[0]; hero.y = d[1]; } hero.path = []; hero.dig = null; hero.goal = null;
   const [fx, fy] = mineFocus(); cam.s = 3.4; cam.fx = fx; cam.fy = fy;
   const hf = heroFocus(); camTo(1, hf[0], hf[1], .7, () => { follow = true; });
   save(); renderHud(); renderDock();
 }
-function dig(i, force) {
-  const tl = S.mine.tiles[i];
-  if (tl.t === 'h') { toast('곡괭이 강화 필요'); mbumps.push({ i, t: .3 }); SFX.deny(); return; }
-  if (tl.open) { if (tl.t === 'x') descend(); else S.mine.pos = i; return; }
-  if (!canDig(i)) { mbumps.push({ i, t: .3 }); SFX.deny(); return; }
+// 아래 막대의 계단 단추: 본 적 있는 계단까지 걸어가서 내려감
+function goStairs() {
+  const m = S.mine, i = m.t.findIndex((t, j) => t === 'd' && m.seen[j]); if (i < 0) return;
+  const x = i % m.w, y = (i / m.w) | 0, path = bfs(Math.round(hero.x), Math.round(hero.y), (a, b) => a === x && b === y);
+  if (!path) return;
+  hero.dig = null; hero.goal = [x, y]; hero.path = path; follow = true; if (!path.length) mineArrive();
+}
+function descend() { if (!S.mine || S.mine.floor >= MAX_FLOOR) return; const f = S.mine.floor + 1; fade = .8; startFloor(f); toast(`${f}층`); SFX.stairs(); }
+// 광산에서 칸을 누름
+function mineTapCell(x, y) {
+  const m = S.mine, i = mI(x, y), t = m.t[i], seen = m.seen[i];
+  hero.dig = null; hero.goal = null;
+  if (seen && ROCKISH(t)) {
+    if (t === 'e') { mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
+    if (t === 'h') { toast('곡괭이 강화 필요'); mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
+    mark(x, y, '255,220,150');
+    const hx = Math.round(hero.x), hy = Math.round(hero.y);
+    if (Math.abs(hx - x) + Math.abs(hy - y) === 1 && !hero.path.length) { dig(x, y); return; }
+    const path = bfs(hx, hy, (a, b) => Math.abs(a - x) + Math.abs(b - y) === 1);
+    if (!path) { mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
+    hero.path = path; hero.dig = [x, y]; follow = true;
+    return;
+  }
+  if (mBlocked(x, y) && !(seen && FLOORISH(t))) { mark(x, y, '235,95,80'); return; }
+  mark(x, y, '255,255,255');
+  const path = bfs(Math.round(hero.x), Math.round(hero.y), (a, b) => a === x && b === y);
+  if (path) { hero.path = path; hero.goal = [x, y]; follow = true; if (!path.length) mineArrive(); }
+}
+// 한 칸 걸을 때마다: 둘러보고, 앞길이 막힌 게 보이면 길을 다시 짬
+function mineStep() {
+  mineSee();
+  const m = S.mine; m.hx = Math.round(hero.x); m.hy = Math.round(hero.y);
+  if (hero.path.length && hero.path.some(([a, b]) => mBlocked(a, b))) {
+    const hx = m.hx, hy = m.hy;
+    let p = null;
+    if (hero.dig) { const [dx, dy] = hero.dig; p = bfs(hx, hy, (a, b) => Math.abs(a - dx) + Math.abs(b - dy) === 1); }
+    else if (hero.goal) { const [gx, gy] = hero.goal; p = bfs(hx, hy, (a, b) => a === gx && b === gy); }
+    hero.path = p || [];
+    if (!p) { hero.dig = null; hero.goal = null; }
+  }
+}
+function mineArrive() {
+  const m = S.mine;
+  if (hero.dig) { const [x, y] = hero.dig; hero.dig = null; dig(x, y); return; }
+  const t = m.t[mI(Math.round(hero.x), Math.round(hero.y))];
+  if (hero.goal && hero.goal[0] === Math.round(hero.x) && hero.goal[1] === Math.round(hero.y)) {
+    if (t === 'd') descend(); else if (t === 'u') leaveMine();
+  }
+  hero.goal = null; save();
+}
+function dig(x, y, force) {
+  const m = S.mine, i = mI(x, y), t = m.t[i];
+  if (!ROCKISH(t) || t === 'e' || t === 'h') return;
+  const cost = t === 'b' ? 1 : DIG_COST;
   // 마지막 기력: 쓰러지기 전에 한 번 물어봄
-  if (S.energy <= DIG_COST && !force) {
+  if (S.energy <= cost && !force) {
     openSheet(ico('ic_warn') + '기력 바닥', '<p class="warn">이 칸을 캐면 쓰러짐</p>', `<button class="btn" data-a="leave">마을로</button><button class="btn primary" data-a="digForce" data-n="${i}">캐기</button>`);
     return;
   }
-  const c = tileCenter(i), opened = [];
-  let gain = 0;
-  if (tl.t === 'o') {
-    const o = tl.o, vein = [i], seen = new Set([i]);
-    for (let k = 0; k < vein.length; k++) morth(vein[k]).forEach(j => { const q = S.mine.tiles[j]; if (!seen.has(j) && q.t === 'o' && q.o === o && !q.open) { seen.add(j); vein.push(j); } });
-    const n = vein.length, bonus = n >= 3 ? n - 2 : 0;
-    gain = n + bonus;
-    vein.forEach((j, k) => { S.mine.tiles[j] = { t: 's', open: false }; });
-    vein.forEach((j, k) => { S.mine.tiles[j].open = true; opened.push(j); mrev[j] = { at: tnow + k * .05, c1: ORES[o].color, c2: ORES[o].light, n: 14 }; });
-    vein.forEach(j => { if (hint(j) === 0) maround(j).forEach(k => openCascade(k, opened)); });
-    addItem(o, gain);
-    mfloats.push({ x: c.x, y: c.y - 10, text: `+${gain}`, color: ORES[o].light, life: 1.1, big: bonus > 0 });
-    SFX.ore(gain); buzz(bonus ? 30 : 15);
-  } else {
-    openCascade(i, opened);
-    if (tl.t === 'x') { mfloats.push({ x: c.x, y: c.y - 10, text: '계단', color: '#ffe2a8', life: 1 }); SFX.stairs(); }
+  const hx = Math.round(hero.x), hy = Math.round(hero.y);
+  if (x > hx) { hero.back = false; hero.fx = 1; } else if (x < hx) { hero.back = true; hero.fx = -1; } else if (y > hy) { hero.back = false; hero.fx = -1; } else { hero.back = true; hero.fx = 1; }
+  const ore = m.o[i], col = FLOOR_ROCK[m.floor];
+  const p = iso(x + .5, y + .5, .6);
+  m.t[i] = 'f'; m.o[i] = '';
+  if (t === 'b') {   // 돌무더기를 치우면 숨은 방이 열림
+    const open = [];
+    D4.forEach(([dx, dy]) => { const j = mI(x + dx, y + dy); if (m.hid[j]) open.push(j); });
+    for (let k = 0; k < open.length; k++) { const j = open[k]; if (!m.hid[j]) continue; m.hid[j] = 0; D4.forEach(([dx, dy]) => { const q = mI(j % m.w + dx, ((j / m.w) | 0) + dy); if (m.hid[q]) open.push(q); }); }
+    mfloats.push({ x: p[0], y: p[1] - TW * .3, text: '숨은 방', color: '#ffe2a8', life: 1.3 }); SFX.stairs();
   }
-  // 연쇄로 열린 칸은 물결처럼 조금씩 늦게 열림
-  const r = FLOOR_ROCK[S.mine.floor], c1 = `rgb(${r})`, c2 = `rgb(${r.map(v => Math.min(255, v + 50))})`;
-  opened.forEach((j, k) => { if (!mrev[j]) mrev[j] = { at: tnow + k * .028, c1, c2, n: j === i ? 10 : 5 }; if (k && k < 14) SFX.open(k); });
-  if (opened.some(j => j !== i && S.mine.tiles[j].t === 'x')) { SFX.stairs(); const cs = tileCenter(opened.find(j => S.mine.tiles[j].t === 'x')); mfloats.push({ x: cs.x, y: cs.y - 10, text: '계단', color: '#ffe2a8', life: 1.2 }); }
-  S.mine.pos = i; mswing = 1; mshake = gain ? 5 : 3; SFX.dig(); if (!gain) buzz(8);
-  if (spend(DIG_COST)) { save(); renderHud(); renderDock(); }
+  burst(p[0], p[1], `rgb(${col})`, rgbk(col, 50), 10);
+  if (ore) {
+    const n = 1; addItem(ore, n);
+    burst(p[0], p[1], ORES[ore].color, ORES[ore].light, 14);
+    mfloats.push({ x: p[0], y: p[1] - TW * .3, text: `+${n}`, color: ORES[ore].light, life: 1.1 });
+    SFX.ore(n); buzz(15);
+  } else buzz(8);
+  mineSee();
+  mswing = 1; mshake = ore ? 5 : 3; SFX.dig();
+  if (spend(cost)) { save(); renderHud(); renderDock(); }
 }
-function descend() { if (!S.mine || S.mine.floor >= MAX_FLOOR) return; const f = S.mine.floor + 1; fade = .6; startFloor(f); toast(`${f}층`); }
-function burst(x, y, c1, c2, n) { for (let k = 0; k < n; k++) { const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * 160; mparts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, life: .6 + Math.random() * .4, s: 2 + Math.random() * 3, c: k % 3 ? c1 : c2 }); } }
+function burst(x, y, c1, c2, n) { for (let k = 0; k < n; k++) { const a = Math.random() * Math.PI * 2, v = TW * (1 + Math.random() * 2.6); mparts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - TW * 1.4, life: .5 + Math.random() * .4, s: TW * (.03 + Math.random() * .04), c: k % 3 ? c1 : c2 }); } }
 
-/* ===== 광산 그리기 (정면 단면). 판 위치는 위쪽 정보와 아래 막대 사이에 고정 ===== */
-function mineGeo() {
-  const top = hudH() + 8, bottom = H - minebar.getBoundingClientRect().height - 8, avail = bottom - top;
-  const cs = Math.floor(Math.max(28, Math.min((W - 20) / MW, avail / (MH + 1.15), 64 * Math.max(1, UIZ))));
-  const bx = Math.round((W - cs * MW) / 2), by = Math.round(top + (avail - cs * (MH + 1)) / 2 + cs);
-  return { cs, bx, by };
-}
-function tileCenter(i) { const { cs, bx, by } = mineGeo(); return { x: bx + (i % MW) * cs + cs / 2, y: by + ((i / MW) | 0) * cs + cs / 2 }; }
+/* ===== 광산 그리기 (쿼터뷰 굴) ===== */
 function rgbk(c, k) { return `rgb(${c.map(v => Math.max(0, Math.min(255, Math.round(v + k)))).join(',')})`; }
-function rockBlock(c, x, y, cs, col, seed, dim) {
-  const k = dim ? -46 : 0;
-  R(c, x, y, cs, cs, rgbk(col, k - 30)); R(c, x + 1, y + 1, cs - 2, cs - 2, rgbk(col, k));
-  R(c, x + 1, y + 1, cs - 2, cs * .15, rgbk(col, k + 26)); R(c, x + 1, y + cs * .86, cs - 2, cs * .12, rgbk(col, k - 24));
-  for (let p = 0; p < 3; p++) { const h = H32(seed * 7 + p); E(c, x + 5 + h * (cs - 12), y + cs * .3 + H32(seed + p * 3) * cs * .5, 1.5 + h * cs * .06, 1 + h * cs * .03, rgbk(col, k - 32)); }
+function oreSpecks(c, x, y, z, ore, seed) {
+  const C = ORES[ore];
+  for (let k = 0; k < 3; k++) { const q = iso(x + .25 + H32(seed + k * 7) * .5, y + .25 + H32(seed * 3 + k) * .5, z); c.beginPath(); c.arc(q[0], q[1], TW * .065, 0, 7); c.fillStyle = C.color; c.fill(); c.lineWidth = TW * .018; c.strokeStyle = OUT; c.stroke(); Cc(c, q[0] - TW * .02, q[1] - TW * .02, TW * .02, C.light); }
 }
-function hollow(c, x, y, cs, col) {
-  R(c, x, y, cs, cs, `rgb(${col.map(v => Math.round(v * .3)).join(',')})`);
-  const g = c.createLinearGradient(0, y, 0, y + cs * .35); g.addColorStop(0, 'rgba(0,0,0,.4)'); g.addColorStop(1, 'rgba(0,0,0,0)'); R(c, x, y, cs, cs * .35, g);
+function oreFace(c, x, y, ore, seed, left) {
+  const C = ORES[ore];
+  for (let k = 0; k < 2; k++) { const u = .25 + H32(seed + k * 13) * .5, z = .25 + H32(seed * 5 + k) * .45; const q = left ? iso(x + u, y + 1, z) : iso(x + 1, y + u, z); c.beginPath(); c.arc(q[0], q[1], TW * .055, 0, 7); c.fillStyle = C.color; c.fill(); c.lineWidth = TW * .016; c.strokeStyle = OUT; c.stroke(); Cc(c, q[0] - TW * .015, q[1] - TW * .015, TW * .018, C.light); }
 }
 function drawMine(c, dt) {
-  const m = S.mine, col = FLOOR_ROCK[m.floor], { cs, bx, by } = mineGeo(), ty = by - cs;
-  mshake = Math.max(0, mshake - dt * 30);
-  c.save(); if (mshake > .2) c.translate((Math.random() - .5) * mshake, (Math.random() - .5) * mshake);
-  R(c, -10, -10, W + 20, H + 20, rgbk(col, -105));
-  for (let r = Math.floor(-by / cs) - 1; r <= Math.ceil((H - by) / cs); r++) for (let q = Math.floor(-bx / cs) - 1; q <= Math.ceil((W - bx) / cs); q++) {
-    if (q >= 0 && q < MW && r >= -1 && r < MH) continue;
-    rockBlock(c, bx + q * cs, by + r * cs, cs, col, (r + 50) * 131 + q + m.seed, true); R(c, bx + q * cs, by + r * cs, cs, cs, 'rgba(10,6,3,.25)');
-  }
-  for (let q = 0; q < MW; q++) hollow(c, bx + q * cs, ty, cs, col);
-  const lx = bx + cs * .5;
-  for (let y = ty + cs; y > -10; y -= cs * .28) L(c, lx - cs * .18, y, lx + cs * .18, y, '#9c6f40', 2.5);
-  L(c, lx - cs * .18, ty + cs, lx - cs * .18, -10, '#8b6238', 3); L(c, lx + cs * .18, ty + cs, lx + cs * .18, -10, '#8b6238', 3);
-  R(c, bx - 6, ty - 4, cs * MW + 12, 8, '#7a5530');
-  const lanX = bx + cs * MW - cs * .8; L(c, lanX, ty + 4, lanX, ty + cs * .3, '#3a2a1a', 1.5);
-  const lan = c.createRadialGradient(lanX, ty + cs * .38, 2, lanX, ty + cs * .38, cs * 1.6); lan.addColorStop(0, 'rgba(255,205,120,.35)'); lan.addColorStop(1, 'rgba(255,205,120,0)'); Cc(c, lanX, ty + cs * .38, cs * 1.6, lan); Cc(c, lanX, ty + cs * .38, cs * .12, '#ffd27a');
-  const shown = i => m.tiles[i].open && !(mrev[i] && tnow < mrev[i].at);   // 연쇄 대기 중이면 아직 바위로
-  Object.keys(mrev).forEach(k => { const v = mrev[k]; if (tnow >= v.at) { const p = tileCenter(+k); burst(p.x, p.y, v.c1, v.c2, v.n); delete mrev[k]; } });
-  m.tiles.forEach((tl, i) => {
-    const x = bx + (i % MW) * cs, y = by + ((i / MW) | 0) * cs;
-    if (tl.t === 'h') { R(c, x, y, cs, cs, '#2a2628'); R(c, x + 1, y + 1, cs - 2, cs - 2, '#46413f'); R(c, x + 1, y + 1, cs - 2, cs * .15, '#5c5653'); for (let p = 0; p < 6; p++) Cc(c, x + 5 + H32(i * 9 + p) * (cs - 10), y + 6 + H32(i * 5 + p) * (cs - 12), 1.3, 'rgba(220,220,230,.35)'); }
-    else if (shown(i)) {
-      hollow(c, x, y, cs, col);
-      if (tl.t === 'x') { R(c, x + cs * .2, y + cs * .3, cs * .6, cs * .7, '#070403'); for (let k = 0; k < 4; k++) L(c, x + cs * .3, y + cs * (.42 + k * .15), x + cs * .7, y + cs * (.42 + k * .15), '#b98448', 2.5); L(c, x + cs * .3, y + cs * .3, x + cs * .3, y + cs, '#b98448', 2.5); L(c, x + cs * .7, y + cs * .3, x + cs * .7, y + cs, '#b98448', 2.5); }
-    } else {
-      rockBlock(c, x, y, cs, col, i * 97 + m.seed, !canDig(i) && !tl.open);
-      if (tl.t === 'x') {   // 계단이 있는 칸은 갈라진 틈으로 빛이 샘
-        const a = .45 + .3 * Math.sin(tnow * 3 + i);
-        c.strokeStyle = `rgba(255,226,150,${a})`; c.lineWidth = 2; c.lineCap = 'round'; c.beginPath();
-        c.moveTo(x + cs * .3, y + cs * .25); c.lineTo(x + cs * .45, y + cs * .45); c.lineTo(x + cs * .38, y + cs * .6); c.lineTo(x + cs * .58, y + cs * .78);
-        c.moveTo(x + cs * .45, y + cs * .45); c.lineTo(x + cs * .68, y + cs * .38); c.stroke();
-        const g = c.createRadialGradient(x + cs / 2, y + cs / 2, 1, x + cs / 2, y + cs / 2, cs * .6); g.addColorStop(0, `rgba(255,220,140,${a * .35})`); g.addColorStop(1, 'rgba(255,220,140,0)'); Cc(c, x + cs / 2, y + cs / 2, cs * .6, g);
+  const m = S.mine, col = FLOOR_ROCK[m.floor], RH = 1.05;
+  const hs = hero.x + hero.y, hxr = Math.round(hero.x), hyr = Math.round(hero.y);
+  const top = rgbk(col, 18), left = rgbk(col, -14), right = rgbk(col, -40), fl = [rgbk(col, -78), rgbk(col, -84), rgbk(col, -72)];
+  const vr = viewTiles();
+  const heroDraw = () => { const p = iso(hero.x + .5, hero.y + .5, 0); person(c, p[0], p[1], TW / 44, '#3d6fa8', true, 0, false); };
+  let heroDone = false;
+  const p0 = INK; INK = Math.max(1, TW * .018);
+  for (let s = Math.max(0, vr.x0 + vr.y0); s <= Math.min(m.w + m.h - 2, vr.x1 + vr.y1); s++) {
+    if (!heroDone && s > hs + .5) { heroDraw(); heroDone = true; }
+    for (let x = Math.max(0, s - m.h + 1); x <= Math.min(m.w - 1, s); x++) {
+      const y = s - x, i = mI(x, y), n = H32(i * 97 + m.seed);
+      // 아직 못 본 곳은 모두 바위 덩어리로 (뚫린 곳인지 알 수 없게)
+      if (!m.seen[i]) { const fr = s > hs + .5 && s <= hs + 2.6 && Math.abs((x - y) - (hero.x - hero.y)) < 1.6; if (fr) c.globalAlpha = .45; INK = 0; prism(c, x, y, 1, 1, 0, RH, rgbk(col, -56 + n * 8), rgbk(col, -78), rgbk(col, -96)); INK = Math.max(1, TW * .018); c.globalAlpha = 1; continue; }
+      const t = m.t[i];
+      if (FLOORISH(t)) {
+        tileTop(c, x, y, 0, fl[n * 3 | 0]);
+        if (t === 'u') {   // 올라가는 사다리
+          INK = 0; const a = iso(x + .35, y + .5, 0), b = iso(x + .65, y + .5, 0);
+          L(c, a[0], a[1], a[0], a[1] - ZU * 3, '#8b6238', TW * .05); L(c, b[0], b[1], b[0], b[1] - ZU * 3, '#8b6238', TW * .05);
+          for (let k = 1; k < 7; k++) L(c, a[0], a[1] - ZU * k * .42, b[0], b[1] - ZU * k * .42, '#b98448', TW * .04);
+          INK = Math.max(1, TW * .018);
+        } else if (t === 'd') {   // 내려가는 계단 (빛이 올라옴)
+          const g = .5 + .25 * Math.sin(tnow * 3);
+          P(c, [iso(x + .15, y + .15, 0), iso(x + .85, y + .15, 0), iso(x + .85, y + .85, 0), iso(x + .15, y + .85, 0)], '#120a05');
+          INK = 0; for (let k = 0; k < 3; k++) { const a = iso(x + .22, y + .3 + k * .2, 0), b = iso(x + .78, y + .3 + k * .2, 0); L(c, a[0], a[1], b[0], b[1], '#b98448', TW * .04); }
+          const q = iso(x + .5, y + .5, 0), rg = c.createRadialGradient(q[0], q[1], 1, q[0], q[1], TW * .9); rg.addColorStop(0, `rgba(255,214,130,${g * .5})`); rg.addColorStop(1, 'rgba(255,214,130,0)'); Cc(c, q[0], q[1], TW * .9, rg);
+          INK = Math.max(1, TW * .018);
+        } else if (n > .86) { INK = 0; const q = iso(x + .3 + n * .3, y + .5, 0); E(c, q[0], q[1], TW * .07, TW * .035, rgbk(col, -50)); INK = Math.max(1, TW * .018); }
+        continue;
       }
+      // 바위 (광부 앞에 있고 가리면 반투명)
+      const front = s > hs + .5 && s <= hs + 2.6 && Math.abs((x - y) - (hero.x - hero.y)) < 1.6;
+      if (front) c.globalAlpha = .45;
+      if (t === 'b') {   // 돌무더기
+        tileTop(c, x, y, 0, fl[0]);
+        for (const [a2, b2, r2] of [[.3, .62, .2], [.68, .6, .22], [.5, .35, .2], [.28, .3, .14], [.72, .3, .15], [.5, .55, .17]]) { const q = iso(x + a2, y + b2, .25); c.beginPath(); c.arc(q[0], q[1] - r2 * ZU, r2 * TW * .62, 0, 7); c.fillStyle = rgbk(col, 30 - r2 * 60); c.fill(); c.lineWidth = TW * .02; c.strokeStyle = OUT; c.stroke(); }
+      } else if (t === 'h') {
+        prism(c, x, y, 1, 1, 0, RH, '#5c5653', '#46413f', '#2f2b2a');
+        INK = 0; for (let k = 0; k < 5; k++) { const q = iso(x + .2 + H32(i + k * 9) * .6, y + .2 + H32(i * 5 + k) * .6, RH); Cc(c, q[0], q[1], TW * .02, 'rgba(220,220,235,.5)'); } INK = Math.max(1, TW * .018);
+      } else {
+        const edge = t === 'e';
+        prism(c, x, y, 1, 1, 0, RH, edge ? rgbk(col, -30) : top, edge ? rgbk(col, -55) : left, edge ? rgbk(col, -75) : right);
+        INK = 0;
+        if (!edge) for (let k = 0; k < 2; k++) { const q = iso(x + .2 + H32(i + k) * .6, y + .2 + H32(i * 3 + k) * .6, RH); E(c, q[0], q[1], TW * .06, TW * .03, rgbk(col, -6)); }
+        const ore = m.o[i];
+        if (ore) { oreSpecks(c, x, y, RH, ore, i * 31 + m.seed); if (!m.seen[mI(x, y + 1)] || FLOORISH(mT(x, y + 1))) oreFace(c, x, y, ore, i * 7, true); if (FLOORISH(mT(x + 1, y))) oreFace(c, x, y, ore, i * 11, false); }
+        // 벽 너머 한 칸에 광석: 그쪽 가장자리 틈이 반짝임
+        if (!edge) glintDir(x, y).forEach(([dx, dy, o2]) => {
+          const a = .45 + .45 * Math.sin(tnow * 4 + x * 3 + y), cx = x + .5 + dx * .3, cy = y + .5 + dy * .3;
+          const q1 = iso(cx - dy * .22, cy - dx * .22, RH), q2 = iso(cx + dx * .05, cy + dy * .05, RH), q3 = iso(cx + dy * .2, cy + dx * .2, RH);
+          c.globalAlpha = (front ? .45 : 1) * a; c.strokeStyle = ORES[o2].light; c.lineWidth = TW * .045; c.lineCap = 'round'; c.beginPath(); c.moveTo(q1[0], q1[1]); c.lineTo(q2[0], q2[1]); c.lineTo(q3[0], q3[1]); c.stroke();
+          c.strokeStyle = ORES[o2].color; c.lineWidth = TW * .02; c.stroke(); c.globalAlpha = front ? .45 : 1;
+        });
+        INK = Math.max(1, TW * .018);
+      }
+      c.globalAlpha = 1;
     }
-  });
-  // 광부: 마지막으로 판 칸에 서고, 캘 때 곡괭이를 휘두름
-  const tp = m.pos >= 0 ? tileCenter(m.pos) : { x: bx + cs * 1.5, y: ty + cs / 2 };
-  if (miner.x === null) { miner.x = tp.x; miner.y = tp.y + cs / 2 - 3; }
-  miner.x += (tp.x - miner.x) * Math.min(1, dt * 16); miner.y += (tp.y + cs / 2 - 3 - miner.y) * Math.min(1, dt * 16);
-  mswing = Math.max(0, mswing - dt * 5);
-  person(c, miner.x, miner.y, cs / 40, '#3d6fa8', true, 0, Math.sin(mswing * Math.PI) * 1.5);
-  const dark = .22 + m.floor * .04, lg = c.createRadialGradient(miner.x, miner.y - cs * .4, cs * 1.2, miner.x, miner.y - cs * .4, cs * 5.5);
-  lg.addColorStop(0, 'rgba(0,0,0,0)'); lg.addColorStop(1, `rgba(0,0,0,${dark})`); R(c, -10, -10, W + 20, H + 20, lg);
-  // 캘 수 있는 칸 테두리와 힌트 숫자
-  const pulse = .5 + .2 * Math.sin(tnow * 2.5); c.lineWidth = 2;
-  const NUM = ['', '#9fd3ff', '#a7e39a', '#ffd27a', '#ffa36b', '#ff7d7d', '#ff7d7d', '#ff7d7d', '#ff7d7d'];
-  m.tiles.forEach((tl, i) => {
-    const x = bx + (i % MW) * cs, y = by + ((i / MW) | 0) * cs;
-    if (!tl.open && canDig(i)) { c.strokeStyle = `rgba(255,220,150,${pulse})`; c.beginPath(); c.roundRect(x + 2.5, y + 2.5, cs - 5, cs - 5, 6); c.stroke(); }
-    else if (shown(i) && tl.t === 'x') { c.fillStyle = `rgba(255,200,90,${.14 + .1 * Math.sin(tnow * 3)})`; c.strokeStyle = '#f0b64f'; c.beginPath(); c.roundRect(x + 2, y + 2, cs - 4, cs - 4, 6); c.fill(); c.stroke(); }
-    else if (shown(i)) {
-      const n = hint(i); if (!n) return;
-      // 광부가 서 있는 칸의 숫자는 가려지지 않게 왼쪽 위로 작게
-      const here = i === m.pos, fx = here ? x + cs * .22 : x + cs / 2, fy = here ? y + cs * .24 : y + cs / 2 + 1;
-      c.font = `800 ${Math.round(cs * (here ? .3 : .46))}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.75)'; c.strokeText(n, fx, fy); c.fillStyle = NUM[n]; c.fillText(n, fx, fy); c.lineWidth = 2;
-    }
-  });
+  }
+  if (!heroDone) heroDraw();
+  INK = p0;
+  // 누른 곳과 못 캐는 칸
+  marks = marks.filter(k => (k.life -= 1 / 40) > 0);
+  marks.forEach(k => { const z = ROCKISH(mT(k.x, k.y)) ? RH : 0, sz = .5 + (1 - k.life) * .5, cx = k.x + .5, cy = k.y + .5; const pts = [iso(cx - sz / 2, cy - sz / 2, z), iso(cx + sz / 2, cy - sz / 2, z), iso(cx + sz / 2, cy + sz / 2, z), iso(cx - sz / 2, cy + sz / 2, z)]; c.beginPath(); pts.forEach(([a, b], j) => j ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.strokeStyle = `rgba(${k.col},${k.life})`; c.lineWidth = TW * .05; c.stroke(); });
   mbumps = mbumps.filter(b => (b.t -= dt) > 0);
-  mbumps.forEach(b => { const x = bx + (b.i % MW) * cs, y = by + ((b.i / MW) | 0) * cs; c.fillStyle = `rgba(255,255,255,${b.t * .5})`; c.beginPath(); c.roundRect(x + 2, y + 2, cs - 4, cs - 4, 6); c.fill(); });
+  mbumps.forEach(b => { c.globalAlpha = b.t * 1.6; tileTop(c, b.x, b.y, RH, 'rgba(255,255,255,.6)'); c.globalAlpha = 1; });
+  if (hero.path.length) { const [ex, ey] = hero.path[hero.path.length - 1], k = .55 + .1 * Math.sin(tnow * 6), cx = ex + .5, cy = ey + .5; P(c, [iso(cx - k / 2, cy - k / 2, 0), iso(cx + k / 2, cy - k / 2, 0), iso(cx + k / 2, cy + k / 2, 0), iso(cx - k / 2, cy + k / 2, 0)], 'rgba(255,255,255,.22)'); }
   mparts = mparts.filter(p => (p.life -= dt) > 0);
-  mparts.forEach(p => { p.vy += 520 * dt; p.x += p.vx * dt; p.y += p.vy * dt; c.globalAlpha = Math.min(1, p.life * 2); R(c, p.x - p.s / 2, p.y - p.s / 2, p.s, p.s, p.c); }); c.globalAlpha = 1;
+  mparts.forEach(p => { p.vy += TW * 9 * dt; p.x += p.vx * dt; p.y += p.vy * dt; c.globalAlpha = Math.min(1, p.life * 2); R(c, p.x - p.s / 2, p.y - p.s / 2, p.s, p.s, p.c); }); c.globalAlpha = 1;
   mfloats = mfloats.filter(f => (f.life -= dt) > 0);
-  mfloats.forEach(f => { f.y -= 44 * dt; c.globalAlpha = Math.min(1, f.life * 2); c.font = `800 ${f.big ? 26 : 20}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.75)'; c.strokeText(f.text, f.x, f.y); c.fillStyle = f.color; c.fillText(f.text, f.x, f.y); }); c.globalAlpha = 1;
-  c.restore();
+  mfloats.forEach(f => { f.y -= TW * .8 * dt; c.globalAlpha = Math.min(1, f.life * 2); c.font = `800 ${Math.round(TW * .3)}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.75)'; c.strokeText(f.text, f.x, f.y); c.fillStyle = f.color; c.fillText(f.text, f.x, f.y); }); c.globalAlpha = 1;
 }
+// 등불 빛 (화면 좌표)
+function mineLight(c) {
+  const p = iso(hero.x + .5, hero.y + .5, .6), sx = (p[0] - cam.fx) * cam.s + W / 2, sy = (p[1] - cam.fy) * cam.s + H / 2, r = TW * cam.s;
+  const dark = .5 + S.mine.floor * .05;
+  const g = c.createRadialGradient(sx, sy, r * 1.4, sx, sy, r * 6.5); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(4,2,1,${dark})`); R(c, 0, 0, W, H, g);
+  const w = c.createRadialGradient(sx, sy, 1, sx, sy, r * 2.4); w.addColorStop(0, 'rgba(255,200,120,.12)'); w.addColorStop(1, 'rgba(255,200,120,0)'); R(c, 0, 0, W, H, w);
+}
+// 누른 화면 위치의 칸 (앞쪽부터, 바위는 윗면과 옆면까지)
 function mineTap(px, py) {
   if (!sheet.hidden) hideSheet();
-  const { cs, bx, by } = mineGeo(), q = Math.floor((px - bx) / cs), r = Math.floor((py - by) / cs);
-  if (q >= 0 && q < MW && r >= 0 && r < MH) dig(r * MW + q);
+  const [x, y] = screenToWorld(px, py), m = S.mine, RH = 1.05, vr = viewTiles();
+  for (let s = Math.min(m.w + m.h - 2, vr.x1 + vr.y1 + 2); s >= 0; s--) for (let tx = Math.max(0, s - m.h + 1); tx <= Math.min(m.w - 1, s); tx++) {
+    const ty = s - tx, i = mI(tx, ty), rock = !m.seen[i] || ROCKISH(m.t[i]), zh = m.seen[i] && m.t[i] === 'b' ? .6 : RH;   // 돌무더기는 낮은 더미
+    const poly = rock ? [iso(tx, ty + 1, 0), iso(tx + 1, ty + 1, 0), iso(tx + 1, ty, 0), iso(tx + 1, ty, zh), iso(tx, ty, zh), iso(tx, ty + 1, zh)]
+      : [iso(tx, ty, 0), iso(tx + 1, ty, 0), iso(tx + 1, ty + 1, 0), iso(tx, ty + 1, 0)];
+    if (inPoly(x, y, poly)) { mineTapCell(tx, ty); return; }
+  }
 }
+// 칸의 화면 위치 (테스트용). 바위는 윗면 가운데
+function cellZ(x, y) { const i = mI(x, y), t = S.mine.t[i]; return !S.mine.seen[i] ? 1.05 : t === 'b' ? .55 : ROCKISH(t) ? 1.05 : 0; }
+function cellPoint(x, y) { const z = cellZ(x, y); const p = iso(x + .5, y + .5, z); return { x: (p[0] - cam.fx) * cam.s + W / 2, y: (p[1] - cam.fy) * cam.s + H / 2 }; }
 /* ===== 글 속 아이콘 (위의 ICONS를 SVG로) ===== */
 const GOLD = ico('ic_gold');
 // 기력은 번개 모양을 직접 그림 (동전 모양 아이콘과 헷갈리지 않게)
@@ -1452,7 +1582,7 @@ function renderDock() {
   dock.hidden = mine || !sheet.hidden;
   if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate" data-a="bag" aria-label="가방">${ico('ic_bag')}${bagCount()}</button>`;
   if (mine && S.mine) {
-    const m = S.mine, stairs = m.tiles.some(t => t.t === 'x' && t.open);
+    const m = S.mine, stairs = m.t.some((t, i) => t === 'd' && m.seen[i]);
     minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${m.floor}층</b>
       <div class="got">${oreRow(S.today)}</div>
       ${m.floor < MAX_FLOOR ? `<button class="btn small ${stairs ? 'primary' : ''}" data-a="descend" ${stairs ? '' : 'disabled'}>${m.floor + 1}층 ▼</button>` : ''}`;
@@ -1522,8 +1652,8 @@ document.addEventListener('click', e => {
   else if (a === 'sleep') sleep();
   else if (a === 'enter') enterMine(n);
   else if (a === 'leave') { hideSheet(); leaveMine(); }
-  else if (a === 'descend') descend();
-  else if (a === 'digForce') { hideSheet(); dig(n, true); }
+  else if (a === 'descend') goStairs();
+  else if (a === 'digForce') { hideSheet(); dig(n % S.mine.w, Math.floor(n / S.mine.w), true); }
   else if (a === 'sell') sell(b.dataset.o);
   else if (a === 'sellAll') sellAll();
   else if (a === 'bag') showBag();
@@ -1566,7 +1696,7 @@ function drawBubble(c) {
   c.restore();
   bubble = { x: bx, y: by };
 }
-function recenter() { if (scene === 'village') { follow = true; down = null; } }
+function recenter() { follow = true; down = null; }
 window.addEventListener('keydown', e => { if (e.code === 'Space' && !e.repeat) { e.preventDefault(); recenter(); } });
 
 /* ===== 그리기 반복 ===== */
@@ -1576,10 +1706,15 @@ function frame(ms) {
   const dt = Math.min(.05, (ms - last) / 1000 || 0); last = ms; tnow = ms / 1000;
   phase = phaseIndex();
   walkStep(dt); camStep(dt);
-  if (scene === 'village' && follow && !cam.to) { const [tx, ty] = heroFocus(); const k = Math.min(1, dt * 5); cam.fx += (tx - cam.fx) * k; cam.fy += (ty - cam.fy) * k; }
+  if (follow && !cam.to) { const [tx, ty] = heroFocus(); const k = Math.min(1, dt * 5); cam.fx += (tx - cam.fx) * k; cam.fy += (ty - cam.fy) * k; }
   OBJ.forEach(o => { if (o.done && o.grow < 1) o.grow = Math.min(1, o.grow + dt * 1.6); });
   if (scene === 'mine' && S.mine) {
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); drawMine(ctx, dt);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); R(ctx, 0, 0, W, H, rgbk(FLOOR_ROCK[S.mine.floor], -118));
+    mshake = Math.max(0, mshake - dt * 30); mswing = Math.max(0, mswing - dt * 5);
+    const sh = mshake > .2 ? [(Math.random() - .5) * mshake, (Math.random() - .5) * mshake] : [0, 0];
+    ctx.setTransform(DPR * cam.s, 0, 0, DPR * cam.s, DPR * (W / 2 - cam.fx * cam.s + sh[0]), DPR * (H / 2 - cam.fy * cam.s + sh[1]));
+    drawMine(ctx, dt);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); mineLight(ctx);
   } else {
     // 마을은 따로 그린 뒤, 위아래만 흐리게 해서 작은 모형처럼
     oc.setTransform(DPR, 0, 0, DPR, 0, 0); drawSky(oc);
@@ -1609,7 +1744,7 @@ let down = null;
 // 누른 순간부터 뗄 때까지 움직임을 붙잡아, 손가락이 그림 밖이나 창 밖으로 나가도 계속 끌림
 cv.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, fx: cam.fx, fy: cam.fy, moved: false }; try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 무시 */ } });
 cv.addEventListener('pointermove', e => {
-  if (!down || scene !== 'village' || cam.to) return;
+  if (!down || cam.to) return;
   const dx = e.clientX - down.x, dy = e.clientY - down.y;
   if (!down.moved && Math.hypot(dx, dy) > 10) { down.moved = true; follow = false; }
   if (down.moved) { cam.fx = down.fx - dx / cam.s; cam.fy = down.fy - dy / cam.s; }
@@ -1617,7 +1752,7 @@ cv.addEventListener('pointermove', e => {
 cv.addEventListener('pointerup', e => { if (!down) return; if (!down.moved) tap(e.clientX, e.clientY); down = null; });
 cv.addEventListener('pointercancel', () => { down = null; });
 cv.addEventListener('lostpointercapture', () => { if (down && down.moved) down = null; });
-window.addEventListener('resize', () => { resize(); if (scene === 'village') snapCam(); });
+window.addEventListener('resize', () => { resize(); snapCam(); });
 
 /* ===== 시작 ===== */
 S = load();
@@ -1625,7 +1760,7 @@ if (S.introSeen && S.quest === 0) S.quest = 1;   // 퀘스트가 없던 때의 �
 function startGame() {
   applyRestored();
   resize();
-  if (S.screen === 'mine' && S.mine) scene = 'mine'; else { S.screen = 'village'; S.mine = null; }
+  if (S.screen === 'mine' && S.mine && S.mine.t) { scene = 'mine'; hero.x = S.mine.hx; hero.y = S.mine.hy; mineSee(); } else { S.screen = 'village'; S.mine = null; }
   snapCam(); renderHud(); renderDock(); showHome();
   fade = 1;
   requestAnimationFrame(frame);
@@ -1633,8 +1768,11 @@ function startGame() {
 }
 // 테스트용 창구: 상태 읽기, 칸과 건물의 화면 위치, 걷는 빠르기
 window.MinerDiary = {
-  state: () => S, hint, canDig, phaseIndex, untilNext, objects: () => OBJ, scene: () => scene,
-  tilePoint: i => tileCenter(i),
+  state: () => S, phaseIndex, untilNext, objects: () => OBJ, scene: () => scene,
+  cellPoint, hero: () => ({ x: hero.x, y: hero.y, moving: hero.path.length > 0 }),
+  // 칸을 화면 가운데로 옮기고 그 위치를 돌려줌 (바위는 윗면 가운데)
+  cellSpot: (x, y) => { follow = false; const z = cellZ(x, y); const p = iso(x + .5, y + .5, z); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
+  glintDir: (x, y) => glintDir(x, y), newFloor: f => startFloor(f),
   spotPoint: id => {
     const o = OBJ.find(q => q.id === id); follow = false;
     const z = hgt(o.gx, o.gy), up = o.kind === 'npc' || o.kind === 'wagon' ? 1 : .6;
