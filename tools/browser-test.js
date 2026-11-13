@@ -177,7 +177,51 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="sleep"]');
   s = await st();
   ok(s.day === day + 1 && s.energy === (late ? 90 : 100) && s.minE === s.energy, `자고 나서 ${s.day}일차 기력 ${s.energy}`);
-  ok((s.quest === 6 || (s.quest === 7 && s.gold >= 500)) && (await quest()).includes('대장간 복구비'), '자고 나면 이미 간 3층은 바로 끝나고 「대장간 복구비 모으기」 (돈이 500 이상이면 그것도 끝)');
+  ok(s.quest === 6 && (await quest()).includes('숲길 치우기'), '자고 나면 이미 간 3층은 바로 끝나고 「숲길 치우기」');
+
+  // 10-1. 숲길 치우기 (🪙100), 광맥 추 받기
+  if (s.gold < 100) await page.evaluate(() => { window.MinerDiary.state().gold = 100; renderHud(); });
+  await visit('forest', '#sheet [data-a="clearForest"]');
+  const gF = (await st()).gold;
+  await page.click('#sheet [data-a="clearForest"]');
+  s = await st();
+  ok(s.gold === gF - 100 && s.restored.includes('forest') && s.pendulum, '숲길을 치우면 🪙100이 들고 광맥 추를 받음');
+  ok(s.quest === 7 && (await quest()).includes('동굴 찾기'), '다음 퀘스트 「숲에서 동굴 찾기」');
+  ok((await page.textContent('#sheet h2')).includes('촌장'), '촌장이 추를 건넴');
+
+  // 10-2. 숲 탐험: 안개, 광맥 추, 못 본 동굴 쪽으로 걸어가 들어감
+  await visit('forest', '#sheet [data-a="forest"]');
+  await page.click('#sheet [data-a="forest"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'forest', null, { timeout: 5000 });
+  s = await st();
+  ok(s.forest.seen.filter(Boolean).length < s.forest.t.length / 10, '숲은 안개에 덮여 있고 걸어간 곳만 보임');
+  ok(s.forest.caves.length === 3 && s.forest.caves.every(c => !s.forest.seen[c.y * 36 + c.x]), '동굴 셋은 처음엔 안 보임');
+  if (shot) await page.screenshot({ path: path.join(shot, 'forest.png') });
+  const near0 = await page.evaluate(() => window.MinerDiary.caveNear()), eF = s.energy;
+  const target = s.forest.caves.slice().sort((a, b) => Math.hypot(a.x - s.forest.hx, a.y - s.forest.hy) - Math.hypot(b.x - s.forest.hx, b.y - s.forest.hy))[0];
+  let nearMin = near0;
+  for (let k = 0; k < 20 && await page.evaluate(() => window.MinerDiary.scene()) === 'forest'; k++) {
+    const p = await page.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), [target.x, target.y]);
+    await page.mouse.click(p.x, p.y); await page.waitForTimeout(60);
+    await page.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 15000 });
+  }
+  s = await st();
+  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'mine' && s.mine.cave !== undefined, '못 본 동굴 쪽을 눌러 걸어가서 동굴에 들어감');
+  ok(s.forest.caves.filter(c => c.found).length === 1 && s.quest === 8, '동굴을 찾으면 퀘스트 끝');
+  ok(s.energy < eF && s.energy === eF - Math.floor(s.forest.steps / 5), `숲에서는 5칸마다 기력 1 (걸음 ${s.forest.steps})`);
+  ok(near0 > 3, '광맥 추: 처음엔 동굴이 멀리 있음');
+  if (shot) await page.screenshot({ path: path.join(shot, 'cave.png') });
+
+  // 10-3. 동굴에서 캐고 숲으로, 숲에서 마을로
+  const rC = await nearRock(false);
+  await page.evaluate(([x, y]) => { const m = window.MinerDiary.state().mine; m.o[y * m.w + x] = 'iron'; m.t[y * m.w + x] = 'r'; }, rC);
+  const ir = (await st()).inv.iron || 0;
+  await tap(rC[0], rC[1]);
+  ok((await st()).inv.iron === ir + 1, '동굴에서도 벽 광석을 캠');
+  await page.click('[data-a="leave"]'); await page.waitForTimeout(300);
+  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'forest' && (await page.textContent('#minebar')).includes('1/3'), '동굴을 나오면 숲, 찾은 동굴 1/3');
+  await page.click('[data-a="leave"]'); await page.waitForTimeout(300);
+  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'village', '숲에서 마을로');
 
   // 11. 쓰러짐
   await visit('mine', '#sheet [data-a="enter"]');
