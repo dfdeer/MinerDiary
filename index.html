@@ -304,6 +304,7 @@ const CHIEF_TIPS = [
   '광석은 줄기처럼 이어져 있어요. 하나를 찾으면 그 둘레를 이어서 캐 봐요. 쉬지 않고 캐면 더 잘 나오고요.',
   '계단은 굴 깊숙한 곳에 있어요. 깊을수록 비싼 광석이 나와요.',
   '새벽에 내려간 층에선 가끔 월광석이 보인대요.',
+  '옛 광부들이 깊은 곳에 일지를 남겼대요. 깊이 다섯쯤에서 처음 봤다는 얘기가 있어요.',
   '새벽까지 무리하면 다음 날 몸이 덜 풀릴 거예요.',
   '기력이 바닥나면 쓰러져요. 그날 캔 것도 조금 잃어버리고요.',
 ];
@@ -333,6 +334,7 @@ const QUESTS = [
   { id: 'kitchen', text: '식당 고치기', target: 'kitchen' },
   { id: 'cook', text: '요리 찾기', need: 1, target: 'kitchen', reward: 50 },
   { id: 'request', text: '주민 의뢰 들어주기', need: 1, target: 'kitchen', reward: 100 },
+  { id: 'board', text: '촌장 의뢰판 의뢰', need: 1, target: 'chief', reward: 100 },
   { id: 'deep7', text: '깊이 7 도달', need: 7, target: 'mine', reward: 100 },
   { id: 'pick2', text: '철 곡괭이 만들기', need: 2, target: 'smithy', reward: 100 },
   { id: 'jewel', text: '세공소 고치기', target: 'jewel' },
@@ -343,9 +345,15 @@ const QUESTS = [
   { id: 'night', text: '저녁 야시장 거래', target: 'market', reward: 100 },
   { id: 'museum', text: '박물관 고치기', target: 'museum' },
   { id: 'donate', text: '박물관에 기증', need: 10, target: 'museum', reward: 300 },
+  { id: 'pick3', text: '은 곡괭이 만들기', need: 3, target: 'smithy', reward: 300 },
+  { id: 'deep15', text: '깊이 15 도달', need: 15, target: 'mine', reward: 800 },
+  { id: 'lore', text: '옛 광부 일지 셋 모으기', need: 3, target: 'mine', reward: 1000 },
+  { id: 'pick4', text: '금 곡괭이 만들기', need: 4, target: 'smithy', reward: 1000 },
+  { id: 'deep20', text: '깊이 20 도달', need: 20, target: 'mine', reward: 2000 },
+  { id: 'deep30', text: '깊이 30 도달', need: 30, target: 'mine', reward: 5000 },
 ];
 const questNow = () => QUESTS[S.quest];
-const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : q.id === 'cut' ? S.cutN || 0 : q.id === 'hunt' ? S.killN || 0 : q.id === 'chest' ? S.chestN || 0 : q.id === 'donate' ? (S.museum || []).length : 0);
+const questProg = q => (q.id === 'ore' ? S.qn : q.id.startsWith('deep') ? S.deepest : q.id === 'gold' ? S.gold : q.id.startsWith('pick') ? S.pick : q.id === 'lore' ? S.loreN || 0 : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : q.id === 'cut' ? S.cutN || 0 : q.id === 'hunt' ? S.killN || 0 : q.id === 'chest' ? S.chestN || 0 : q.id === 'board' ? S.boardN || 0 : q.id === 'donate' ? (S.museum || []).length : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
   let q = questNow(), flag = false;
@@ -1558,7 +1566,7 @@ function camStep(dt) {
    칸 종류: r 바위, h 단단한 바위, f 바닥, d 내려가는 구멍, u 올라가는 줄(깊이 1의 입구는 마을로 나가는 사다리), c 야영지 */
 function rnd(n) { return Math.floor(Math.random() * n); }
 function pickFrom(list, r = Math.random()) { let acc = 0; for (const [o, w] of list) { acc += w; if (r < acc) return o; } return list[list.length - 1][0]; }
-const FLOORISH = t => t === 'f' || t === 'u' || t === 'd' || t === 'c' || t === 'T';
+const FLOORISH = t => t === 'f' || t === 'u' || t === 'd' || t === 'c' || t === 'T' || t === 'J';
 const ROCKISH = t => t === 'r' || t === 'h';
 const D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const ZONES = [
@@ -1642,8 +1650,33 @@ const BAG_BASE = 20;
 const bagCap = () => BAG_BASE + accEff('bag');
 const carryN = () => Object.values(S.carry || {}).reduce((a, n) => a + n, 0);
 function unpack() { if (!S.carry) return; Object.entries(S.carry).forEach(([k, n]) => { S.inv[k] = (S.inv[k] || 0) + n; }); S.carry = {}; }
+/* ===== 옛 광부의 갱도 (기획 40번): 깊이 5, 8, 12에 처음 내려가면 가까운 곳에 무너진 옛 갱도 방이 생김 =====
+   일지(J)를 읽으면 마을이 무너진 이야기가 조금씩 풀리고, 옆 상자(T)에 큰 보상. 방까지 화살표가 늘 보임 */
+const LORE = {
+  5: { n: 1, acc: 'firefly', gold: 300, text: '오늘은 깊이 다섯까지 내려왔어요. 벽 너머에서 낮게 울리는 소리가 나요. 반장님은 바람 소리래요. 그래도 다들 귀를 기울이며 곡괭이를 내리쳐요.' },
+  8: { n: 2, acc: 'magnet', gold: 600, text: '벽 틈으로 처음 보는 빛이 새어 나왔어요. 금보다 밝고 달빛보다 차가웠어요. 다들 더 파자고 했어요. 그날 밤 굴 전체가 숨을 쉬듯 흔들렸어요.' },
+  12: { n: 3, acc: 'charm', gold: 1200, text: '우리가 깨운 건 광맥이 아니었어요. 그 빛은 아래에서 우리를 부르고 있었어요. 마을을 떠나기로 했어요. 누군가 이걸 읽는다면 더 깊이 내려가 그 빛의 정체를 확인해 줘요.' },
+};
+function placeLore(L, x, y) {
+  const D = S.deep; D.lore = D.lore || {};
+  if (!LORE[L] || D.lore[L]) return;
+  const a = H32(D.seed + L * 7) * Math.PI * 2, cx = Math.round(x + Math.cos(a) * 9), cy = Math.round(y + Math.sin(a) * 9);
+  for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const m = Math.max(Math.abs(dx), Math.abs(dy)); D.dug[dKey(L, cx + dx, cy + dy)] = m === 3 ? 'r' : 'f'; }
+  D.dug[dKey(L, cx - 1, cy)] = 'J'; D.dug[dKey(L, cx + 1, cy)] = 'T';
+  D.lore[L] = [cx, cy, 0];
+}
+function readLore(x, y) {
+  const L = S.deep.L, R = LORE[L]; if (!R) return;
+  S.deep.dug[dKey(L, x, y)] = 'f'; S.deep.lore[L][2] = 1; S.loreN = (S.loreN || 0) + 1;
+  S.gold += R.gold; gainAcc(R.acc); SFX.fanfare();
+  openSheet(`${ico('ic_scroll')}옛 광부 일지 ${R.n}/3`, `<p>${R.text}</p><p class="news">${GOLD}+${R.gold} ${accIco(R.acc)}${ACC[R.acc].n}</p>`);
+  save(); renderHud();
+}
 function startDeep(L, x, y) {
   const D = S.deep; D.L = L; D.x = x; D.y = y;
+  placeLore(L, x, y);
+  // 끝없는 깊이 기록: 30을 넘으면 10층마다 보상
+  if (L > S.deepest && L > 30 && L % 10 === 0) { S.gold += L * 100; setTimeout(() => toast(`${ico('ic_star')}깊이 ${L} ${GOLD}+${L * 100}`), 600); }
   S.mine = { L }; S.screen = 'mine'; scene = 'mine'; FLAT = true;
   S.deepest = Math.max(S.deepest, L); mparts = []; mfloats = []; mbumps = []; holeCache = null;
   hero.x = x; hero.y = y; hero.path = []; hero.target = null; hero.dig = null; hero.goal = null; hero.fx = 1; hero.back = false;
@@ -1759,6 +1792,7 @@ function mineArrive() {
     if (t === 'u') { ascendAt(x, y); return; }
     if (t === 'c') { showCamp(); return; }
     if (t === 'T') { openChest(x, y); return; }
+    if (t === 'J') { readLore(x, y); return; }
   }
   hero.goal = null; save();
 }
@@ -1774,7 +1808,7 @@ function openChest(x, y) {
   const acc = Math.random() < .25 + (S.chestN ? 0 : 1) ? CHEST[rnd(CHEST.length)] : null;   // 처음 연 상자엔 꼭 하나
   let accTxt = '';
   if (acc && ACC[acc]) { gainAcc(acc); accTxt = ` ${accIco(acc)}${ACC[acc].n}`; } else if (acc) { addItem(acc, 2); }
-  S.chestN = (S.chestN || 0) + 1;
+  S.chestN = (S.chestN || 0) + 1; S.today._chest = (S.today._chest || 0) + 1;
   for (let i = 0; i < 3; i++) burst(p[0], p[1], '#f2c230', '#fff6c2', 16);
   mfloats.push({ x: p[0], y: p[1] - TW * .6, text: '보물!', color: '#ffe27a', life: 1.6, big: 6 });
   mshake = 8; SFX.fanfare(); buzz(40);
@@ -1940,6 +1974,15 @@ function drawMine(c, dt) {
           INK = Math.max(1.2, TW * .02); c.beginPath(); const q0 = iso(x + .5, y + .5, 0); c.ellipse(q0[0], q0[1], TW * .36, TH * .36, 0, 0, 7); c.fillStyle = '#0a0503'; c.fill(); c.lineWidth = INK; c.strokeStyle = OUT; c.stroke();
           const rg = c.createRadialGradient(q0[0], q0[1], 1, q0[0], q0[1], TW * .9); rg.addColorStop(0, `rgba(255,214,130,${g * .4})`); rg.addColorStop(1, 'rgba(255,214,130,0)'); Cc(c, q0[0], q0[1], TW * .9, rg);
           INK = Math.max(1, TW * .018);
+        } else if (t === 'J') {   // 옛 광부 일지 (낡은 받침대 위 책과 등불)
+          const q0 = iso(x + .5, y + .5, 0), u = TW / 80, fl = .7 + .3 * Math.sin(tnow * 7 + y);
+          const gl = c.createRadialGradient(q0[0], q0[1] - u * 20, 1, q0[0], q0[1] - u * 20, u * 60); gl.addColorStop(0, `rgba(255,200,120,${.4 * fl})`); gl.addColorStop(1, 'rgba(255,200,120,0)'); Cc(c, q0[0], q0[1] - u * 20, u * 60, gl);
+          E(c, q0[0] + u * 3, q0[1] + u * 3, u * 22, u * 8, 'rgba(0,0,0,.3)');
+          inkPoly(c, [[q0[0] - u * 6, q0[1]], [q0[0] + u * 6, q0[1]], [q0[0] + u * 4, q0[1] - u * 20], [q0[0] - u * 4, q0[1] - u * 20]], '#7a5530', Math.max(1.2, u * 1.6));
+          inkPoly(c, [[q0[0] - u * 18, q0[1] - u * 20], [q0[0] + u * 18, q0[1] - u * 20], [q0[0] + u * 14, q0[1] - u * 30], [q0[0] - u * 14, q0[1] - u * 30]], '#9a6638', Math.max(1.2, u * 1.6));
+          inkPoly(c, [[q0[0] - u * 14, q0[1] - u * 26], [q0[0], q0[1] - u * 24], [q0[0], q0[1] - u * 34], [q0[0] - u * 13, q0[1] - u * 36]], '#f4e6c4', Math.max(1, u * 1.2));
+          inkPoly(c, [[q0[0], q0[1] - u * 24], [q0[0] + u * 14, q0[1] - u * 26], [q0[0] + u * 13, q0[1] - u * 36], [q0[0], q0[1] - u * 34]], '#ece0c0', Math.max(1, u * 1.2));
+          Cc(c, q0[0] + u * 16, q0[1] - u * 40, u * 4 * fl, '#ffb347');
         } else if (t === 'T') {   // 보물 상자
           const q0 = iso(x + .5, y + .5, 0), u = TW / 80, fl = .6 + .4 * Math.sin(tnow * 3 + x);
           const gl = c.createRadialGradient(q0[0], q0[1] - u * 14, 1, q0[0], q0[1] - u * 14, u * 70); gl.addColorStop(0, `rgba(255,214,110,${.45 * fl})`); gl.addColorStop(1, 'rgba(255,214,110,0)'); Cc(c, q0[0], q0[1] - u * 14, u * 70, gl);
@@ -2017,6 +2060,7 @@ function drawArrows(c) {
     if (accEff('home')) { const up = nearest(upsHere()); if (up) list.push([up, '#ffd27a', 'ic_compass']); }
     if (accEff('hole')) { const h2 = nearestHole(); if (h2) list.push([h2, '#9fd3ff', 'ic_plumb']); }
     if (accEff('camp') && S.deep.lastCamp && S.deep.lastCamp[0] === S.deep.L) list.push([[S.deep.lastCamp[1], S.deep.lastCamp[2]], '#ff8a7a', 'ic_tent']);
+    const lr = S.deep.lore && S.deep.lore[S.deep.L]; if (lr && !lr[2] && Math.hypot(lr[0] - hero.x, lr[1] - hero.y) > 3.5) list.push([[lr[0], lr[1]], '#f2c230', 'ic_scroll']);   // 옛 갱도는 늘 화살표
   } else if (scene === 'forest' && accEff('home')) list.push([[S.forest.ex, S.forest.ey], '#ffd27a', 'ic_compass']);
   list.forEach(([[tx, ty], col, icn]) => {
     const q = iso(tx + .5, ty + .5, 0), dx = (q[0] - p[0]), dy = (q[1] - p[1]), d = Math.hypot(dx, dy); if (d < TW * .6) return;
@@ -2036,7 +2080,7 @@ function drawMiniMap(c) {
     if (!seenGet(x, y)) continue; const t = mT(x, y);
     const dx = x - hx - fx2, dy = y - hy - fy2, px = mx + mw / 2 + (dx - dy) * sc * .75, py = my + mh / 2 + (dx + dy) * sc * .375;
     if (px < mx - sc || px > mx + mw + sc || py < my - sc || py > my + mh + sc) continue;
-    c.fillStyle = t === 'd' ? '#9fd3ff' : t === 'u' ? '#ffd27a' : t === 'c' ? '#ff8a7a' : t === 'T' ? '#f2c230' : FLOORISH(t) ? '#a8906e' : '#4a3a2c';
+    c.fillStyle = t === 'd' ? '#9fd3ff' : t === 'u' ? '#ffd27a' : t === 'c' ? '#ff8a7a' : t === 'T' || t === 'J' ? '#f2c230' : FLOORISH(t) ? '#a8906e' : '#4a3a2c';
     c.beginPath(); c.moveTo(px, py - sc * .375); c.lineTo(px + sc * .75, py); c.lineTo(px, py + sc * .375); c.lineTo(px - sc * .75, py); c.closePath(); c.fill();
   }
   c.fillStyle = '#fff'; c.fillRect(mx + mw / 2 - 1.5 * z, my + mh / 2 - 1.5 * z, 3 * z, 3 * z);
@@ -2333,7 +2377,7 @@ function huntTick(dt) {
       const got = MONS[tgt.kind].drop.filter(([, p2]) => Math.random() < p2).map(([k]) => k), room = got.filter((k, i) => carryN() + i < bagCap());
       room.forEach(k => addItem(k, 1));
       toast(room.length ? room.map(k => `<span class="ore ${k}"></span>${ORES[k].name}`).join(' ') : `${ico('ic_bag')}가득`);
-      S.killN = (S.killN || 0) + 1; hero.atk = null; SFX.ore(2); questEvent('hunt'); save(); renderDock();
+      S.killN = (S.killN || 0) + 1; S.today._kill = (S.today._kill || 0) + 1; hero.atk = null; SFX.ore(2); questEvent('hunt'); save(); renderDock();
     }
     if (!spend(1)) return; renderHud();
   }
@@ -2826,7 +2870,7 @@ function showCard(o, msg) {
     else if (S.gold >= GOAL.cost) line = '대장간 고칠 돈은 다 모였네요. 대장간에 가 봐요.';
     else if (S.chiefDay !== S.day) { line = CHIEF_TIPS[(S.day - 1) % CHIEF_TIPS.length]; S.chiefDay = S.day; save(); }
     else line = `다음은 대장간이에요. ${GOLD}${GOAL.cost - S.gold}만 더 모으면 돼요.`;
-    openSheet('촌장', `<p>${line}</p>`);
+    openSheet('촌장', `<p>${line}</p>` + boardHtml());
   } else if (o.id === 'merchant') showMerchant();
   else if (o.id === 'kitchen') showKitchen();
   else if (o.id === 'jewel') showJewel();
@@ -3099,6 +3143,39 @@ function cook(a, b) {
   else toast(`${accIco(out)}${ITEMS[out].n}`);
   SFX.ore(2); questEvent('cook'); save(); renderHud(); kitSel = []; showKitchen();
 }
+/* ===== 의뢰판 (기획 39번): 식당 의뢰 다음부터 촌장에게 날마다 의뢰 셋. 가져다주거나 그날 해내면 시세보다 넉넉한 돈 ===== */
+const BOARD_ITEMS = [
+  ['copper', 8, () => true], ['coal', 6, () => true], ['herb', 4, () => true], ['wood', 10, () => true], ['iron', 6, () => S.deepest >= 2],
+  ['carp', 2, () => S.rod], ['radish', 2, () => S.restored.includes('field')], ['crystal', 3, () => S.deepest >= 3], ['silver', 3, () => S.deepest >= 4],
+  ['copperBar', 2, () => S.restored.includes('smithy')], ['ironBar', 2, () => S.pick >= 1], ['gold', 2, () => S.deepest >= 6], ['amethyst', 1, () => S.deepest >= 7],
+  ['meat', 3, () => S.restored.includes('gate')], ['bone', 3, () => S.restored.includes('gate')], ['silverBar', 1, () => S.pick >= 2],
+];
+const boardOpen = () => QUESTS.findIndex(q => q.id === 'board') <= S.quest;
+function todayBoard() {
+  if (S.board && S.board.day === S.day) return S.board;
+  const items = BOARD_ITEMS.filter(([, , ok]) => ok()).map(([item, n]) => ({ kind: 'item', item, n, gold: Math.round((ORES[item].price * n * 2.2 + 40) / 10) * 10, done: false }));
+  const extra = [{ kind: 'chest', n: 1, gold: 200, done: false }];
+  if (S.restored.includes('gate')) extra.push({ kind: 'kill', n: 3, gold: 250, done: false });
+  const pool = items.concat(extra).map((b, i) => [H32(S.day * 389 + i * 71 + 5), b]).sort((a, b) => a[0] - b[0]).map(a => a[1]);
+  S.board = { day: S.day, list: pool.slice(0, 3) };
+  return S.board;
+}
+const boardHave = b => (b.kind === 'item' ? S.inv[b.item] || 0 : b.kind === 'chest' ? S.today._chest || 0 : S.today._kill || 0);
+function boardHtml() {
+  if (!boardOpen()) return '';
+  const rows = todayBoard().list.map((b, i) => {
+    const what = b.kind === 'item' ? `<span class="ore ${b.item}"></span>${ORES[b.item].name}` : b.kind === 'chest' ? `${ico('ic_treasure')}오늘 보물 상자` : `${ico('ic_sword')}오늘 사냥`;
+    const ok = !b.done && boardHave(b) >= b.n;
+    return `<div class="rowi"><span class="nm">${what} <small>${Math.min(boardHave(b), b.n)}/${b.n}</small></span><button class="btn small ${ok ? 'primary' : ''}" data-a="board" data-n="${i}" ${ok ? '' : 'disabled'}>${b.done ? '끝' : GOLD + b.gold}</button></div>`;
+  }).join('');
+  return `<p class="dim" style="margin-top:10px">${ico('ic_scroll')}의뢰판</p><div class="rows">${rows}</div>`;
+}
+function doBoard(i) {
+  const b = todayBoard().list[i]; if (!b || b.done || boardHave(b) < b.n) return;
+  if (b.kind === 'item') S.inv[b.item] -= b.n;
+  b.done = true; S.gold += b.gold; S.boardN = (S.boardN || 0) + 1;
+  SFX.coin(); toast(`${GOLD}+${b.gold}`); questEvent('board'); save(); renderHud(); showCard(OBJ.find(o => o.id === 'chief'));
+}
 function doReq() {
   const q = todayReq(), ph = phaseIndex(); if (q.done || (S.inv[q.item] || 0) < q.n || !(ph === 1 || ph === 2)) return;
   S.inv[q.item] -= q.n; S.gold += q.gold; q.done = true; S.reqN = (S.reqN || 0) + 1;
@@ -3189,6 +3266,7 @@ document.addEventListener('click', e => {
   else if (a === 'forest') enterForest();
   else if (a === 'hunt') enterHunt();
   else if (a === 'nbuy') nightBuy(n);
+  else if (a === 'board') doBoard(n);
   else if (a === 'nsell') nightSell(n);
   else if (a === 'donate') donate(b.dataset.o);
   else if (a === 'sword') makeSword();

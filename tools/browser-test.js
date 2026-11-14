@@ -433,7 +433,16 @@ const shot = process.argv[2];
   const gR = (await st()).gold, rq = (await st()).req;
   await page.click('#sheet [data-a="kreq"]');
   s = await st();
-  ok(s.req.done && s.gold === gR + rq.gold + 100 && (await quest()).includes('깊이 7'), `점심에 의뢰(${rq.item} ${rq.n}개)를 들어주면 🪙${rq.gold} (퀘스트 보상 🪙100)`);
+  ok(s.req.done && s.gold === gR + rq.gold + 100 && (await quest()).includes('의뢰판'), `점심에 의뢰(${rq.item} ${rq.n}개)를 들어주면 🪙${rq.gold} (퀘스트 보상 🪙100)`);
+  await page.click('#sheet [data-a="close"]');
+  // 13-0e2. 의뢰판: 촌장에게 날마다 의뢰 셋. 물건 의뢰 하나를 끝냄
+  const bi = await page.evaluate(() => { const L = todayBoard().list, i = L.findIndex(b => b.kind === 'item'); S.inv[L[i].item] = (S.inv[L[i].item] || 0) + L[i].n; return i; });
+  await visit('chief', `#sheet [data-a="board"][data-n="${bi}"]`);
+  ok(await page.locator('#sheet [data-a="board"]').count() === 3, '촌장에게 가면 의뢰판에 의뢰 셋');
+  const gBd = (await st()).gold, bd = (await st()).board.list[bi];
+  await page.click(`#sheet [data-a="board"][data-n="${bi}"]`);
+  s = await st();
+  ok(s.board.list[bi].done && s.gold === gBd + bd.gold + 100 && (await quest()).includes('깊이 7') && await page.locator(`#sheet [data-a="board"][data-n="${bi}"]`).isDisabled(), `의뢰판 의뢰(${bd.item} ${bd.n}개)를 끝내면 🪙${bd.gold} (퀘스트 보상 🪙100), 다시는 못 함`);
   await page.click('#sheet [data-a="close"]');
   await visit('market', '#sheet [data-a="close"]');
   ok(await page.evaluate(() => { const next = { ...S.market.next }; rollMarket(false); return Object.keys(next).every(o => Math.abs(S.market.mult[o] - next[o]) < 1e-9) && S.market.sold.iron === 10; }), '다음 날 시세는 전날 예고대로, 판 만큼 떨어진 값은 절반 회복');
@@ -521,6 +530,18 @@ const shot = process.argv[2];
   s = await st();
   ok(s.museum.length === 10 && s.gold === gMu + 500 + 300 && s.inv.coal === coal0 - 1 && !s.museum.some((o, i) => s.museum.indexOf(o) !== i), '10종을 하나씩 기증하면 🪙500 (퀘스트 보상 🪙300), 같은 것은 한 번만');
   await page.click('#sheet [data-a="close"]');
+
+  // 13-0j. 옛 광부의 갱도: 깊이 5에 처음 가면 가까이에 옛 갱도 방이 생기고, 일지를 읽으면 이야기와 보상
+  ok((await quest()).includes('은 곡괭이'), '박물관 다음 퀘스트 「은 곡괭이 만들기」');
+  const lr = await page.evaluate(() => { S.energy = S.max; S.minE = S.dayStart = S.max; startDeep(5, 0, 1); const r = S.deep.lore[5]; startDeep(5, r[0], r[1] + 1); for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) seenSet(r[0] + dx, r[1] + dy); return r; });
+  ok((await cell(lr[0] - 1, lr[1])).t === 'J' && (await cell(lr[0] + 1, lr[1])).t === 'T', '깊이 5에 처음 가면 옛 갱도 방(일지와 상자)이 생김');
+  const gL = (await st()).gold;
+  await tap(lr[0] - 1, lr[1]);
+  await page.waitForSelector('#sheet h2:has-text("일지 1/3")', { timeout: 5000 });
+  s = await st();
+  ok(s.loreN === 1 && s.gold === gL + 300 && s.acc.have.firefly >= 1 && (await cell(lr[0] - 1, lr[1])).t === 'f', '일지를 읽으면 이야기 1/3과 🪙300, 반딧불 병');
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => toVillage('home'));
   await visit('smithy', '#sheet [data-a="close"]');
 
   // 13-1. 장신구: 만들기, 합치기, 끼기
