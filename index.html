@@ -100,7 +100,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .hbar .needle{position:absolute;top:-2px;bottom:-2px;width:6px;margin-left:-3px;border-radius:3px;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.8)}
 .hits{display:flex;gap:10px;justify-content:center}.hits b{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.4)}.hits b.h2{background:#ffd27a;border-color:#ffd27a}.hits b.h1{background:#c9a060;border-color:#c9a060}.hits b.h0{background:#6b4a3a;border-color:#6b4a3a}
 .btn.big{min-width:120px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);font-size:13px}.chip.on{border-color:#e9b04f;background:rgba(233,176,79,.25)}.chip:disabled{opacity:.4}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);font-size:13px}.chip.on{border-color:#e9b04f;background:rgba(233,176,79,.25)}.chip.off{opacity:.35}.chip:disabled{opacity:.4}
 .up{color:#8fe08a}.down{color:#f0907a}.news{background:rgba(233,176,79,.15);border-radius:10px;padding:6px 10px}
 .slots{display:flex;gap:8px;margin:2px 0 8px}.slot{flex:1;min-height:52px;border-radius:12px;border:2px dashed rgba(255,255,255,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
 .slot.on{border:2px solid #e9b04f;background:rgba(233,176,79,.15)}.slot .ico{width:22px;height:22px}
@@ -344,9 +344,12 @@ const QUESTS = [
   { id: 'deep10', text: '깊이 10 도달', need: 10, target: 'mine', reward: 200 },
   { id: 'gate', text: '성벽 문 고치기', target: 'gate' },
   { id: 'hunt', text: '성 밖에서 사냥', need: 3, target: 'gate', reward: 150 },
+  { id: 'night', text: '저녁 야시장 거래', target: 'market', reward: 100 },
+  { id: 'museum', text: '박물관 고치기', target: 'museum' },
+  { id: 'donate', text: '박물관에 기증', need: 10, target: 'museum', reward: 300 },
 ];
 const questNow = () => QUESTS[S.quest];
-const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : q.id === 'cut' ? S.cutN || 0 : q.id === 'hunt' ? S.killN || 0 : 0);
+const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : q.id === 'cut' ? S.cutN || 0 : q.id === 'hunt' ? S.killN || 0 : q.id === 'donate' ? (S.museum || []).length : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
   let q = questNow(), flag = false;
@@ -444,6 +447,7 @@ function gearPath() {
 const ICONS = {
   ic_gold: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#f2c230'], ['M12 6.2a5.8 5.8 0 1 0 .01 0Z', '#e0a81e', 0], ['M10.8 8.5h2.4v7h-2.4Z', '#fff2b0', 0]],
   ic_check: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#4fb35a'], ['M7 12.5l3.2 3.2L17.2 8.6', 'none', 2.6, '#fff']],
+  ic_moon: [['M15.5 3.2A9 9 0 1 0 20.8 15 7 7 0 0 1 15.5 3.2Z', '#f2e6a8']],
   ic_sword: [['M16.8 3.2h4v4L10.5 17.5l-4-4Z', '#dfe6ee'], ['M5 12.5l6.5 6.5-1.6 1.6-6.5-6.5Z', '#8a5a32'], ['M4.2 17.8l2 2-2.6 2.6-2-2Z', '#e9b04f']],
   ic_warn: [['M12 2.8 22 20.5H2Z', '#f2c230'], ['M10.9 8.5h2.2l-.4 6.3h-1.4Z', '#2b1a12', 0], ['M12 16.4a1.3 1.3 0 1 0 .01 0Z', '#2b1a12', 0]],
   ic_bag: [['M8.5 6.5a3.5 3.5 0 0 1 7 0', 'none', 1.8], ['M4.5 7.5h15l-1.4 13H5.9Z', '#a8723f'], ['M4.5 7.5h15v3.5H4.5Z', '#8a5a2e'], ['M10.5 12h3v2.5h-3Z', '#f2c230']],
@@ -2228,6 +2232,54 @@ function makeSword() {
   SFX.stairs(); toast(`${ico('ic_sword')}${next.name}`); save(); renderHud(); showSmithy();
 }
 
+/* ===== 야시장 (기획 35번): 사냥 다음 퀘스트부터, 저녁과 새벽에 시장 한쪽에 수상한 상인이 섬 =====
+   날마다 바뀌는 물건 셋을 팔고, 비싸게 사 가는 의뢰 둘을 냄 (하루 한 번씩) */
+const NIGHT_SELL = [['feather', 'acc', 300], ['charm', 'acc', 300], ['honey', 'acc', 300], ['clover', 'acc', 400], ['magnet', 'acc', 400], ['firefly', 'acc', 250], ['insole', 'acc', 250], ['plumb', 'acc', 250], ['campRecall', 'item', 120], ['recall', 'item', 60]];
+const NIGHT_BUY = [['manastone', 2, 600], ['moonshard', 1, 500], ['bone', 4, 250], ['rubyGem', 1, 1500], ['moonkoi', 1, 450], ['moon', 2, 700], ['berry', 3, 600], ['amethystGem', 1, 900], ['goldBar', 1, 1300], ['meat', 4, 300]];
+const nightOpen = () => QUESTS.findIndex(q => q.id === 'night') <= S.quest && S.restored.includes('market');
+function nightToday() {
+  if (S.night && S.night.day === S.day) return S.night;
+  const pick = (arr, n, salt) => arr.map((v, i) => [H32(S.day * 977 + i * 131 + salt), v]).sort((a, b) => a[0] - b[0]).slice(0, n).map(a => a[1]);
+  S.night = { day: S.day, sell: pick(NIGHT_SELL, 3, 1).map(([id, kind, gold]) => ({ id, kind, gold, sold: false })), buy: pick(NIGHT_BUY, 2, 2).map(([item, n, gold]) => ({ item, n, gold, done: false })) };
+  return S.night;
+}
+function nightHtml() {
+  if (!nightOpen()) return '';
+  if (phaseIndex() < 2) return `<p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장 저녁부터</p>`;
+  const N = nightToday();
+  const sell = N.sell.map((s2, i) => `<div class="rowi"><span class="nm">${accIco(s2.id)}${(ACC[s2.id] || ITEMS[s2.id]).n}</span><button class="btn small" data-a="nbuy" data-n="${i}" ${s2.sold || S.gold < s2.gold ? 'disabled' : ''}>${s2.sold ? '팔림' : GOLD + s2.gold}</button></div>`).join('');
+  const buy = N.buy.map((b, i) => `<div class="rowi"><span class="nm"><span class="ore ${b.item}"></span>${ORES[b.item].name} <small>${Math.min(S.inv[b.item] || 0, b.n)}/${b.n}</small></span><button class="btn small primary" data-a="nsell" data-n="${i}" ${b.done || (S.inv[b.item] || 0) < b.n ? 'disabled' : ''}>${b.done ? '끝' : GOLD + b.gold}</button></div>`).join('');
+  return `<p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장 사기</p><div class="rows">${sell}</div><p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장 팔기</p><div class="rows">${buy}</div>`;
+}
+function nightBuy(i) {
+  const s2 = nightToday().sell[i]; if (!s2 || s2.sold || S.gold < s2.gold || phaseIndex() < 2) return;
+  S.gold -= s2.gold; s2.sold = true; if (s2.kind === 'item') S.items[s2.id] = (S.items[s2.id] || 0) + 1; else gainAcc(s2.id);
+  SFX.coin(); toast(`${accIco(s2.id)}${(ACC[s2.id] || ITEMS[s2.id]).n}`); questEvent('night'); save(); renderHud(); showMarket();
+}
+function nightSell(i) {
+  const b = nightToday().buy[i]; if (!b || b.done || (S.inv[b.item] || 0) < b.n || phaseIndex() < 2) return;
+  S.inv[b.item] -= b.n; b.done = true; S.gold += b.gold;
+  SFX.coin(); toast(`${GOLD}+${b.gold}`); questEvent('night'); save(); renderHud(); showMarket();
+}
+
+/* ===== 박물관 (기획 36번): 모은 것을 종류마다 하나씩 기증. 모은 수에 따라 보상 ===== */
+const MUSEUM_GOALS = [[10, 500], [20, 1500], [30, 3000]];
+function showMuseum() {
+  const got = S.museum || [], all = ORE_ORDER.length;
+  const goals = MUSEUM_GOALS.map(([n, g]) => `<span class="nd ${got.length >= n ? '' : 'lack'}">${n} ${GOLD}${g}</span>`).join(' ');
+  const cells = ORE_ORDER.map(o => got.includes(o) ? `<span class="chip on"><span class="ore ${o}"></span>${ORES[o].name}</span>` : S.inv[o] ? `<button class="chip" data-a="donate" data-o="${o}"><span class="ore ${o}"></span>${ORES[o].name}</button>` : '<span class="chip off">?</span>').join('');
+  openSheet(ico('ic_treasure') + '박물관', `<p>${got.length}/${all} ${goals}</p><div class="chips">${cells}</div>`);
+}
+function donate(o) {
+  S.museum = S.museum || [];
+  if (S.museum.includes(o) || !(S.inv[o] > 0)) return;
+  S.inv[o]--; S.museum.push(o);
+  const g = MUSEUM_GOALS.find(([n]) => n === S.museum.length);
+  if (g) { S.gold += g[1]; toast(`${ico('ic_treasure')}${g[0]} ${GOLD}+${g[1]}`); } else toast(`<span class="ore ${o}"></span>${ORES[o].name}`);
+  if (S.museum.length === ORE_ORDER.length) toast(`${ico('ic_treasure')}도감 완성`);
+  SFX.stairs(); questEvent('donate'); save(); renderHud(); showMuseum();
+}
+
 /* ===== 장신구 (기획 25번): 끼워야 효과가 있고, 두 개를 합치면 효과가 합쳐진 새 장신구 =====
    효과 이름: home 입구 화살표, hole 구멍 화살표, camp 야영지 화살표, dowse 광맥 추, light 등불 칸, glint2 반짝임 두 칸,
    glowFar 귀한 광맥이 더 멀리서 빛남, map2 작은 지도 두 배, walk 땅속 걷기 기력 절반, forestFree 숲 걷기 기력 0,
@@ -2421,6 +2473,7 @@ function showCard(o, msg) {
   else if (o.id === 'kitchen') showKitchen();
   else if (o.id === 'jewel') showJewel();
   else if (o.id === 'market') showMarket();
+  else if (o.id === 'museum') showMuseum();
   else if (o.id === 'smithy') showSmithy();
   else if (o.id === 'mine') {
     openSheet(ico('ic_pick') + '광산', `<p>가장 깊이 ${S.deepest}</p>`, '<button class="btn primary" data-a="enter">들어가기</button>');
@@ -2454,6 +2507,7 @@ const RESTORE = {
   field: { gold: 300, need: { wood: 8 }, who: '촌장', line: '밭이 다시 일궈졌네요. 씨앗은 떠돌이 상인이 팔아요. 아침이나 점심에 물을 주면 그날 밤 한 뼘씩 자라요.' },
   kitchen: { gold: 1000, need: { wood: 15, ironBar: 2 }, who: '식당 주인', line: '식당을 다시 열게 됐어요. 재료 두 가지를 골라 요리해 봐요. 처음 찾은 맛은 적어 둘게요. 점심이랑 저녁엔 마을 사람들이 부탁도 하러 와요.' },
   jewel: { gold: 1500, need: { silverBar: 3, crystal: 2 }, who: '세공사', line: '세공소를 고쳐 줘서 고마워요. 원석을 가져오면 같이 깎아요. 결을 따라 정확히 두드릴수록 보석이 더 나와요. 귀한 원석일수록 까다롭고요.' },
+  museum: { gold: 3000, need: { silverBar: 3, goldBar: 2, wood: 30 }, who: '학자', line: '박물관이 다시 문을 열었네요. 광산과 숲, 강, 성 밖에서 얻은 것을 종류마다 하나씩 기증해 줘요. 모일수록 이 마을이 왜 무너졌는지도 조금씩 보일 거예요.' },
   gate: { gold: 2000, need: { ironBar: 5, wood: 20 }, who: '촌장', line: '성벽 문이 다시 열렸어요. 성 밖 들판엔 짐승이 다녀요. 낮엔 멧돼지 정도지만 저녁부터는 그림자 늑대가, 새벽엔 달빛 정령이 나와요. 대장간에서 검을 만들어 가면 훨씬 수월할 거예요.' },
   market: { gold: 800, need: { wood: 10 }, who: '시장 상인', line: '시장이 다시 열렸어요. 값은 날마다 바뀌어요. 많이 팔면 값이 떨어지니 나눠서 파는 게 좋아요. 내일 무엇이 오를지도 알려 줄게요.', then: () => rollMarket(true) },
 };
@@ -2730,7 +2784,7 @@ function showMarket() {
   const M = S.market;
   const rows = TRADE.filter(o => S.inv[o]).map(o => { const m = M.mult[o], p = unitPrice(o), cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o]}</small> <small class="${cls}">${GOLD}${p}${cls === 'up' ? '▲' : cls === 'down' ? '▼' : ''}</small></span><button class="btn small" data-a="trade" data-o="${o}">${GOLD}${tradeValue(o)}</button></div>`; }).join('');
   const news = M.hint ? `<p class="news">${ico('ic_shop')}내일 ${ORES[M.hint].name} 오름</p>` : '';
-  openSheet(ico('ic_shop') + '시장', news + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>'));
+  openSheet(ico('ic_shop') + '시장', news + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + nightHtml());
 }
 function trade(o) {
   const n = S.inv[o] || 0; if (!n) return;
@@ -2768,6 +2822,9 @@ document.addEventListener('click', e => {
   else if (a === 'strike') strike();
   else if (a === 'forest') enterForest();
   else if (a === 'hunt') enterHunt();
+  else if (a === 'nbuy') nightBuy(n);
+  else if (a === 'nsell') nightSell(n);
+  else if (a === 'donate') donate(b.dataset.o);
   else if (a === 'sword') makeSword();
   else if (a === 'digForce') { hideSheet(); const [x, y] = b.dataset.n.split(',').map(Number); dig(x, y, true); }
   else if (a === 'campSleep') { hideSheet(); sleep(S.deep.lastCamp); }
