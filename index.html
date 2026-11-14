@@ -93,8 +93,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pill .ico,.btn .ico,.bag .ico{margin-right:0}
 .pill.icon .ico{width:22px;height:22px}
 .ph{color:var(--dim);font-weight:400;font-size:12px}
-.ore{display:inline-block;width:12px;height:12px;border-radius:3px;transform:rotate(45deg);flex:none;box-shadow:inset -2px -2px 0 rgba(0,0,0,.25)}
-.ore.copperBar,.ore.ironBar{transform:none;width:15px;height:9px;border-radius:2px}.ore.copperBar{background:#e0894a}.ore.ironBar{background:#b8c2cc}
+.ore{display:inline-block;width:18px;height:18px;flex:none;vertical-align:-4px}.rowi .ore,.chip .ore{width:24px;height:24px}.got .ore{width:21px;height:21px}
 .hammer{display:flex;flex-direction:column;gap:12px;padding:6px 2px 4px}.hbar{position:relative;height:26px;border-radius:13px;background:rgba(0,0,0,.35);overflow:hidden}
 .hbar .zone{position:absolute;left:33%;right:33%;top:0;bottom:0;background:rgba(233,176,79,.35)}.hbar .zone2{position:absolute;left:43%;right:43%;top:0;bottom:0;background:rgba(255,214,120,.7)}
 .hbar .needle{position:absolute;top:-2px;bottom:-2px;width:6px;margin-left:-3px;border-radius:3px;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.8)}
@@ -105,15 +104,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .slots{display:flex;gap:8px;margin:2px 0 8px}.slot{flex:1;min-height:52px;border-radius:12px;border:2px dashed rgba(255,255,255,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
 .slot.on{border:2px solid #e9b04f;background:rgba(233,176,79,.15)}.slot .ico{width:22px;height:22px}
 .nd{display:inline-flex;align-items:center;gap:3px;font-size:12px;margin-left:6px}.nd.lack,.lack{color:#e68a7a}
-.ore.carp,.ore.trout,.ore.catfish,.ore.eel,.ore.moonkoi{transform:none;border-radius:50% 40% 40% 50%;width:15px;height:10px}.ore.carp{background:#b8a070}.ore.trout{background:#e08a8a}.ore.catfish{background:#6a6a5a}.ore.eel{background:#4a5a3a}.ore.moonkoi{background:#cfc4ff;box-shadow:0 0 6px #b9a8ff}
 .fishing{height:110px;border-radius:14px;background:linear-gradient(#4f9fd8,#3f7fb0);position:relative;overflow:hidden;margin-bottom:6px}.fishing .bob{position:absolute;left:50%;top:44px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#fff 0 30%,#e04a3a 31%);border:2px solid #2b1a12;transition:transform .1s}.fishing .bob.bite{transform:translateY(10px) scale(.9)}.fishing .say{position:absolute;left:0;right:0;top:8px;text-align:center;font-size:22px;color:#fff;text-shadow:0 2px 0 #2b1a12}
-.ore.crystalGem,.ore.amethystGem,.ore.rubyGem{transform:rotate(45deg) scale(.9);border-radius:2px;box-shadow:0 0 6px rgba(255,255,255,.6)}.ore.crystalGem{background:#7fdcef}.ore.amethystGem{background:#b48cf0}.ore.rubyGem{background:#ff4d6a}
-.ore.radish{background:#f4f0e6;border-radius:50%}.ore.potato{background:#b08850;border-radius:45%}.ore.berry{background:#e0405a;border-radius:50% 50% 50% 0}
-.ore.herb{background:#4fae55}.ore.mush{background:#d9483a}.ore.wood{background:#a8703a}.ore.fiber{background:#d8c46a}.ore.leather{background:#8a5a32;transform:none;border-radius:4px}
-.ore.copper{background:#d97a3a}.ore.coal{background:#3a3a40}.ore.silver{background:#e6ecf2}.ore.gold{background:#f2c230}.ore.amethyst{background:#a46be0}.ore.ruby{background:#e0405a}
-.ore.silverBar,.ore.goldBar{transform:none;width:15px;height:9px;border-radius:2px}.ore.silverBar{background:#e8eef4}.ore.goldBar{background:#f5cf45}
-.ore.meat{background:#c8584a;transform:none;border-radius:50% 50% 40% 40%}.ore.bone{background:#efe6d2;transform:none;width:15px;height:7px;border-radius:4px}.ore.manastone{background:#5a7ae0;box-shadow:0 0 6px #8aa4ff}.ore.moonshard{background:#e2dcff;box-shadow:0 0 6px #b9a8ff}
-.ore.iron{background:#c3cbd5}.ore.crystal{background:#7fdcef}.ore.moon{background:#efe9ff;box-shadow:0 0 6px #b9a8ff}
 
 .toast{position:fixed;left:50%;top:calc(var(--st) + 86px);transform:translateX(-50%);z-index:6;border-radius:999px;padding:7px 16px;font-size:14px;font-weight:700;white-space:nowrap;pointer-events:none;transition:opacity .3s}
 .hud,.dock,.minebar,.sheet,.toast{zoom:var(--z,1)}
@@ -488,6 +479,99 @@ const ICONS = {
   ic_shard: [['M12 2.5 19.5 9 12 21.5 4.5 9Z', '#5fc9e0'], ['M4.5 9h15M12 2.5 9 9l3 12.5L15 9Z', 'none', 1.1, '#2b6f86'], ['M8 5.8 9.6 9 5.6 9Z', '#d7f6ff', 0]],
   ic_treasure: [['M3 9.5 12 3.5l9 6Z', '#e9e3d6'], ['M4.5 10h15v1.8h-15ZM4 19h16v2H4Z', '#d9d2c4'], ['M6 12h2v7H6ZM11 12h2v7h-2ZM16 12h2v7h-2Z', '#f4f0e8']],
 };
+/* ===== 아이템 그림 (광석, 보석, 주괴, 채집물, 물고기, 작물, 사냥감). ICONS와 같은 꼴: [경로, 색, 선 굵기, 선 색] =====
+   글 속 <span class="ore 이름">은 시작할 때 이 그림을 CSS 배경으로 바꿔 씀 */
+const cP = (x, y, r) => `M${x - r} ${y}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
+const eP = (x, y, rx, ry) => `M${x - rx} ${y}a${rx} ${ry} 0 1 0 ${2 * rx} 0a${rx} ${ry} 0 1 0 ${-2 * rx} 0Z`;
+const ROCK = 'M3.2 16.5 5.5 9.2 10.5 5.3l6.2 1.2 4 5.6-.8 6.3-5.6 3.3H7.2Z', ROCK_SH = 'M4 17.2 7.4 19.9h6.8l5.4-3.2.6-4.4-3 4.2-6.6 1.8Z', ROCK_HI = 'M6.6 9.8 10.8 6.8l4.6.9-4.3 1.6Z';
+const rock = (base, dark) => [[ROCK, base], [ROCK_SH, dark, 0], [ROCK_HI, 'rgba(255,255,255,.35)', 0]];
+const glint = (x, y, s = 1) => [`M${x} ${y - 2.2 * s}l${.6 * s} ${1.6 * s} ${1.6 * s} ${.6 * s} ${-1.6 * s} ${.6 * s} ${-.6 * s} ${1.6 * s} ${-.6 * s} ${-1.6 * s} ${-1.6 * s} ${-.6 * s} ${1.6 * s} ${-.6 * s}Z`, '#ffffff', 0];
+const ingot = (top, front, side, mark) => [['M3.5 12.5 7 8.5h13.5L17 12.5Z', top], ['M3.5 12.5H17v6H3.5Z', front], ['M17 12.5 20.5 8.5v6l-3.5 4Z', side], ['M6 14.5h8.5', 'none', 1.1, mark], ['M8 10.4h9', 'none', 1, 'rgba(255,255,255,.7)']];
+const fish = (body, belly, fin, extra = []) => [['M19 12 23 8.2v7.6Z', fin], [eP(11.5, 12, 8.5, 5), body], ['M4.5 13.2c3 2.6 9 3.3 13.5.3-4 1-9.5.8-13.5-.3Z', belly, 0], ['M9 7.6c1.6-2 4.5-2.4 6.4-.9L13.6 8Z', fin, 1.1], ...extra, [cP(6.6, 10.9, 1.25), '#ffffff', .9], [cP(6.4, 10.9, .55), '#2b1a12', 0]];
+const ITEM_ART = {
+  copper: [...rock('#9b8c7c', '#7a6c5e'), [cP(9.5, 11.5, 2.3), '#e07a34', 1.1], [cP(15, 13.6, 2.7), '#e07a34', 1.1], [cP(9.8, 16.8, 1.6), '#e07a34', 1.1], [cP(8.8, 10.8, .8), '#ffc08a', 0], [cP(14.1, 12.7, .9), '#ffc08a', 0]],
+  coal: [['M3.5 14.5 6.5 7 12.5 4.5l6.3 2.8 1.9 6.6-3.6 5.6-8.5.6Z', '#3a3a42'], ['M6.5 7 12.5 4.5l-1 5.5Z', '#5a5a66', 0], ['M11.5 10 18.8 7.3l1.9 6.6Z', '#4a4a54', 0], ['M11.5 10 8.6 20.1l8.5-.6 3.6-5.6Z', '#2a2a30', 0], ['M6.5 7 11.5 10M11.5 10l9.2 3.9M11.5 10 8.6 20.1', 'none', .8, '#1c1c22'], [cP(9.4, 7.8, .9), 'rgba(255,255,255,.6)', 0], [cP(16, 9, .6), 'rgba(255,255,255,.45)', 0]],
+  iron: [...rock('#8d8680', '#6d6660'), ['M6.6 12.2 12.4 9.6l1.2 1.6-5.8 2.6Z', '#cdd6e0', .9], ['M10.2 16.6l6.4-3 1 1.6-6.4 3Z', '#cdd6e0', .9], ['M14.4 8.6l2.6-1 .7 1-2.6 1.1Z', '#cdd6e0', .8], ['M7 12.3 12.3 10', 'none', .7, '#ffffff']],
+  silver: [...rock('#7e7872', '#605a55'), ['M6 13.5c2-1 3-3.2 5.6-3.4s3.4 2.2 6.6 1.2', 'none', 2.6, '#2b1a12'], ['M6 13.5c2-1 3-3.2 5.6-3.4s3.4 2.2 6.6 1.2', 'none', 1.5, '#f4f8ff'], ['M8.8 17.8c2.2-.8 4.6-.4 6.6-2', 'none', 2.4, '#2b1a12'], ['M8.8 17.8c2.2-.8 4.6-.4 6.6-2', 'none', 1.3, '#e6ecf4'], glint(16.8, 8.2, .9)],
+  gold: [...rock('#8f8070', '#6f6252'), ['M7 12.2c.4-1.8 2.6-2.4 3.8-1.2 1.4-.4 2.4 1.2 1.6 2.4.2 1.4-1.6 2.2-2.8 1.4-1.4.6-3-.6-2.6-2.6Z', '#f2c230', 1.1], ['M12.8 16.2c.2-1.4 2-2 3-1 1.2-.2 1.8 1 1.2 2-.2 1.2-1.6 1.6-2.6 1-1.2.2-1.8-.8-1.6-2Z', '#f2c230', 1.1], [cP(15.6, 9.8, 1.4), '#f2c230', 1], [cP(8.6, 11.8, .8), '#fff4b0', 0], [cP(14, 15.8, .6), '#fff4b0', 0], glint(18.2, 13.4, .7)],
+  crystal: [['M4 19.5h16l-1.8-2.8H5.8Z', '#8a8580'], ['M6.2 17.5 5.6 10l2.4-2.6 2.4 2.6.2 7.5Z', '#5fc9e0'], ['M9.6 17.6 9.4 6.6l3-3.6 3 3.6-.3 11Z', '#7fdcef'], ['M14.6 17.5 14.9 11l2.6-2.4 2.3 2.6-.8 6.3Z', '#5fc9e0'], ['M12.4 3v14.6M8 7.4l.1 10.1M17.5 8.6l-.4 8.9', 'none', .8, 'rgba(255,255,255,.7)'], ['M10.4 6.8 12.4 4.2v3.8Z', '#e0fbff', 0], glint(18.8, 5.4, .8)],
+  amethyst: [[eP(12, 13.2, 9, 7.2), '#8a8580'], [eP(12, 13.4, 6.4, 4.8), '#4a2a6a', .9], ['M6.4 15.6 8 10.6l1.6 4.2 1.4-5.6 1.8 5.4 1.4-5 1.6 5.4 1.6-4 .9 4.8-5.8 2.6Z', '#a46be0', .9], ['M9.6 14.8 11 9.2l.6 4.4ZM14.2 14.6l1.4-5 .4 4Z', '#e2c9ff', 0], [eP(12, 13.2, 9, 7.2), 'none', 1.5]],
+  ruby: [['M3.5 19.5 5.5 14l5.5-2 6.5.6 3.5 5.4-2 1.5Z', '#8a8580'], ['M7.2 13.6 9.4 6.6l5.6-2.2 4 4.2-1.2 6.4-6.6 1.8Z', '#d8344e'], ['M9.4 6.6 15 4.4l-2.2 4.8Z', '#ff8ea0', 0], ['M12.8 9.2 19 8.6l-1.2 6.4Z', '#b22238', 0], ['M12.8 9.2 7.2 13.6l3.4 3.2 7.2-1.8Z', '#c02a44', 0], ['M9.4 6.6 12.8 9.2 15 4.4M12.8 9.2 19 8.6M12.8 9.2l-2.2 7.6', 'none', .7, '#7a1022'], glint(10.6, 9.4, .7)],
+  moon: [[cP(12, 12.4, 6.6), '#ece6ff'], ['M14.8 7.2a5.6 5.6 0 1 1-7.4 7.8 4.6 4.6 0 0 0 7.4-7.8Z', '#b9a8ff', 0], [cP(9.6, 10, 1.1), '#ffffff', 0], [cP(12.6, 15.2, .7), '#cfc4ff', 0], glint(19, 5.6, .8), glint(5, 17.8, .6)],
+  crystalGem: [['M5 9.2 8.4 4.6h7.2L19 9.2 12 20.2Z', '#7fdcef'], ['M5 9.2h14', 'none', 1, '#2b1a12'], ['M8.4 4.6 10 9.2 12 4.6 14 9.2l1.6-4.6M5 9.2 12 20.2 19 9.2M10 9.2l2 11 2-11', 'none', .7, '#3a8fa8'], ['M8.4 4.6h3.6L10 9.2H5Z', '#e0fbff', 0], glint(18, 4.8, .8)],
+  amethystGem: [[eP(12, 12, 7.4, 8.6), '#b48cf0'], ['M12 5.4 16.2 8.8v6.4L12 18.6l-4.2-3.4V8.8Z', '#d2b8ff', .8], ['M12 5.4v13.2M7.8 8.8l8.4 6.4M16.2 8.8l-8.4 6.4', 'none', .6, '#7a52b8'], ['M7.8 8.8 12 5.4v6.6Z', '#f2e8ff', 0], glint(18.4, 5.2, .8)],
+  rubyGem: [['M12 20.4c-5-3.6-8.6-6.6-8.6-10.4 0-2.8 2.2-4.8 4.6-4.8 1.8 0 3.2 1 4 2.4.8-1.4 2.2-2.4 4-2.4 2.4 0 4.6 2 4.6 4.8 0 3.8-3.6 6.8-8.6 10.4Z', '#ff4d6a'], ['M12 7.6 8.6 11 12 17.6l3.4-6.6Z', '#ff8ea0', .7], ['M5 9.4c.6-1.8 2-2.6 3.4-2.4', 'none', 1.1, '#ffd0d8'], glint(18.6, 5, .8)],
+  copperBar: ingot('#ffb27a', '#e0894a', '#b8642c', '#a85420'),
+  ironBar: ingot('#eef2f6', '#b8c2cc', '#8a949e', '#6a7480'),
+  silverBar: [...ingot('#ffffff', '#e2e8ef', '#b4bcc6', '#8a94a0'), glint(19.4, 6.6, .7)],
+  goldBar: [...ingot('#fff2a8', '#f2c230', '#c8961a', '#a87810'), glint(19.4, 6.4, .8)],
+  herb: [['M12 21v-8.5', 'none', 1.8, '#2b1a12'], ['M12 21v-8.5', 'none', .9, '#4a8a3a'], ['M12 13c-4.6.4-7.4-2.4-7.6-6.4 4.2-.2 7.4 2.2 7.6 6.4Z', '#4fae55'], ['M12 13c4.6.4 7.4-2.4 7.6-6.4-4.2-.2-7.4 2.2-7.6 6.4Z', '#5cbe60'], ['M12 11.6C9.6 9.6 9.4 6 12 3c2.6 3 2.4 6.6 0 8.6Z', '#6cc86a'], ['M5.6 7.6 11 12.4M18.4 7.6 13 12.4M12 4.4v6.6', 'none', .7, '#2f7a34'], [cP(15.8, 17.2, 1.7), '#e0405a', 1], [cP(15.4, 16.7, .5), '#ffb0bc', 0]],
+  mush: [['M9.4 13.4h5.2l.8 7a1.4 1.4 0 0 1-1.4 1.4h-4a1.4 1.4 0 0 1-1.4-1.4Z', '#f4ead6'], ['M3 13.4C3 7.6 7 3.6 12 3.6s9 4 9 9.8Z', '#d9483a'], [cP(8, 9.4, 1.5), '#ffffff', 0], [cP(13.4, 6.6, 1.2), '#ffffff', 0], [cP(16.4, 10.4, 1.6), '#ffffff', 0], [cP(11.6, 11, .9), '#ffffff', 0], ['M5.6 7.8c1.2-1.8 2.8-2.8 4.6-3.2', 'none', 1, 'rgba(255,255,255,.5)']],
+  wood: [['M3.4 17.6 18.6 6.2l2 2.6L5.4 20.2Z', '#a8703a'], ['M5.4 4.6 20.6 16l-2 2.6L3.4 7.2Z', '#c08a52'], [eP(19.6, 17.3, 1.4, 1.7), '#e8c48e', 1], [eP(4.4, 5.9, 1.4, 1.7), '#e8c48e', 1], ['M8.6 9.8 11 11.6M14 13.8l2.2 1.6', 'none', .8, '#8a5a2a'], ['M14.6 8.2l2.6-1.2', 'none', 1.2, '#2b1a12']],
+  fiber: [['M8 21c.6-5 .2-10-2.6-17M11 21c0-6 .2-12 .6-18M14 21c0-5 1-10 4-16M16.4 21c-.4-3 .6-7 3.4-10', 'none', 2.6, '#2b1a12'], ['M8 21c.6-5 .2-10-2.6-17M11 21c0-6 .2-12 .6-18M14 21c0-5 1-10 4-16M16.4 21c-.4-3 .6-7 3.4-10', 'none', 1.4, '#e6d27a'], ['M6.6 13.4h10.4l-.4 2.4H7Z', '#b8862e', 1]],
+  leather: [['M6 4.2c2 1 4 1.2 6 0s4-1 6 0c.6 2 0 3.4 1.4 4.8-1 1.6-1 3.4 0 5-1.4 1.4-.8 2.8-1.4 4.8-2 1-4 1-6 0s-4-1.2-6 0c-.6-2 0-3.4-1.4-4.8 1-1.6 1-3.4 0-5C6 7.6 5.4 6.2 6 4.2Z', '#b07a46'], ['M7.6 6.2c1.6.6 3 .6 4.4 0s3-.6 4.4 0c.4 1.4 0 2.4 1 3.4-.8 1.4-.8 3.4 0 4.8-1 1-.6 2-1 3.4-1.6.6-3 .6-4.4 0s-3-.6-4.4 0c-.4-1.4 0-2.4-1-3.4.8-1.4.8-3.4 0-4.8 1-1 .6-2 1-3.4Z', 'none', .9, '#6a4220'], [eP(10, 9.6, 2, 1.2), 'rgba(255,255,255,.25)', 0]],
+  carp: fish('#c8a860', '#f0dca0', '#a8843a', [['M10 8.8c1 1.6 1 4.8 0 6.4M13.4 8.4c1.1 2 1.1 5.2 0 7.2', 'none', .7, '#8a6a2a']]),
+  trout: fish('#9aa874', '#f4d8c8', '#7a8a58', [['M4.6 12.4c4-.6 9-.6 14.4.4', 'none', 1.6, '#e88a8a'], [cP(10, 9.6, .6), '#3a4a2a', 0], [cP(13, 9.2, .6), '#3a4a2a', 0], [cP(15.6, 10, .55), '#3a4a2a', 0], [cP(12, 14.8, .5), '#3a4a2a', 0]]),
+  catfish: [['M19 12.4 23.2 8.6v7.6Z', '#4e4e40'], ['M3 12.6c0-3.6 3.6-5.4 8.6-5.4 4.6 0 8 2.2 8 5.2s-3.4 4.8-8 4.8C6.6 17.2 3 16 3 12.6Z', '#6a6a5a'], ['M4 14c3.4 2 9.6 2.6 14.6.4-4 .8-10 .6-14.6-.4Z', '#a8a890', 0], ['M4.4 12.4C2.6 13 1.6 14.6 1.6 16.4M5 13.4c-.8 1.2-.6 2.8.2 4', 'none', 1, '#2b1a12'], [cP(6.8, 10.6, 1.1), '#ffffff', .9], [cP(6.6, 10.6, .5), '#2b1a12', 0]],
+  eel: [['M3 13c2-4 4.6-4 6.6-.6s4.4 3.4 6.4 0 3.8-3.6 5.4-1.6', 'none', 5, '#2b1a12'], ['M3 13c2-4 4.6-4 6.6-.6s4.4 3.4 6.4 0 3.8-3.6 5.4-1.6', 'none', 3.2, '#5a6a42'], ['M3.4 13.6c2-3.2 4.2-3.2 6 0', 'none', .9, '#a8b880'], [cP(4, 12, .6), '#ffffff', 0]],
+  moonkoi: [...fish('#efeaff', '#ffffff', '#c4b4ff', [[eP(11.6, 9.6, 2.2, 1.4), '#ffb0a0', 0], [eP(15.2, 13, 1.8, 1.2), '#ffb0a0', 0], glint(19.6, 5, .7)])],
+  radish: [['M12 9.4c-1-3-3.4-5-6-5.2.6 2.6 3 4.6 6 5.2ZM12 9.4c1-3 3.4-5 6-5.2-.6 2.6-3 4.6-6 5.2ZM12 9.4c-.6-2.6 0-5 1-6.4 1 1.4 1.4 3.8-1 6.4Z', '#5cb85a'], ['M7 13c0-2.6 2.2-4 5-4s5 1.4 5 4c0 3.4-2.6 6.4-5 9-2.4-2.6-5-5.6-5-9Z', '#f4f0e6'], ['M8.2 13.4c.4-1.6 1.6-2.6 3-2.8', 'none', 1, '#ffffff'], ['M10.4 16.4h1.8M12.4 18.6h1.4', 'none', .7, '#c8bfae'], ['M7.4 11.6c1.4-.8 3-1.2 4.6-1.2', 'none', .9, '#e88aa8']],
+  potato: [['M4 13.6c-.4-4 3-7.6 7.6-8 4.8-.4 8.8 2.4 8.4 6.8-.4 4.4-3.6 7.2-8.4 7.2-4 0-7.2-2-7.6-6Z', '#c09a5c'], [cP(9, 10.4, .8), '#7a5a2a', 0], [cP(14.6, 9.4, .7), '#7a5a2a', 0], [cP(16.4, 14, .8), '#7a5a2a', 0], [cP(10.6, 15.4, .6), '#7a5a2a', 0], ['M6.4 10c.8-1.8 2.4-3 4.4-3.4', 'none', 1, 'rgba(255,255,255,.4)']],
+  berry: [['M12 21.4C7.4 18 4.6 14.4 4.8 10.8c.2-2.6 2.6-3.6 7.2-3.6s7 1 7.2 3.6c.2 3.6-2.6 7.2-7.2 10.6Z', '#e0405a'], ['M7 7.4 9.4 9 12 6.6 14.6 9 17 7.4 15.6 5.8 12 5 8.4 5.8Z', '#5cb85a'], ['M12 5V2.8', 'none', 1.4, '#3a7a30'], [cP(8.8, 12, .5), '#fff2a8', 0], [cP(12, 11.4, .5), '#fff2a8', 0], [cP(15.2, 12, .5), '#fff2a8', 0], [cP(10.2, 15, .5), '#fff2a8', 0], [cP(13.8, 15, .5), '#fff2a8', 0], [cP(12, 18, .5), '#fff2a8', 0]],
+  meat: [['M14.6 13.2 19.4 18', 'none', 4.6, '#2b1a12'], ['M14.6 13.2 19.4 18', 'none', 2.8, '#f4ead6'], [cP(20, 17.2, 1.6), '#f4ead6', 1], [cP(18.8, 19.4, 1.6), '#f4ead6', 1], ['M5.4 6.6c2.6-3 7.4-3 9.6 0 2.2 3 1.6 6.6-1 8.4-2.8 1.8-7 1.4-9-1.2-1.8-2.4-1.6-5 .4-7.2Z', '#c8584a'], ['M7 7.6c1.6-1.6 4.2-2 6-.6', 'none', 1.2, '#f0a090'], [eP(10.6, 10.8, 2.4, 1.6), '#e07a68', 0]],
+  bone: [['M7 9.6 17 14.4', 'none', 5, '#2b1a12'], ['M7 9.6 17 14.4', 'none', 3.2, '#efe6d2'], [cP(5.6, 7.6, 2.2), '#efe6d2', 1.2], [cP(4.4, 10.8, 2.2), '#efe6d2', 1.2], [cP(18.4, 12.6, 2.2), '#efe6d2', 1.2], [cP(19.6, 15.8, 2.2), '#efe6d2', 1.2], ['M7.6 9 16.6 13.4', 'none', .9, '#ffffff']],
+  manastone: [['M12 2.6 19 7.2v9.6L12 21.4 5 16.8V7.2Z', '#5a7ae0'], ['M12 2.6 19 7.2 12 11.6 5 7.2Z', '#8aa4ff', 0], ['M12 11.6v9.8', 'none', .8, '#3a52b0'], ['M10 9.6 12 6.4l2 3.2-2 1.6ZM12 14v4.4M10.4 15.4h3.2', 'none', 1.1, '#e0e8ff'], ['M12 2.6 19 7.2v9.6L12 21.4 5 16.8V7.2Z', 'none', 1.5]],
+  moonshard: [['M8.4 3.2 15.8 6.6 17.6 15.4 11 21 6.6 13.4Z', '#e2dcff'], ['M8.4 3.2 11.4 12.2 11 21M11.4 12.2 17.6 15.4M11.4 12.2 15.8 6.6', 'none', .7, '#a898e8'], ['M8.4 3.2 11.4 12.2 6.6 13.4Z', '#ffffff', 0], glint(19, 5.6, .8), glint(4.6, 18.4, .6)],
+};
+// 요리 그림: 그릇과 접시마다 다르게
+const bowl = (soup, top = []) => [['M3 11.6h18c0 4.6-4 8.4-9 8.4s-9-3.8-9-8.4Z', '#f4efe6'], [eP(12, 11.6, 9, 2.2), soup], ['M4.6 15.4c2 2.4 5 3.4 7.4 3.4', 'none', .9, '#d8cfbe'], ...top, ['M9 8c-.6-1.4.6-2.4 0-4M12.4 7.6c-.6-1.4.6-2.4 0-4M15.6 8c-.6-1.4.6-2.4 0-4', 'none', 1.2, '#d8cfbe']];
+const plate = top => [[eP(12, 15.4, 9.6, 4.4), '#f4efe6'], [eP(12, 15, 7, 3), 'none', .7, '#d8cfbe'], ...top];
+const DISH_ART = {
+  soup: bowl('#c87a4a', [[cP(9.4, 11.4, 1.1), '#d9483a', .7], [cP(14, 11.8, 1), '#4fae55', .7]]),
+  grill: plate([['M5 14.6 8.4 12c2.8-2.4 7-2.4 9.6 0l1.6 1.4-1.6 1.4c-2.6 2.4-6.8 2.4-9.6 0Z', '#d89a5a'], ['M9.6 12.6l-1 3.4M12.6 12l-1 4M15.4 12.6l-1 3.4', 'none', 1, '#8a4a20'], [cP(17.4, 13.4, .5), '#2b1a12', 0]]),
+  fry: plate([['M6.4 14.6h3.4v2.6H6.4ZM10.6 13.4H14v2.6h-3.4ZM14.4 15h3.4v2.6h-3.4ZM8.8 12.2h3v2.2h-3Z', '#f2c45a', .8], [cP(12.6, 16.6, .9), '#d9483a', 0], [cP(16.4, 13, .8), '#4fae55', 0]]),
+  stew: bowl('#a86a3a', [[eP(10, 11.4, 2, 1), '#f4f0e6', .7], [eP(14.4, 11.8, 1.8, .9), '#6a6a5a', .7]]),
+  jam: [['M7 7.6h10v12.2a1.6 1.6 0 0 1-1.6 1.6H8.6A1.6 1.6 0 0 1 7 19.8Z', '#e0405a'], ['M6.2 4.2h11.6v3.6H6.2Z', '#f2c45a'], ['M6.2 6h11.6', 'none', .8, '#c8962e'], ['M9.6 11.4v6', 'none', 1.4, 'rgba(255,255,255,.55)'], [cP(14, 14.6, 1.6), '#ffb0bc', 0]],
+  eelbowl: bowl('#f4f0e6', [['M5.6 11.2c2-1.6 4-1.6 6 0s4 1.6 6.4 0', 'none', 2.6, '#2b1a12'], ['M5.6 11.2c2-1.6 4-1.6 6 0s4 1.6 6.4 0', 'none', 1.4, '#a86a3a']]),
+  moonsoup: [...bowl('#ece6ff', [['M13.4 10.4a1.8 1.8 0 1 1-2.6 2.2 1.4 1.4 0 0 0 2.6-2.2Z', '#b9a8ff', 0]])],
+  mush2: bowl('#8a9a5a', [[cP(10, 11.2, .9), '#5a6a3a', 0], [cP(14, 11.8, .7), '#5a6a3a', 0], ['M15.6 4.4 17 2.8M8.6 4.4 7.2 2.8', 'none', 1, '#8a9a5a']]),
+  steak: plate([['M6 14c0-2.6 2.6-4 6-4s6.6 1.2 6.6 3.6-2.6 3.8-6.6 3.8S6 16.4 6 14Z', '#9a4a2a'], ['M8.4 12.6l1.4 2.8M11.4 12l1.4 3.2M14.4 12.2l1.2 2.8', 'none', 1, '#5a2a14'], [cP(16.8, 15.6, 1), '#4fae55', .7]]),
+};
+// 글 속 아이템 그림 (<span class="ore 이름">)을 CSS 배경으로
+(function itemCss() {
+  const svg = parts => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${parts.map(([d, fill, sw = 1.5, st = '#2b1a12']) => `<path d="${d}" fill="${fill}"${sw ? ` stroke="${st}" stroke-width="${sw}" stroke-linejoin="round" stroke-linecap="round"` : ''}/>`).join('')}</svg>`;
+  const url = parts => `url("data:image/svg+xml,${encodeURIComponent(svg(parts))}")`;
+  const css = Object.entries(ITEM_ART).map(([k, p]) => `.ore.${k}{background:${url(p)} center/contain no-repeat}`).join('\n');
+  const st = document.createElement('style'); st.id = 'itemArt'; st.textContent = css; document.head.appendChild(st);
+})();
+Object.entries(DISH_ART).forEach(([k, v]) => { ICONS['ic_d_' + k] = v; });
+// 장신구와 도구 아이콘을 더 자세히 (같은 이름을 덮어씀)
+Object.assign(ICONS, {
+  ic_tree: [['M10.8 15.5h2.4v6h-2.4Z', '#8a5a32'], ['M12 2.4c4.2 0 7.4 3 7.4 6.6 0 .8-.2 1.6-.5 2.3 1 .7 1.6 1.8 1.6 3 0 2.2-2 3.8-4.4 3.8H7.9c-2.4 0-4.4-1.6-4.4-3.8 0-1.2.6-2.3 1.6-3-.3-.7-.5-1.5-.5-2.3 0-3.6 3.2-6.6 7.4-6.6Z', '#4f9a45'], ['M7.4 8.4c.6-2.2 2.4-3.6 4.6-3.8', 'none', 1.3, '#8fd07a'], [cP(15.4, 12.4, 1), '#e04a3a', .8], [cP(8.6, 13.6, .9), '#e04a3a', .8], ['M12 15.5c-1.4-1-2-2.2-2.2-3.4M12 15.5c1.2-.8 1.8-1.8 2-3', 'none', 1, '#2f6a2a']],
+  ic_compass: [[cP(12, 12.6, 9.2), '#c9a46a'], [cP(12, 12.6, 7), '#f6efe0', 1], ['M12 3.4V2M12 1.6h0', 'none', 2.2, '#8a6232'], ['M12 6.2 13.6 12.6H10.4Z', '#e04a3a', .9], ['M12 19 10.4 12.6h3.2Z', '#6a7a8a', .9], [cP(12, 12.6, 1), '#2b1a12', 0], ['M5.6 12.6h1.2M17.2 12.6h1.2', 'none', 1, '#8a6232']],
+  ic_compass2: [[cP(12, 12.6, 9.2), '#7a9ac8'], [cP(12, 12.6, 7), '#eef4ff', 1], ['M12 6.2 13.6 12.6H10.4Z', '#e04a3a', .9], ['M12 19 10.4 12.6h3.2Z', '#6a7a8a', .9], ['M6 9.4l1.6.6M16.4 15.6l1.6.6', 'none', 1.4, '#5fc9e0'], [cP(12, 12.6, 1), '#2b1a12', 0]],
+  ic_compass3: [[cP(12, 12.6, 9.2), '#8ab86a'], [cP(12, 12.6, 7), '#f2fbe8', 1], ['M12 6.2 13.6 12.6H10.4Z', '#e04a3a', .9], ['M12 19 10.4 12.6h3.2Z', '#6a7a8a', .9], ['M6.4 15.8 8 14.6M17.6 9.4 16 10.6', 'none', 1.6, '#e04a3a'], [cP(12, 12.6, 1), '#2b1a12', 0]],
+  ic_compass4: [[cP(12, 12.6, 9.6), '#f2c230'], [cP(12, 12.6, 7.2), '#fff8e0', 1], ['M12 5.8 13.8 12.6H10.2Z', '#e04a3a', .9], ['M12 19.4 10.2 12.6h3.6Z', '#4a5a7a', .9], ['M5.4 12.6 12 11l6.6 1.6L12 14.2Z', '#5fc9e0', .8], [cP(12, 12.6, 1.1), '#2b1a12', 0], glint(19.6, 4.4, .8)],
+  ic_plumb: [['M12 1.8v6.4', 'none', 1.4, '#6a4a2a'], [cP(12, 2.6, 1.3), '#c9a46a', .9], ['M12 8.2c3 2.6 4.4 5.2 4.4 7.6a4.4 4.4 0 0 1-8.8 0c0-2.4 1.4-5 4.4-7.6Z', '#8aa0b8'], ['M9.4 15.4c.2-1.6 1-3 2-4.2', 'none', 1.1, '#e0e8f2'], ['M7.8 15.6h8.4', 'none', .8, '#5a6a80']],
+  ic_dowse: [['M12 1.8v5.8', 'none', 1.4, '#6a4a2a'], [cP(12, 2.6, 1.3), '#c9a46a', .9], ['M12 7.4 16.6 13 12 21.6 7.4 13Z', '#a46be0'], ['M12 7.4 16.6 13H7.4Z', '#d2b8ff', 0], ['M12 7.4v14.2M7.4 13h9.2', 'none', .7, '#6a3aa0'], ['M12 7.4 16.6 13 12 21.6 7.4 13Z', 'none', 1.4], glint(18.4, 7, .7)],
+  ic_flag: [['M6 22V2.6', 'none', 2.2, '#6b4424'], [cP(6, 2.6, 1.2), '#e9b04f', .9], ['M6.6 4c3-1 5 1 8 0s4-.6 5.6.2v8c-1.6-.8-2.6-1.2-5.6-.2s-5-1-8 0Z', '#d4473a'], ['M9.4 7.4l2 1.4 2-2.2', 'none', 1.1, '#fff2c0'], ['M4 22h4', 'none', 1.6, '#6b4424']],
+  ic_jar: [['M8.2 2.6h7.6v3H8.2Z', '#8a5a32'], ['M7 5.6h10V19a2.4 2.4 0 0 1-2.4 2.4H9.4A2.4 2.4 0 0 1 7 19Z', '#cfe6ee'], [cP(10.4, 12, 1.4), '#fff27a', 0], [cP(14, 15.6, 1.2), '#fff27a', 0], [cP(11.2, 18.2, 1), '#fff27a', 0], [cP(10.4, 12, 2.6), 'rgba(255,242,122,.35)', 0], [cP(14, 15.6, 2.2), 'rgba(255,242,122,.35)', 0], ['M8.6 8v9', 'none', 1.1, 'rgba(255,255,255,.8)']],
+  ic_lens: [['M15.2 15.2 21 21', 'none', 3.4, '#2b1a12'], ['M15.2 15.2 21 21', 'none', 2, '#8a5a32'], [cP(10, 10, 7), '#c9a46a'], [cP(10, 10, 5.2), '#9adcf0', 1], ['M6.8 9c.4-1.6 1.6-2.8 3.2-3.2', 'none', 1.3, '#ffffff'], [cP(12.4, 12, .9), '#ffffff', 0]],
+  ic_feather: [['M19.4 2.6C11.4 3.4 6.6 9.4 5.4 18.6l1.8 1.2c1.2-3.6 3-6.4 5.4-8.4 3.4-2.8 6.6-4.4 6.8-8.8Z', '#efe6d2'], ['M19.4 2.6 6.4 19.2', 'none', 1, '#8a6a4a'], ['M10.4 10.4l2.6.4M8.8 13.4l2.6.2M13 7.4l2.6.6', 'none', .8, '#b8a888'], ['M3.6 21.4 7 18', 'none', 1.6, '#6b4424'], ['M14.4 4.6c-1.4 1.2-2.4 2.4-3.2 3.6', 'none', 1, '#a89878']],
+  ic_boot: [['M7 2.8h6.6v9.2l5.6 3.2c1 .6 1.4 1.4 1.4 2.6V21H6Z', '#9a6638'], ['M6 18.6h14.6V21H6Z', '#5a3a1c'], ['M7 2.8h6.6v2.2H7Z', '#c08a52', 1], ['M9 7.4h2.6M9 9.6h2.6', 'none', 1, '#e9b04f'], ['M14.6 13.2c1.4.6 2.6 1.4 3.6 2.2', 'none', 1, '#c08a52']],
+  ic_insole: [['M9.4 2.6c4 0 6.6 3 6.6 8.4 0 6-1.8 10.6-5 10.6-3.4 0-4.8-4-4.8-9.2 0-6 1.2-9.8 3.2-9.8Z', '#6aa84a'], ['M9.6 5.2c2.4 0 4 2.2 4 6.2s-1 7.6-2.8 7.6c-2 0-2.8-3-2.8-6.8 0-4.4.6-7 1.6-7Z', '#8ac86a', 0], [cP(10.6, 8, .8), '#4a8a3a', 0], [cP(11.6, 12.4, .7), '#4a8a3a', 0], [cP(10.2, 16, .8), '#4a8a3a', 0], ['M15.6 6.4l1.8-1.6M16.2 10l2.2-.6', 'none', 1.1, '#6aa84a']],
+  ic_charm: [['M12 1.8v3', 'none', 1.4, '#6a4a2a'], [cP(12, 13, 8), '#f2c230'], [cP(12, 13, 5.8), 'none', .8, '#c8961a'], [cP(9.6, 11.6, 1), '#2b1a12', 0], [cP(14.4, 11.6, 1), '#2b1a12', 0], ['M9 15.2c1.8 1.6 4.2 1.6 6 0', 'none', 1.3, '#2b1a12'], [cP(7.6, 14.6, 1), '#f08a8a', 0], [cP(16.4, 14.6, 1), '#f08a8a', 0], [cP(12, 4.6, 1.3), '#e9b04f', .9]],
+  ic_honey: [['M6.4 8.4h11.2l-.8 11.4a1.8 1.8 0 0 1-1.8 1.6H9a1.8 1.8 0 0 1-1.8-1.6Z', '#e9a02a'], ['M6.4 8.4h11.2l-.3 4H6.7Z', '#ffd04a', 0], ['M6.4 8.4c1 1.6 1.6 2.6 2.6 2.6s1-1.6 2-1.6 1 2.4 2.2 2.4 1.2-2.4 2.4-2.4 1.4 1 2-1', 'none', 1.1, '#c87a10'], ['M7.2 4.2h9.6v4.2H7.2Z', '#c86a3a'], ['M7.2 6.2h9.6', 'none', 1, '#8a4a20'], ['M9 13.6v4.6', 'none', 1.4, 'rgba(255,255,255,.6)']],
+  ic_glove: [['M6 21V10.4l2-1.2V4.6a1 1 0 0 1 2 0v4.6h.6V3.4a1 1 0 0 1 2 0v5.8h.6V4.2a1 1 0 0 1 2 0v5.6h.6V7.6a1 1 0 0 1 2 0v6.6c0 4-2 6.8-5.4 6.8Z', '#9a6638'], ['M6 17.6h10.6', 'none', 1.2, '#5a3a1c'], ['M6 21v-3.4h11.4V21Z', '#5a3a1c'], ['M8.6 13.4h4.6', 'none', 1, '#c08a52'], ['M8.4 11.4l2 .6M11 11l2 .4', 'none', .8, '#c8d2dc']],
+  ic_clover: [['M12 12.4c.6 3.2 2 6.2 4 8.8', 'none', 1.8, '#2b1a12'], ['M12 12.4c.6 3.2 2 6.2 4 8.8', 'none', .9, '#4a8a3a'], [cP(9, 9.2, 3.2), '#5cb85a'], [cP(15, 9.2, 3.2), '#5cb85a'], [cP(9, 15.2, 3.2), '#5cb85a'], [cP(15, 15.2, 3.2), '#5cb85a'], [cP(12, 12.2, 1.2), '#8ad870', 0], ['M8 8.2 9.6 9.8M16 8.2l-1.6 1.6M8 16.2l1.6-1.6M16 16.2l-1.6-1.6', 'none', .8, '#bff0a8'], glint(19.6, 4.2, .7)],
+  ic_magnet: [['M4.6 3.2h5.2v8.6a2.2 2.2 0 0 0 4.4 0V3.2h5.2v8.6a7.4 7.4 0 0 1-14.8 0Z', '#d4473a'], ['M4.6 3.2h5.2v3.4H4.6ZM14.2 3.2h5.2v3.4h-5.2Z', '#dfe6ee'], ['M6.4 11.6c.2 2.4 1.6 4.2 3.6 5', 'none', 1.2, 'rgba(255,255,255,.55)'], ['M3 1.4 1.6 0M21 1.4 22.4 0', 'none', 1, '#5fc9e0']],
+  ic_pouch: [['M7.4 8.4h9.2l2.4 8.8a4 4 0 0 1-3.9 4.6H8.9A4 4 0 0 1 5 17.2Z', '#a8703a'], ['M8.4 4.6 10 8.4h4l1.6-3.8Z', '#8a5a2a'], ['M7.4 8.4h9.2', 'none', 2.2, '#2b1a12'], ['M7.4 8.4h9.2', 'none', 1.2, '#e9b04f'], [cP(12, 15, 2.6), '#3a3a42', 1], [cP(11.2, 14.2, .7), '#8a8a96', 0], ['M7.4 13.4c.4 2 .6 3.4 1.6 4.6', 'none', 1, '#c89a6a']],
+  ic_strap: [['M4.6 3.2h4.2l10.8 17.6h-4.2Z', '#9a6638'], ['M6.2 3.2 15.6 20.8', 'none', .8, '#e9b04f'], ['M9.2 9.2h5.4v4.4H9.2Z', '#c8d2dc'], ['M10.6 10.6h2.6v1.6h-2.6Z', '#9a6638', .9], ['M4.6 3.2h4.2', 'none', 1.6, '#5a3a1c']],
+  ic_seed: [['M6.4 7h11.2l-1 13.4a1.4 1.4 0 0 1-1.4 1.2H8.8a1.4 1.4 0 0 1-1.4-1.2Z', '#e6d29a'], ['M6.4 7 8.2 3.8h7.6L17.6 7Z', '#c8b06a'], ['M12 18.4c-2.2-.6-3-2.6-2.4-5 2.2.4 3 2.4 2.4 5ZM12 18.4c.4-2.6 1.8-4 4-4-.2 2.4-1.8 4-4 4Z', '#5cb85a', .9], ['M12 18.4v-6', 'none', 1, '#3a7a30'], ['M9 5.4h6', 'none', 1, '#8a6a2a']],
+  ic_rod: [['M4.6 21.4 18.6 2.6', 'none', 2.4, '#2b1a12'], ['M4.6 21.4 18.6 2.6', 'none', 1.2, '#c08a52'], ['M4.6 21.4 7.4 17.6', 'none', 2.6, '#5a3a1c'], [cP(8.6, 16.4, 1.4), '#c8d2dc', .9], ['M18.6 2.6c.8 3 .8 6 0 9', 'none', .8, '#e0e8f2'], ['M18.6 11.6v1.2', 'none', 1, '#2b1a12'], [cP(18.6, 14.4, 1.6), '#e04a3a', .9], ['M17 14.4h3.2', 'none', 1, '#ffffff']],
+  ic_ring: [[cP(12, 14, 6.2), 'none', 3.6, '#2b1a12'], [cP(12, 14, 6.2), 'none', 2.2, '#f2c230'], ['M8.6 6.2 12 2.6l3.4 3.6L12 9.4Z', '#5fc9e0'], ['M8.6 6.2h6.8M12 2.6v6.8', 'none', .6, '#2a8aa8'], ['M7 12c.6-1.2 1.4-2 2.6-2.6', 'none', 1, '#fff4b0']],
+});
+Object.entries(ITEM_ART).forEach(([k, v]) => { ICONS['ic_o_' + k] = v; });
 const ICON_P2D = {};
 function ico(name) {
   const parts = ICONS[name].map(([d, fill, sw = 1.5, st = '#2b1a12']) => `<path d="${d}" fill="${fill}"${sw ? ` stroke="${st}" stroke-width="${sw}" stroke-linejoin="round" stroke-linecap="round"` : ''}/>`).join('');
@@ -2301,9 +2385,9 @@ const ACC = {
   magnet:   { n: '자석 돌', ic: 'ic_magnet', eff: { magnet: .15 } },
   pouch:    { n: '석탄 주머니', ic: 'ic_pouch', eff: { coal: 1 } },
   strap:    { n: '넓은 배낭끈', ic: 'ic_strap', eff: { bag: 5 } },
-  guide:    { n: '길잡이 나침반', ic: 'ic_compass', eff: { home: 1, hole: 1 } },
-  twin:     { n: '두 갈래 나침반', ic: 'ic_compass', eff: { home: 1, camp: 1 } },
-  explorer: { n: '탐험가 나침반', ic: 'ic_compass', eff: { home: 1, hole: 1, camp: 1 } },
+  guide:    { n: '길잡이 나침반', ic: 'ic_compass2', eff: { home: 1, hole: 1 } },
+  twin:     { n: '두 갈래 나침반', ic: 'ic_compass3', eff: { home: 1, camp: 1 } },
+  explorer: { n: '탐험가 나침반', ic: 'ic_compass4', eff: { home: 1, hole: 1, camp: 1 } },
   glowdowse: { n: '빛 추', ic: 'ic_dowse', eff: { dowse: 1, light: 2, glowFar: 1 } },
   starlens: { n: '별빛 렌즈', ic: 'ic_lens', eff: { light: 2, glint2: 1 } },
   trailboots: { n: '숲길 장화', ic: 'ic_boot', eff: { walk: 1, forestFree: 1 } },
@@ -2317,9 +2401,9 @@ const RECIPES = [['compass', 'plumb', 'guide'], ['compass', 'flag', 'twin'], ['g
 const COMBINE_GOLD = 100;
 // 쓰고 없어지는 것
 const ITEMS = {
-  soup: { n: '버섯 수프', ic: 'ic_rest', eat: 25 }, grill: { n: '생선 구이', ic: 'ic_fish', eat: 30 }, fry: { n: '감자 볶음', ic: 'ic_rest', eat: 35 },
-  stew: { n: '무 조림', ic: 'ic_rest', eat: 30 }, jam: { n: '딸기 잼', ic: 'ic_rest', eat: 20 }, eelbowl: { n: '장어 덮밥', ic: 'ic_fish', eat: 60 },
-  moonsoup: { n: '달빛 국', ic: 'ic_rest', eat: 80 }, steak: { n: '고기 구이', ic: 'ic_rest', eat: 45 }, mush2: { n: '이상한 죽', ic: 'ic_rest', eat: 5 },
+  soup: { n: '버섯 수프', ic: 'ic_d_soup', eat: 25 }, grill: { n: '생선 구이', ic: 'ic_d_grill', eat: 30 }, fry: { n: '감자 볶음', ic: 'ic_d_fry', eat: 35 },
+  stew: { n: '무 조림', ic: 'ic_d_stew', eat: 30 }, jam: { n: '딸기 잼', ic: 'ic_d_jam', eat: 20 }, eelbowl: { n: '장어 덮밥', ic: 'ic_d_eelbowl', eat: 60 },
+  moonsoup: { n: '달빛 국', ic: 'ic_d_moonsoup', eat: 80 }, steak: { n: '고기 구이', ic: 'ic_d_steak', eat: 45 }, mush2: { n: '이상한 죽', ic: 'ic_d_mush2', eat: 5 },
   radishSeed: { n: '무 씨앗', ic: 'ic_seed', seed: 'radish' }, potatoSeed: { n: '감자 씨앗', ic: 'ic_seed', seed: 'potato' }, berrySeed: { n: '딸기 씨앗', ic: 'ic_seed', seed: 'berry' }, recall: { n: '귀환서', ic: 'ic_scroll' }, campRecall: { n: '야영 귀환서', ic: 'ic_scroll' }, tent: { n: '야영 천막', ic: 'ic_tent' } };
 // 대장간에서 만드는 것 (장신구, 쓸 것, 장신구 고리)
 const CRAFTS = [
