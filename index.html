@@ -362,8 +362,11 @@ function untilNext() {
   if (next) { const left = Math.max(0, Math.ceil(S.minE - (S.dayStart - S.max * next.at / 100))); if (left < S.minE) return { name: next.name, left }; }
   return { name: '쓰러짐', left: S.minE };
 }
+// 기력이 줄 때마다 광부 머리 위로 노란 숫자가 떠오름
+let efloats = [];
 function spend(n) {
   const before = phaseIndex();
+  efloats.push({ text: `-${n}`, life: 1, dx: (Math.random() - .5) * 14 });
   S.energy = Math.max(0, S.energy - n); S.minE = Math.min(S.minE, S.energy);
   if (S.energy <= 0) { faint(); return false; }
   const after = phaseIndex();
@@ -2267,6 +2270,17 @@ function frame(ms) {
     const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(20,10,0,.3)'); R(ctx, 0, 0, W, H, v);
     drawBubble(ctx);
   }
+  if (efloats.length) {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const hp = iso(hero.x + .5, hero.y + .5, heroZ()), hx = (hp[0] - cam.fx) * cam.s + W / 2, hy = (hp[1] - cam.fy) * cam.s + H / 2 - TW * cam.s * 1.05;
+    efloats = efloats.filter(f => (f.life -= dt * 1.1) > 0);
+    efloats.forEach(f => {
+      const up = (1 - f.life) * TW * .7, sz = Math.round(Math.max(16, TW * .3) * (f.life > .85 ? 1 + (f.life - .85) * 2 : 1));
+      ctx.globalAlpha = Math.min(1, f.life * 2.5); ctx.font = `${sz}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 4; ctx.strokeStyle = '#3a2408'; ctx.strokeText(f.text, hx + f.dx, hy - up); ctx.fillStyle = '#ffd23f'; ctx.fillText(f.text, hx + f.dx, hy - up);
+    });
+    ctx.globalAlpha = 1;
+  }
   if (fade > 0) { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); R(ctx, 0, 0, W, H, `rgba(0,0,0,${Math.min(1, fade)})`); fade = Math.max(0, fade - dt * 1.6); }
   requestAnimationFrame(frame);
 }
@@ -2310,7 +2324,7 @@ window.MinerDiary = {
   glintDir: (x, y) => glintDir(x, y), newFloor: f => { S.mine = null; S.floors = null; startFloor(f); },
   // 숲 칸을 화면 가운데로 옮기고 그 위치를 돌려줌
   forestSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, 0); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
-  caveNear: () => caveNear(), pendulum: () => pendA, maxFloor: () => maxFloor(), needle: () => (hammer ? needlePos() : null),
+  caveNear: () => caveNear(), efloats: () => efloats.map(f => f.text), pendulum: () => pendA, maxFloor: () => maxFloor(), needle: () => (hammer ? needlePos() : null),
   spotPoint: id => {
     const o = OBJ.find(q => q.id === id); follow = false;
     const z = hgt(o.gx, o.gy), up = o.kind === 'npc' || o.kind === 'wagon' ? 1 : .6;
