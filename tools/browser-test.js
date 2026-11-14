@@ -587,6 +587,46 @@ const shot = process.argv[2];
   s = await st();
   ok(s.inv.meat >= 1 && !Object.keys(s.carry).length, '나가기 단추로 마을에 돌아오면 잡은 것이 창고로');
 
+  // 13-0g2. 세계 지도와 눈 덮인 산마을: 짐을 꾸려 길을 떠나고, 산마을 시장에 팔고, 산 광산에 들어가고, 여관에서 자고, 돌아옴
+  ok((await quest()).includes('산마을'), '사냥 다음 퀘스트 「눈 덮인 산마을 가기」');
+  await page.evaluate(() => { S.inv.coal = 10; S.gold += 100; S.energy = S.max; S.minE = S.dayStart - S.max * .35; renderHud(); });
+  await visit('gate', '#sheet [data-a="world"]');
+  await page.click('#sheet [data-a="world"]');
+  await page.waitForSelector('#sheet [data-a="pack"][data-o="coal"]');
+  await page.click('#sheet [data-a="pack"][data-o="coal"]');
+  ok((await st()).carry.coal === 10 && !(await st()).inv.coal, '지도에서 짐 꾸리기: 창고의 석탄을 가방에');
+  const eTr = (await st()).energy;
+  await page.click('#sheet [data-a="travel"][data-o="mtn"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'town', null, { timeout: 5000 });
+  s = await st();
+  ok(s.loc === 'mtn' && s.energy === eTr - 25 && (await quest()).includes('야시장'), '길을 떠나면 기력 25를 쓰고 눈 덮인 산마을에 도착, 다음 퀘스트로');
+  if (shot) await page.screenshot({ path: path.join(shot, 'town.png') });
+  const tclick = async (x, y, sel) => { const p = await page.evaluate(([x, y]) => window.MinerDiary.townSpot(x, y), [x, y]); await page.mouse.click(p.x, p.y); await page.waitForSelector(sel, { timeout: 15000 }); };
+  await tclick(13, 5, '#sheet [data-a="tsell"][data-o="coal"]');
+  const gTs = (await st()).gold;
+  await page.click('#sheet [data-a="tsell"][data-o="coal"]');
+  ok((await st()).gold === gTs + 10 * Math.round(6 * 2) && !(await st()).carry.coal, '산마을 시장은 석탄을 마을보다 두 배 비싸게 삼 (🪙12)');
+  await page.click('#sheet [data-a="close"]');
+  await tclick(9, 12, '#sheet [data-a="mtnmine"]');
+  await page.click('#sheet [data-a="mtnmine"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
+  s = await st();
+  ok(s.deep.mtn && s.deepMain && !s.deepMain.mtn && (await page.textContent('#minebar')).includes('산 '), '산 광산은 마을 광산과 따로 (한 구역 깊게 시작)');
+  ok(await page.evaluate(() => { const L = S.deep.L; let ores = {}; for (let y = -20; y <= 20; y++) for (let x = -20; x <= 20; x++) { const o = dOre(L, x, y); if (o) ores[o] = 1; } return ores.silver || ores.crystal; }), '산 광산엔 은과 수정이 많음');
+  await page.click('[data-a="leave"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'town', null, { timeout: 20000 });
+  ok(!(await st()).deep.mtn && !(await st()).deepMain, '산 광산에서 나오면 산마을로, 광산 기록도 원래대로');
+  const dIn = (await st()).day, gIn = (await st()).gold;
+  await tclick(5, 5, '#sheet [data-a="inn"]');
+  await page.click('#sheet [data-a="inn"]');
+  s = await st();
+  ok(s.day === dIn + 1 && s.gold === gIn - 50 && await page.evaluate(() => window.MinerDiary.scene()) === 'town', '여관에서 🪙50에 자면 다음 날 산마을에서 시작');
+  await page.click('#sheet [data-a="close"]');
+  await page.click('#minebar [data-a="world"]');
+  await page.click('#sheet [data-a="travel"][data-o="home"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 5000 });
+  ok((await st()).loc === 'home', '지도에서 마을로 돌아옴 (성벽 문 앞)');
+
   // 13-0h. 야시장: 아침엔 닫혀 있고, 저녁에 시장에서 수상한 상인의 의뢰를 들어줌
   ok((await quest()).includes('야시장'), '사냥 다음 퀘스트 「저녁 야시장 거래」');
   await page.evaluate(() => { S.minE = S.dayStart - S.max * .1; renderHud(); });
