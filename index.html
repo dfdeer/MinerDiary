@@ -487,6 +487,8 @@ const ICONS = {
   ic_check: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#4fb35a'], ['M7 12.5l3.2 3.2L17.2 8.6', 'none', 2.6, '#fff']],
   ic_plenty: [['M12 8.6a6.6 6.6 0 1 0 .01 0Z', 'none', 3.8, '#2b1a12'], ['M12 8.6a6.6 6.6 0 1 0 .01 0Z', 'none', 2.4, '#f2c230'], ['M12 2.4 15.2 6 12 9.6 8.8 6Z', '#5cc86a'], ['M12 2.4v7.2M8.8 6h6.4', 'none', .6, '#2a7a3a'], ['M19.4 3.4l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6Z', '#fff6c2', 0], ['M4.6 6.6l.4 1 1 .4-1 .4-.4 1-.4-1-1-.4 1-.4Z', '#fff6c2', 0]],
   ic_sickle: [['M5 20.5 9.6 14', 'none', 3.4, '#2b1a12'], ['M5 20.5 9.6 14', 'none', 2, '#8a5a32'], ['M9 14.6C6.6 9.6 9 3.6 15 3c4.6-.4 6.6 3 5.4 5.6-1.4-2.6-4.6-3.6-7.4-2.2-2.6 1.4-3.6 4.6-2.4 8.2Z', '#cdd6e0'], ['M11.4 13.4c-.8-3 .6-6 3.6-7', 'none', .9, '#ffffff']],
+  ic_cart: [['M3 9h14l-1.6 7H4.6Z', '#a8703a'], ['M3 9h14', 'none', 1.6, '#2b1a12'], ['M17 9l3.6-3', 'none', 2, '#6b4424'], ['M6.6 18.6a1.9 1.9 0 1 0 .01 0Z', '#6b6f78'], ['M13.6 18.6a1.9 1.9 0 1 0 .01 0Z', '#6b6f78'], ['M5.6 12h9.4', 'none', 1, '#7a5530']],
+  ic_donkey: [['M5 12.6c0-2.4 2.2-3.6 5-3.6h4.6l2.4-3 1.6.4-.4 2.6c1.6.6 2.4 1.8 2.4 3.2l-1.6 1-2.4-.6v5.4h-1.8l-.4-4H8.6l-.4 4H6.4l-.2-4.6C5.4 14 5 13.4 5 12.6Z', '#9a8e80'], ['M16.4 5.4 15.6 2.4l1.6.4.6 2.8Z', '#9a8e80'], ['M16.9 9.2a.7 .7 0 1 0 1.4 0a.7 .7 0 1 0-1.4 0Z', '#2b1a12', 0], ['M5 11.6 3.2 13', 'none', 1.4, '#2b1a12'], ['M8 9.4h6.6v2.4H8Z', '#d4473a', .9]],
   ic_map: [['M3 6.5 8.6 4l6.8 2.6L21 4v13.5l-5.6 2.5-6.8-2.6L3 20Z', '#e8dcc0'], ['M8.6 4v13.4M15.4 6.6V20', 'none', 1.2, '#2b1a12'], ['M5.6 14c2-1 3.6-.6 5 .4s3.2 1.4 5.2.2', 'none', 1.3, '#d4473a'], ['M17.6 9.4l1.4 1.4M19 9.4l-1.4 1.4', 'none', 1.3, '#d4473a']],
   ic_stat: [['M3.5 20.5h17', 'none', 1.8, '#2b1a12'], ['M5 13h3.4v7.5H5Z', '#5fc9e0'], ['M10.3 8.5h3.4v12H10.3Z', '#e9b04f'], ['M15.6 4h3.4v16.5h-3.4Z', '#8fe08a']],
   ic_note: [['M9 17.5V5.5l10-2v12', 'none', 1.8, '#2b1a12'], ['M3.8 17.6a2.8 2.2 0 1 0 5.6 0a2.8 2.2 0 1 0-5.6 0Z', '#e9b04f'], ['M13.8 15.6a2.8 2.2 0 1 0 5.6 0a2.8 2.2 0 1 0-5.6 0Z', '#e9b04f'], ['M9 5.5l10-2v3l-10 2Z', '#e9b04f', 1.2]],
@@ -1700,7 +1702,9 @@ function glintDir(x, y) {
 let mparts = [], mfloats = [], mbumps = [], mswing = 0, mshake = 0;
 // 가방: 땅속과 숲에서 주운 것은 가방(S.carry)에 담기고, 마을에 오면 집 창고(S.inv)로 옮겨짐
 const BAG_BASE = 20;
-const bagCap = () => BAG_BASE + accEff('bag');
+// 이동수단 (기획 48번): 손수레는 가방 +10, 당나귀 수레는 가방 +20 (둘 중 좋은 것 하나)
+const rideBag = () => (S.donkey ? 20 : S.cart ? 10 : 0);
+const bagCap = () => BAG_BASE + accEff('bag') + rideBag();
 const carryN = () => Object.values(S.carry || {}).reduce((a, n) => a + n, 0);
 function unpack() { if (!S.carry) return; Object.entries(S.carry).forEach(([k, n]) => { S.inv[k] = (S.inv[k] || 0) + n; }); S.carry = {}; }
 /* ===== 옛 광부의 갱도 (기획 40번): 깊이 5, 8, 12에 처음 내려가면 가까운 곳에 무너진 옛 갱도 방이 생김 =====
@@ -1890,7 +1894,8 @@ function showStats() {
     accEff('extra') ? row(ico('ic_plenty'), '캘 때마다 광석', `+${accEff('extra')}`, '') : '',
     row(ico('ic_plumb'), '내려갈 수 있는 깊이', maxFloor() > 900 ? '끝없음' : maxFloor(), ''),
     row(ico('ic_jar'), '등불', `${lightR().toFixed(1)}칸`, ''),
-    row(ico('ic_bag'), '가방', `${bagCap()}칸`, ''),
+    row(ico('ic_bag'), '가방', `${bagCap()}칸`, rideBag() ? `${S.donkey ? '당나귀 수레' : '손수레'} +${rideBag()}` : ''),
+    travelOpen() ? row(ico('ic_map'), '길 기력', travelCost(), S.donkey ? '당나귀 수레' : S.cart ? '손수레' : '걸어서') : '',
     row(PWR, '최대 기력', S.max, ''),
     row(ico('ic_boot'), '걸음 기력', `${stepsPerEnergy()}칸마다 1`, accEff('forestFree') ? '숲은 0' : '숲은 5칸마다 1'),
     row(ico('ic_sword'), '무기', `${SWORDS[S.sword || 0].name} 공격 ${power()}`, ''),
@@ -2851,7 +2856,12 @@ function showWorld() {
     + `<p class="dim" style="margin-top:8px">${ico('ic_bag')}가방 ${carryN()}/${bagCap()}</p><div class="chips">${bag}</div>`,
     `<button class="btn primary" data-a="travel" data-o="${dest}" ${S.energy > travelCost() ? '' : 'disabled'}>${name} ${PWR}${travelCost()}</button>`);
 }
-const travelCost = () => TRAVEL;
+const travelCost = () => (S.donkey ? 5 : S.cart ? 15 : TRAVEL);   // 걸어서 25, 손수레 15, 당나귀 수레 5
+const DONKEY_GOLD = 3000;
+function buyDonkey() {
+  if (S.donkey || S.gold < DONKEY_GOLD) return;
+  S.gold -= DONKEY_GOLD; S.donkey = 1; SFX.fanfare(); toast(`${ico('ic_donkey')}당나귀 수레`); save(); renderHud(); renderDock(); showTownObj(TOWN_OBJ[1]);
+}
 function packItem(o) {
   const n = Math.min(S.inv[o] || 0, bagCap() - carryN()); if (n <= 0) return;
   S.inv[o] -= n; S.carry[o] = (S.carry[o] || 0) + n; SFX.tap(); save(); showWorld();
@@ -2896,7 +2906,8 @@ function showTownObj(o) {
     openSheet(ico('ic_village') + '여관', `<p>어서 와요. 눈길에 오느라 고생했어요. 하룻밤 묵고 가요.</p>` + (late ? '<p class="warn">새벽 취침</p>' : ''), `<button class="btn primary" data-a="inn" ${S.gold >= 50 ? '' : 'disabled'}>${GOLD}50</button>`);
   } else if (o.id === 'tmarket') {
     const rows = ORE_ORDER.filter(k => (S.carry || {})[k]).map(k => { const m = MTN_PRICE[k] || 1, cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${k}"></span>${ORES[k].name} <small>×${S.carry[k]}</small> <small class="${cls}">${GOLD}${mtnPrice(k)}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="tsell" data-o="${k}">${GOLD}${mtnPrice(k) * S.carry[k]}</button></div>`; }).join('');
-    openSheet(ico('ic_shop') + '산마을 시장', rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>');
+    const buy = S.donkey ? '' : `<p class="dim" style="margin-top:10px">사기</p><div class="rows"><div class="rowi"><span class="nm">${ico('ic_donkey')}당나귀 수레 <small class="eff">길 기력 5, 가방 +20칸</small></span><button class="btn small" data-a="donkey" ${S.gold >= DONKEY_GOLD ? '' : 'disabled'}>${GOLD}${DONKEY_GOLD}</button></div></div>`;
+    openSheet(ico('ic_shop') + '산마을 시장', (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + buy);
   } else if (o.id === 'tmine') {
     openSheet(ico('ic_pick') + '산 광산', `<p>${ico('ic_shard')}<span class="ore silver"></span><span class="ore crystal"></span><span class="ore amethyst"></span></p>`, '<button class="btn primary" data-a="mtnmine">들어가기</button>');
   }
@@ -3023,7 +3034,7 @@ const RECIPES = [['compass', 'plumb', 'guide'], ['compass', 'flag', 'twin'], ['g
   ['boots', 'insole', 'trailboots'], ['gloves', 'magnet', 'minergloves'], ['clover', 'pouch', 'luckpouch'], ['charm', 'honey', 'sleepcharm'], ['explorer', 'glowdowse', 'star']];
 const COMBINE_GOLD = 100;
 // 쓰고 없어지는 것
-const TOOLS = { sickle: { n: '낫', ic: 'ic_sickle' } };
+const TOOLS = { sickle: { n: '낫', ic: 'ic_sickle' }, cart: { n: '손수레', ic: 'ic_cart', d: '길 기력 15, 가방 +10칸' } };
 const ITEMS = {
   soup: { n: '버섯 수프', ic: 'ic_d_soup', eat: 25 }, grill: { n: '생선 구이', ic: 'ic_d_grill', eat: 30 }, fry: { n: '감자 볶음', ic: 'ic_d_fry', eat: 35 },
   stew: { n: '무 조림', ic: 'ic_d_stew', eat: 30 }, jam: { n: '딸기 잼', ic: 'ic_d_jam', eat: 20 }, eelbowl: { n: '장어 덮밥', ic: 'ic_d_eelbowl', eat: 60 },
@@ -3040,6 +3051,7 @@ const CRAFTS = [
   { id: 'ring', kind: 'slot', need: { copperBar: 3 }, gold: 300 },
   { id: 'plenty', kind: 'acc', need: { goldBar: 3, rubyGem: 1 }, gold: 2000 },
   { id: 'sickle', kind: 'tool', need: { ironBar: 2, wood: 5 }, gold: 300 },
+  { id: 'cart', kind: 'tool', need: { wood: 20, ironBar: 3 }, gold: 500 },
 ];
 // 떠돌이 상인이 파는 것
 const SHOP = [{ id: 'radishSeed', kind: 'item', gold: 10, farm: 1 }, { id: 'potatoSeed', kind: 'item', gold: 20, farm: 1 }, { id: 'berrySeed', kind: 'item', gold: 40, farm: 1 }, { id: 'recall', kind: 'item', gold: 80 }, { id: 'tent', kind: 'item', gold: 100 }, { id: 'campRecall', kind: 'item', gold: 150 }, { id: 'compass', kind: 'acc', gold: 150 }, { id: 'pouch', kind: 'acc', gold: 120 }];
@@ -3479,7 +3491,7 @@ function showSmithy() {
   pick += sh ? `<div class="rowi"><span class="nm">날 세우기 +${(S.sharp || 0) + 1} <small class="eff">파워 +4</small> ${needHtml(sh.need, sh.gold)}</span><button class="btn small" data-a="sharp" ${hasAll(sh.need) && S.gold >= sh.gold ? '' : 'disabled'}>세우기</button></div>` : `<div class="rowi"><span class="nm">날 세우기 +5</span></div>`;
   const sw = SWORDS[(S.sword || 0) + 1];
   pick += `<div class="rowi"><span class="nm">${ico('ic_sword')}${SWORDS[S.sword || 0].name}</span></div>` + (sw ? `<div class="rowi"><span class="nm">${sw.name} ${needHtml(sw.need, sw.gold)}</span><button class="btn small" data-a="sword" ${hasAll(sw.need) && S.gold >= sw.gold ? '' : 'disabled'}>만들기</button></div>` : '');
-  const crafts = CRAFTS.filter(r => (r.kind !== 'slot' || S.acc.slots < 2) && !(r.kind === 'tool' && S[r.id])).map(r => `<div class="rowi"><span class="nm">${r.kind === 'slot' ? ico('ic_ring') + '장신구 고리' : accIco(r.id) + (ACC[r.id] || ITEMS[r.id] || TOOLS[r.id]).n}${r.kind === 'acc' ? ` <small class="eff">${accDesc(r.id)}</small>` : ''} ${needHtml(r.need, r.gold)}</span><button class="btn small" data-a="craft" data-o="${r.id}" ${hasAll(r.need) && S.gold >= r.gold ? '' : 'disabled'}>만들기</button></div>`).join('');
+  const crafts = CRAFTS.filter(r => (r.kind !== 'slot' || S.acc.slots < 2) && !(r.kind === 'tool' && (S[r.id] || (r.id === 'cart' && S.donkey)))).map(r => `<div class="rowi"><span class="nm">${r.kind === 'slot' ? ico('ic_ring') + '장신구 고리' : accIco(r.id) + (ACC[r.id] || ITEMS[r.id] || TOOLS[r.id]).n}${r.kind === 'acc' ? ` <small class="eff">${accDesc(r.id)}</small>` : r.kind === 'tool' && TOOLS[r.id].d ? ` <small class="eff">${TOOLS[r.id].d}</small>` : ''} ${needHtml(r.need, r.gold)}</span><button class="btn small" data-a="craft" data-o="${r.id}" ${hasAll(r.need) && S.gold >= r.gold ? '' : 'disabled'}>만들기</button></div>`).join('');
   const recs = RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b)).map(([[a, b, o], i]) => `<div class="rowi"><span class="nm">${accIco(a)}<span class="${owned(a) ? '' : 'lack'}">${ACC[a].n}</span> + ${accIco(b)}<span class="${owned(b) ? '' : 'lack'}">${ACC[b].n}</span> ${ico('ic_arrow')} ${owned(a) && owned(b) ? ACC[o].n : '?'}</span><button class="btn small" data-a="combine" data-n="${i}" ${owned(a) && owned(b) && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`).join('');
   openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div><p class="dim" style="margin-top:10px">만들기</p><div class="rows">${crafts}</div>` + (recs ? `<p class="dim" style="margin-top:10px">합치기</p><div class="rows">${recs}</div>` : ''));
 }
@@ -3795,6 +3807,7 @@ document.addEventListener('click', e => {
   else if (a === 'unpack1') unpackItem(b.dataset.o);
   else if (a === 'tsell') townSell(b.dataset.o);
   else if (a === 'inn') innSleep();
+  else if (a === 'donkey') buyDonkey();
   else if (a === 'mtnmine') enterMtnMine();
   else if (a === 'digForce') { hideSheet(); const [x, y] = b.dataset.n.split(',').map(Number); dig(x, y, true); }
   else if (a === 'campSleep') { hideSheet(); sleep(S.deep.lastCamp); }

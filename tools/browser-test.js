@@ -626,6 +626,16 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="travel"][data-o="home"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 5000 });
   ok((await st()).loc === 'home', '지도에서 마을로 돌아옴 (성벽 문 앞)');
+  // 이동수단: 손수레(대장간)는 길 기력 15와 가방 +10, 당나귀 수레(산마을 시장)는 길 기력 5와 가방 +20
+  await page.evaluate(() => { S.inv.wood = (S.inv.wood || 0) + 20; S.inv.ironBar = (S.inv.ironBar || 0) + 3; S.gold += 500; renderHud(); });
+  await visit('smithy', '#sheet [data-a="craft"][data-o="cart"]');
+  await page.click('#sheet [data-a="craft"][data-o="cart"]');
+  ok((await st()).cart === 1 && await page.evaluate(() => travelCost() === 15 && bagCap() === 30), '대장간에서 손수레를 만들면 길 기력 15, 가방 30칸');
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => { S.gold += 3000; S.loc = 'mtn'; enterTown('road'); showTownObj(TOWN_OBJ[1]); });
+  await page.click('#sheet [data-a="donkey"]');
+  ok((await st()).donkey === 1 && await page.evaluate(() => travelCost() === 5 && bagCap() === 40), '산마을 시장에서 당나귀 수레를 사면 길 기력 5, 가방 40칸');
+  await page.evaluate(() => { closeSheet(); homeFromTown(); });
 
   // 13-0h. 야시장: 아침엔 닫혀 있고, 저녁에 시장에서 수상한 상인의 의뢰를 들어줌
   ok((await quest()).includes('야시장'), '사냥 다음 퀘스트 「저녁 야시장 거래」');
