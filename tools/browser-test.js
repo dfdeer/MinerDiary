@@ -233,7 +233,7 @@ const shot = process.argv[2];
   // 10-4. 대장간: 무너진 팻말, 🪙500으로 복구, 용광로에 광석 넣기
   await visit('smithy', '#sheet h2:has-text("부서진 대장간")');
   ok((await page.textContent('#sheet')).includes('곡괭이 강화'), '부서진 대장간 팻말');
-  await page.evaluate(() => { const s = window.MinerDiary.state(); s.gold = 1000; s.inv.copper = 27; questEvent(); renderHud(); });
+  await page.evaluate(() => { const s = window.MinerDiary.state(); s.gold = 1000; s.inv.copper = 27; s.inv.coal = 10; questEvent(); renderHud(); });
   ok((await st()).quest === 9 && (await quest()).includes('대장간 고치기'), '돈이 모이면 퀘스트 「대장간 고치기」');
   await visit('smithy', '#sheet [data-a="restoreSmithy"]');
   await page.click('#sheet [data-a="restoreSmithy"]');
@@ -244,7 +244,7 @@ const shot = process.argv[2];
   if (shot) await page.screenshot({ path: path.join(shot, 'smithy.png') });
   await page.click('#sheet [data-a="smelt"][data-o="copper"]');
   s = await st();
-  ok(s.furnace && s.furnace.bar === 'copperBar' && s.furnace.n === 5 && s.inv.copper === 2, '용광로에 구리 광석 25개를 넣으면 주괴 5개가 내일 나옴');
+  ok(s.furnace && s.furnace.bar === 'copperBar' && s.furnace.n === 5 && s.inv.copper === 2 && s.inv.coal === 5, '용광로에 구리 광석 25개와 석탄 5개를 넣으면 주괴 5개가 내일 나옴');
   ok(s.quest === 11 && (await quest()).includes('구리 곡괭이'), '다음 퀘스트 「구리 곡괭이 만들기」');
   await page.click('#sheet [data-a="close"]');
 
@@ -276,25 +276,34 @@ const shot = process.argv[2];
 
   // 13. 곡괭이 강화: 망치질 세 번, 품질
   await page.evaluate(() => window.MinerDiary.speed(10));
-  await visit('smithy', '#sheet [data-a="forge"]');
+  const forge = async () => {
+    await visit('smithy', '#sheet [data-a="forge"]');
+    await page.click('#sheet [data-a="forge"]');
+    ok(await page.locator('#sheet [data-a="close"]').count() === 0, '망치질 중에는 창을 닫을 수 없음');
+    for (let k = 0; k < 3; k++) {
+      // 바늘이 가운데에 올 때 단추를 누름 (페이지 안에서 바로 눌러 지연을 없앰)
+      await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
+    }
+    await page.waitForSelector('#sheet h2:has-text("대장장이")', { timeout: 3000 });
+    await page.click('#sheet [data-a="close"]');
+  };
   const gP = (await st()).gold;
-  await page.click('#sheet [data-a="forge"]');
-  ok(await page.locator('#sheet [data-a="close"]').count() === 0, '망치질 중에는 창을 닫을 수 없음');
-  for (let k = 0; k < 3; k++) {
-    // 바늘이 가운데에 올 때 단추를 누름 (페이지 안에서 바로 눌러 지연을 없앰)
-    await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
-  }
-  await page.waitForSelector('#sheet h2:has-text("대장장이")', { timeout: 3000 });
+  await forge();
   s = await st();
   ok(s.pick === 1 && s.inv.copperBar === 0 && s.gold === gP - 200 + 50, '구리 주괴 5개와 🪙200으로 구리 곡괭이 (퀘스트 보상 🪙50)');
   ok(s.pickQ >= 1, `가운데를 맞춰 두드리면 품질이 오름 (${['보통', '좋음', '최상'][s.pickQ]})`);
-  ok(await page.evaluate(() => window.MinerDiary.maxFloor()) === 10, '구리 곡괭이로 광산 10층까지');
+  ok(await page.evaluate(() => window.MinerDiary.maxFloor()) === 7 && (await quest()).includes('7층'), '구리 곡괭이로 광산 7층까지, 다음 퀘스트 「광산 7층 도착」');
+  await page.evaluate(() => { const s = window.MinerDiary.state(); s.inv.ironBar = 5; s.gold += 600; renderHud(); });
+  await forge();
+  s = await st();
+  ok(s.pick === 2 && s.inv.ironBar === 0 && await page.evaluate(() => window.MinerDiary.maxFloor()) === 10, '철 곡괭이로 단단한 바위와 광산 10층까지');
+  await visit('smithy', '#sheet [data-a="close"]');
 
   // 13-1. 단단한 바위를 깨고, 5층에서 6층으로
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => window.MinerDiary.newFloor(5)); await page.waitForTimeout(200);
   s = await st();
-  ok(s.mine.t.includes('d'), '구리 곡괭이가 있으면 5층에도 계단');
+  ok(s.mine.t.includes('d'), '곡괭이를 강화하면 5층에도 계단');
   const hr = await nearRock(false);
   await page.evaluate(([x, y]) => { const m = window.MinerDiary.state().mine; m.t[y * m.w + x] = 'h'; m.o[y * m.w + x] = ''; }, hr);
   const eH = (await st()).energy;

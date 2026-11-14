@@ -100,7 +100,9 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .hbar .needle{position:absolute;top:-2px;bottom:-2px;width:6px;margin-left:-3px;border-radius:3px;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.8)}
 .hits{display:flex;gap:10px;justify-content:center}.hits b{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.4)}.hits b.h2{background:#ffd27a;border-color:#ffd27a}.hits b.h1{background:#c9a060;border-color:#c9a060}.hits b.h0{background:#6b4a3a;border-color:#6b4a3a}
 .btn.big{min-width:120px}
-.ore.copper{background:#d97a3a}.ore.iron{background:#c3cbd5}.ore.crystal{background:#7fdcef}.ore.moon{background:#efe9ff;box-shadow:0 0 6px #b9a8ff}
+.ore.copper{background:#d97a3a}.ore.coal{background:#3a3a40}.ore.silver{background:#e6ecf2}.ore.gold{background:#f2c230}.ore.amethyst{background:#a46be0}.ore.ruby{background:#e0405a}
+.ore.silverBar,.ore.goldBar{transform:none;width:15px;height:9px;border-radius:2px}.ore.silverBar{background:#e8eef4}.ore.goldBar{background:#f5cf45}
+.ore.iron{background:#c3cbd5}.ore.crystal{background:#7fdcef}.ore.moon{background:#efe9ff;box-shadow:0 0 6px #b9a8ff}
 
 .toast{position:fixed;left:50%;top:calc(var(--st) + 86px);transform:translateX(-50%);z-index:6;border-radius:999px;padding:7px 16px;font-size:14px;font-weight:700;white-space:nowrap;pointer-events:none;transition:opacity .3s}
 .hud,.dock,.minebar,.sheet,.toast{zoom:var(--z,1)}
@@ -228,23 +230,44 @@ const KEY = 'minerdiary.v1';
 const MAX_ENERGY = 100, DIG_COST = 2, MW = 18, MH = 18, MAX_FLOOR = 10;
 const FAINT_LOSS = 0.3;                                    // 쓰러지면 그날 캔 광석 중 잃는 비율 (1단계 임시값)
 const START_FRAC = { normal: 1, late: 0.9, faint: 0.7 };
+// 광석: 층이 깊을수록 비싼 것이 나옴. 석탄은 제련 연료, 원석(수정, 자수정, 루비)은 나중에 세공소에서 씀
 const ORES = {
-  copper:  { name: '구리 광석', price: 10,  color: '#d97a3a', light: '#ffb27a' },
-  iron:    { name: '철 광석',   price: 25,  color: '#aeb7c2', light: '#eef2f6' },
-  crystal: { name: '수정 원석', price: 60,  color: '#5fc9e0', light: '#c9f6ff' },
-  moon:    { name: '월광석',    price: 150, color: '#d8cfff', light: '#ffffff' },
+  copper:   { name: '구리 광석', price: 10,  color: '#d97a3a', light: '#ffb27a' },
+  coal:     { name: '석탄',     price: 6,   color: '#3a3a40', light: '#8a8a96' },
+  iron:     { name: '철 광석',   price: 25,  color: '#aeb7c2', light: '#eef2f6' },
+  silver:   { name: '은 광석',   price: 45,  color: '#dfe6ee', light: '#ffffff' },
+  gold:     { name: '금 광석',   price: 90,  color: '#f2c230', light: '#fff2a8' },
+  crystal:  { name: '수정 원석', price: 60,  color: '#5fc9e0', light: '#c9f6ff' },
+  amethyst: { name: '자수정',   price: 110, color: '#a46be0', light: '#e2c9ff' },
+  ruby:     { name: '루비',     price: 220, color: '#e0405a', light: '#ffb0bc' },
+  moon:     { name: '월광석',    price: 150, color: '#d8cfff', light: '#ffffff' },
   copperBar: { name: '구리 주괴', price: 65,  color: '#e0894a', light: '#ffd0a0' },
   ironBar:   { name: '철 주괴',   price: 160, color: '#b8c2cc', light: '#f4f8fb' },
+  silverBar: { name: '은 주괴',   price: 280, color: '#e8eef4', light: '#ffffff' },
+  goldBar:   { name: '금 주괴',   price: 560, color: '#f5cf45', light: '#fff4b8' },
 };
-const ORE_ORDER = ['copper', 'iron', 'crystal', 'moon', 'copperBar', 'ironBar'];
-/* ===== 대장간 (3단계): 용광로에 광석을 넣고 자면 아침에 주괴. 주괴와 돈으로 곡괭이 강화 (망치질 박자로 품질) ===== */
-const SMELT = { copper: 'copperBar', iron: 'ironBar' }, SMELT_N = 5, FURNACE_MAX = 10;
-const PICKS = [{ name: '낡은 곡괭이' }, { name: '구리 곡괭이', need: { copperBar: 5 }, gold: 200 }, { name: '철 곡괭이', need: { ironBar: 5 }, gold: 600 }];
+const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'copperBar', 'ironBar', 'silverBar', 'goldBar'];
+/* ===== 대장간 (3단계): 용광로에 광석 5개와 석탄 1개를 넣고 자면 아침에 주괴. 주괴와 돈으로 곡괭이 강화 (망치질 박자로 품질) ===== */
+const SMELT = { copper: 'copperBar', iron: 'ironBar', silver: 'silverBar', gold: 'goldBar' }, SMELT_N = 5, FURNACE_MAX = 10;
+// 곡괭이: 구리는 7층까지, 철(가운데 단계)부터 단단한 바위와 10층, 은은 캐는 기력 1, 금은 단단한 바위도 쉽게. 높은 단계일수록 망치질이 빠르고 칸이 좁음
+const PICKS = [
+  { name: '낡은 곡괭이', floor: 5 },
+  { name: '구리 곡괭이', need: { copperBar: 5 }, gold: 200, floor: 7, period: 2.6, zone: 1.15 },
+  { name: '철 곡괭이', need: { ironBar: 5 }, gold: 600, floor: 10, hard: 3, period: 2.3, zone: 1 },
+  { name: '은 곡괭이', need: { silverBar: 5 }, gold: 1500, floor: 10, hard: 2, dig: 1, period: 2, zone: .9 },
+  { name: '금 곡괭이', need: { goldBar: 5 }, gold: 3000, floor: 10, hard: 1, dig: 1, bonus: .1, period: 1.7, zone: .8 },
+];
 const QUAL = ['보통', '좋음', '최상'], QUAL_BONUS = [0, .15, .3];   // 품질: 광석이 2개 나올 확률
-const maxFloor = () => (S.pick >= 1 ? MAX_FLOOR : 5);                // 구리 곡괭이부터 단단한 바위를 깨고 6~10층
-const digCost = t => (t === 'b' ? 1 : t === 'h' ? (S.pick >= 2 ? 2 : 3) : S.pick >= 2 ? 1 : DIG_COST);
-const FLOOR_ORES = { 1: [['copper', 1]], 2: [['copper', .8], ['iron', .2]], 3: [['copper', .5], ['iron', .5]], 4: [['copper', .35], ['iron', .5], ['crystal', .15]], 5: [['copper', .25], ['iron', .5], ['crystal', .25]],
-  6: [['copper', .2], ['iron', .55], ['crystal', .25]], 7: [['copper', .1], ['iron', .55], ['crystal', .35]], 8: [['iron', .55], ['crystal', .45]], 9: [['iron', .45], ['crystal', .55]], 10: [['iron', .4], ['crystal', .6]] };
+const PK = () => PICKS[S.pick || 0];
+const canHard = () => !!PK().hard;
+const maxFloor = () => PK().floor;
+const digCost = t => (t === 'b' ? 1 : t === 'h' ? PK().hard || 3 : PK().dig || DIG_COST);
+const FLOOR_ORES = {
+  1: [['copper', .85], ['coal', .15]], 2: [['copper', .6], ['coal', .3], ['iron', .1]], 3: [['copper', .4], ['coal', .25], ['iron', .35]],
+  4: [['copper', .2], ['coal', .2], ['iron', .45], ['crystal', .15]], 5: [['coal', .2], ['iron', .45], ['silver', .15], ['crystal', .2]],
+  6: [['coal', .15], ['iron', .4], ['silver', .25], ['crystal', .1], ['amethyst', .1]], 7: [['coal', .15], ['iron', .3], ['silver', .3], ['gold', .1], ['amethyst', .15]],
+  8: [['coal', .1], ['iron', .25], ['silver', .25], ['gold', .2], ['amethyst', .2]], 9: [['coal', .1], ['silver', .3], ['gold', .3], ['amethyst', .2], ['ruby', .1]],
+  10: [['coal', .1], ['silver', .25], ['gold', .35], ['amethyst', .15], ['ruby', .15]] };
 const FLOOR_ROCK = { 1: [138, 104, 72], 2: [134, 90, 70], 3: [116, 104, 90], 4: [92, 100, 112], 5: [88, 78, 104], 6: [104, 88, 80], 7: [84, 96, 92], 8: [78, 84, 110], 9: [100, 76, 90], 10: [70, 70, 92] };
 const PHASES = [{ name: '아침', at: 0 }, { name: '점심', at: 30 }, { name: '저녁', at: 60 }, { name: '새벽', at: 90 }];
 const GOAL = { id: 'smithy', name: '대장간', cost: 500 };
@@ -279,11 +302,13 @@ const QUESTS = [
   { id: 'gold', text: '대장간 복구비 모으기', need: 500, target: 'smithy' },
   { id: 'smithy', text: '대장간 고치기', target: 'smithy' },
   { id: 'smelt', text: '용광로에 광석 넣기', target: 'smithy' },
-  { id: 'pick', text: '구리 곡괭이 만들기', target: 'smithy', reward: 50 },
+  { id: 'pick', text: '구리 곡괭이 만들기', need: 1, target: 'smithy', reward: 50 },
+  { id: 'deep7', text: '광산 7층 도착', need: 7, target: 'mine', reward: 100 },
+  { id: 'pick2', text: '철 곡괭이 만들기', need: 2, target: 'smithy', reward: 100 },
   { id: 'deep10', text: '광산 10층 도착', need: 10, target: 'mine', reward: 200 },
 ];
 const questNow = () => QUESTS[S.quest];
-const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : 0);
+const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
   let q = questNow(), flag = false;
@@ -1378,7 +1403,7 @@ function genBoard(floor, dawn, C) {
     if (!door.length) continue;
     const [dx, dy] = door[rnd(door.length)];
     for (let yy = hy - 1; yy <= hy + 1; yy++) for (let xx = hx - 1; xx <= hx + 1; xx++) { t[I(xx, yy)] = 'f'; hid[I(xx, yy)] = 1; }
-    t[I(hx + dx * 2, hy + dy * 2)] = !C && (floor === 5 || floor === 10) ? 'h' : 'b';
+    t[I(hx + dx * 2, hy + dy * 2)] = !C && floor >= 5 && (k === 0 || floor >= 8) ? 'h' : 'b';
     for (const [ax, ay] of [[-2, -1], [-2, 1], [2, -1], [2, 1], [-1, -2], [1, -2], [-1, 2], [1, 2]]) if (t[I(hx + ax, hy + ay)] === 'r') o[I(hx + ax, hy + ay)] = Math.random() < .7 ? better : pick();
     break;
   }
@@ -1481,7 +1506,7 @@ function mineTapCell(x, y) {
   hero.dig = null; hero.goal = null;
   if (seen && ROCKISH(t)) {
     if (t === 'e') { mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
-    if (t === 'h' && S.pick < 1) { toast('곡괭이 강화 필요'); mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
+    if (t === 'h' && !canHard()) { toast(`${PICKS[2].name} 필요`); mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
     mark(x, y, '255,220,150');
     const hx = Math.round(hero.x), hy = Math.round(hero.y);
     if (Math.abs(hx - x) + Math.abs(hy - y) === 1 && !hero.path.length) { dig(x, y); return; }
@@ -1519,7 +1544,7 @@ function mineArrive() {
 }
 function dig(x, y, force) {
   const m = S.mine, i = mI(x, y), t = m.t[i];
-  if (!ROCKISH(t) || t === 'e' || (t === 'h' && S.pick < 1)) return;
+  if (!ROCKISH(t) || t === 'e' || (t === 'h' && !canHard())) return;
   const cost = digCost(t);
   // 마지막 기력: 쓰러지기 전에 한 번 물어봄
   if (S.energy <= cost && !force) {
@@ -1539,7 +1564,7 @@ function dig(x, y, force) {
   }
   burst(p[0], p[1], `rgb(${col})`, rgbk(col, 50), 10);
   if (ore) {
-    const n = Math.random() < QUAL_BONUS[S.pickQ || 0] ? 2 : 1; addItem(ore, n);
+    const n = Math.random() < QUAL_BONUS[S.pickQ || 0] + (PK().bonus || 0) ? 2 : 1; addItem(ore, n);
     burst(p[0], p[1], ORES[ore].color, ORES[ore].light, 14);
     mfloats.push({ x: p[0], y: p[1] - TW * .3, text: `+${n}`, color: ORES[ore].light, life: 1.1 });
     SFX.ore(n); buzz(15);
@@ -1727,9 +1752,9 @@ function cellPoint(x, y) { const z = cellZ(x, y); const p = iso(x + .5, y + .5, 
    걷는 데도 기력이 듦 (5칸마다 1). 칸 종류: g 풀, t 나무, k 바위, s 덤불, c 동굴, x 마을로 가는 길 */
 const FW = 36, FH = 36, F_SEE = 4.2, F_STEP = 5;
 const CAVES = [
-  { kind: 'shallow', name: '얕은 굴', ore: 'copper', rock: [150, 112, 76], ores: [['copper', .85], ['iron', .15]] },
-  { kind: 'pool', name: '물 고인 굴', ore: 'iron', rock: [104, 120, 132], ores: [['iron', .7], ['copper', .3]] },
-  { kind: 'deep', name: '깊은 굴', ore: 'crystal', rock: [96, 84, 116], ores: [['crystal', .55], ['iron', .45]] },
+  { kind: 'shallow', name: '얕은 굴', ore: 'copper', rock: [150, 112, 76], ores: [['copper', .6], ['coal', .3], ['iron', .1]] },
+  { kind: 'pool', name: '물 고인 굴', ore: 'iron', rock: [104, 120, 132], ores: [['iron', .55], ['silver', .3], ['coal', .15]] },
+  { kind: 'deep', name: '깊은 굴', ore: 'crystal', rock: [96, 84, 116], ores: [['crystal', .5], ['amethyst', .3], ['gold', .2]] },
 ];
 function genForest(day) {
   const I = (x, y) => y * FW + x, t = Array(FW * FH).fill('g'), R0 = H32(day * 7919 + 13) * 1e5 | 0;
@@ -1983,7 +2008,7 @@ function questHtml() {
   const q = questNow();
   if (!q) return `<div class="quest plate done">${ico('ic_check')}다음 이야기 준비 중</div>`;
   const pr = q.need ? Math.min(questProg(q), q.need) : 0;
-  return `<button class="quest plate" data-a="quest"><em>${S.quest + 1}/${QUESTS.length}</em>${q.text}${q.need ? `<span>${q.id === 'gold' ? GOLD : ''}${pr}/${q.need}</span><i style="width:${pr / q.need * 100}%"></i>` : ''}</button>`;
+  return `<button class="quest plate" data-a="quest"><em>${S.quest + 1}/${QUESTS.length}</em>${q.text}${q.need && !q.id.startsWith('pick') ? `<span>${q.id === 'gold' ? GOLD : ''}${pr}/${q.need}</span><i style="width:${pr / q.need * 100}%"></i>` : ''}</button>`;
 }
 /* ===== 아래쪽 단추와 창 ===== */
 const sheet = document.getElementById('sheet'), dock = document.getElementById('dock'), minebar = document.getElementById('minebar');
@@ -2076,8 +2101,8 @@ function showSmithy() {
   let smelt;
   if (S.furnace) smelt = `<div class="rowi"><span class="nm"><span class="ore ${S.furnace.bar}"></span>${ORES[S.furnace.bar].name} <small>×${S.furnace.n}</small></span><small>내일 아침</small></div>`;
   else {
-    const rows = Object.keys(SMELT).filter(o => (S.inv[o] || 0) >= SMELT_N).map(o => { const n = Math.min(FURNACE_MAX, Math.floor(S.inv[o] / SMELT_N)); return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${n * SMELT_N} → <span class="ore ${SMELT[o]}"></span>${n}</span><button class="btn small" data-a="smelt" data-o="${o}">넣기</button></div>`; }).join('');
-    smelt = rows || `<p class="dim">광석 ${SMELT_N} → 주괴 1</p>`;
+    const rows = Object.keys(SMELT).filter(o => (S.inv[o] || 0) >= SMELT_N).map(o => { const n = smeltN(o); return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${Math.max(n, 1) * SMELT_N} <span class="ore coal"></span>${Math.max(n, 1)} → <span class="ore ${SMELT[o]}"></span>${n}</span><button class="btn small" data-a="smelt" data-o="${o}" ${n ? '' : 'disabled'}>넣기</button></div>`; }).join('');
+    smelt = rows || `<p class="dim">광석 ${SMELT_N}, 석탄 1 → 주괴 1</p>`;
   }
   const cur = PICKS[S.pick], next = PICKS[S.pick + 1];
   let pick = `<div class="rowi"><span class="nm">${ico('ic_pick')}${cur.name}${S.pick ? ` <small>${QUAL[S.pickQ]}</small>` : ''}</span></div>`;
@@ -2087,10 +2112,11 @@ function showSmithy() {
   }
   openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div>`);
 }
+const smeltN = o => Math.min(FURNACE_MAX, Math.floor((S.inv[o] || 0) / SMELT_N), S.inv.coal || 0);   // 주괴 하나에 광석 5개와 석탄 1개
 function smelt(o) {
   if (S.furnace || !SMELT[o]) return;
-  const n = Math.min(FURNACE_MAX, Math.floor((S.inv[o] || 0) / SMELT_N)); if (!n) return;
-  S.inv[o] -= n * SMELT_N; S.furnace = { bar: SMELT[o], n };
+  const n = smeltN(o); if (!n) return;
+  S.inv[o] -= n * SMELT_N; S.inv.coal -= n; S.furnace = { bar: SMELT[o], n };
   SFX.stairs(); questEvent('smelt'); save(); renderHud(); showSmithy();
 }
 // 망치질: 바늘이 오가는 막대에서 가운데를 맞춰 세 번 두드림. 맞춘 정도로 품질
@@ -2098,8 +2124,9 @@ let hammer = null;
 function startHammer() {
   const next = PICKS[S.pick + 1]; if (!next) return;
   if (!Object.entries(next.need).every(([k, n]) => (S.inv[k] || 0) >= n) || S.gold < next.gold) return;
-  hammer = { t0: performance.now(), hits: [], period: 2.4 };   // 바늘이 한 번 오가는 초 (두드릴 때마다 빨라짐)
-  openSheet(ico('ic_hearth') + '망치질', `<div class="hammer"><div class="hbar"><i class="zone"></i><i class="zone2"></i><i class="needle" id="needle"></i></div><div class="hits" id="hits">${'<b></b>'.repeat(3)}</div></div>`, `<button class="btn primary big" data-a="strike">${ico('ic_pick')}</button>`, false);
+  hammer = { t0: performance.now(), hits: [], period: next.period, zone: next.zone };   // 바늘이 한 번 오가는 초 (두드릴 때마다 빨라짐)
+  const z1 = 50 - 17 * next.zone, z2 = 50 - 7 * next.zone;
+  openSheet(ico('ic_hearth') + '망치질', `<div class="hammer"><div class="hbar"><i class="zone" style="left:${z1}%;right:${z1}%"></i><i class="zone2" style="left:${z2}%;right:${z2}%"></i><i class="needle" id="needle"></i></div><div class="hits" id="hits">${'<b></b>'.repeat(3)}</div></div>`, `<button class="btn primary big" data-a="strike">${ico('ic_pick')}</button>`, false);
   requestAnimationFrame(hammerTick);
 }
 const needlePos = () => { const u = ((performance.now() - hammer.t0) / 1000 / hammer.period) % 1; return u < .5 ? u * 2 : 2 - u * 2; };   // 일정한 빠르기로 오감
@@ -2110,7 +2137,7 @@ function hammerTick() {
 }
 function strike() {
   if (!hammer || hammer.hits.length >= 3) return;
-  const d = Math.abs(needlePos() - .5), sc = d < .07 ? 2 : d < .17 ? 1 : 0;
+  const d = Math.abs(needlePos() - .5), sc = d < .07 * hammer.zone ? 2 : d < .17 * hammer.zone ? 1 : 0;
   hammer.hits.push(sc); { const n2 = performance.now(), u0 = ((n2 - hammer.t0) / 1000 / hammer.period) % 1; hammer.period *= .82; hammer.t0 = n2 - u0 * hammer.period * 1000; } SFX.dig(); buzz(20);
   const hs = document.getElementById('hits'); if (hs) hs.innerHTML = hammer.hits.map(v => `<b class="h${v}"></b>`).join('') + '<b></b>'.repeat(3 - hammer.hits.length);
   if (hammer.hits.length < 3) return;
