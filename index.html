@@ -72,6 +72,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sheet header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .sheet h2{margin:0;font-size:18px;flex:1}
 .sheet .x{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.08);font-size:15px}
+.sheet .x{display:grid;place-items:center}.sheet .x .ico{margin:0;width:18px;height:18px}
 .sheet p{margin:0 0 8px;line-height:1.55}
 .sheet .warn{color:var(--bad);font-size:13px;font-weight:700}
 .btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end;margin-top:10px}
@@ -438,6 +439,10 @@ function gearPath() {
 const ICONS = {
   ic_gold: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#f2c230'], ['M12 6.2a5.8 5.8 0 1 0 .01 0Z', '#e0a81e', 0], ['M10.8 8.5h2.4v7h-2.4Z', '#fff2b0', 0]],
   ic_check: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#4fb35a'], ['M7 12.5l3.2 3.2L17.2 8.6', 'none', 2.6, '#fff']],
+  ic_close: [['M6 6l12 12M18 6 6 18', 'none', 2.6, '#f6ecdd']],
+  ic_up: [['M12 5 20 17H4Z', '#8fe08a', 1.2]],
+  ic_down: [['M12 19 4 7h16Z', '#f0907a', 1.2]],
+  ic_arrow: [['M4 12h12', 'none', 2.4, '#e8d9bd'], ['M13 7l6 5-6 5Z', '#e8d9bd', 0]],
   ic_moon: [['M15.5 3.2A9 9 0 1 0 20.8 15 7 7 0 0 1 15.5 3.2Z', '#f2e6a8']],
   ic_sword: [['M16.8 3.2h4v4L10.5 17.5l-4-4Z', '#dfe6ee'], ['M5 12.5l6.5 6.5-1.6 1.6-6.5-6.5Z', '#8a5a32'], ['M4.2 17.8l2 2-2.6 2.6-2-2Z', '#e9b04f']],
   ic_warn: [['M12 2.8 22 20.5H2Z', '#f2c230'], ['M10.9 8.5h2.2l-.4 6.3h-1.4Z', '#2b1a12', 0], ['M12 16.4a1.3 1.3 0 1 0 .01 0Z', '#2b1a12', 0]],
@@ -695,7 +700,7 @@ function bridgeAt(c, o) {
 const SKY = [
   { top: '#9fd0f0', bot: '#f6dfbd', tint: 'rgba(255,190,120,.06)', light: 0 },
   { top: '#5fa6e6', bot: '#d4ecff', tint: null, light: 0 },
-  { top: '#3c3d7a', bot: '#f2955f', tint: 'rgba(255,110,50,.14)', light: .6 },
+  { top: '#3c3d7a', bot: '#f2955f', tint: 'rgba(255,110,50,.2)', light: .6 },
   { top: '#070b25', bot: '#262a58', tint: 'rgba(10,14,50,.46)', light: 1 },
 ];
 
@@ -1112,7 +1117,6 @@ function drawObj(c, o, night) {
   switch (o.kind) {
     case 'npc': { const p = iso(x + .5, y + .5, z0); person(c, p[0], p[1], TW / 44, o.shirt, false, 0, false, true); break; }
     case 'wagon': {
-      if (OBJ.find(q => q.id === 'market').done) break;
       prism(c, x + .1, y + .2, .8, .6, z0 + .25, .35, '#a8784a', '#8a5a32', '#6d4626');
       const a = iso(x + .1, y + .8, z0 + .6), b = iso(x + .9, y + .8, z0 + .6), cc = iso(x + .9, y + .2, z0 + .6), top = iso(x + .5, y + .5, z0 + 1.45);
       P(c, [a, b, [top[0] + TW * .18, top[1]], [top[0] - TW * .24, top[1] + ZU * .2]], '#efe4cc'); P(c, [b, cc, [top[0] + TW * .34, top[1] - ZU * .2], [top[0] + TW * .18, top[1]]], '#d6c8ab');
@@ -2518,7 +2522,7 @@ function renderDock() {
   else if (mine && S.mine) minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button><b>${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small></b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
 }
 function openSheet(title, body, btns, closable = true) {
-  sheet.innerHTML = `<header><h2>${title}</h2>${closable ? '<button class="x" data-a="close" aria-label="닫기">✕</button>' : ''}</header>${body}${btns ? `<div class="btns">${btns}</div>` : ''}`;
+  sheet.innerHTML = `<header><h2>${title}</h2>${closable ? `<button class="x" data-a="close" aria-label="닫기">${ico('ic_close')}</button>` : ''}</header>${body}${btns ? `<div class="btns">${btns}</div>` : ''}`;
   document.getElementById('veil').hidden = false;
   sheet.hidden = false; sheet.style.animation = 'none'; void sheet.offsetWidth; sheet.style.animation = '';
   renderDock();
@@ -2632,8 +2636,8 @@ function showSmithy() {
   let smelt;
   if (S.furnace) smelt = `<div class="rowi"><span class="nm"><span class="ore ${S.furnace.bar}"></span>${ORES[S.furnace.bar].name} <small>×${S.furnace.n}</small></span><small>내일 아침</small></div>`;
   else {
-    const rows = Object.keys(SMELT).filter(o => (S.inv[o] || 0) >= SMELT_N).map(o => { const n = smeltN(o); return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${Math.max(n, 1) * SMELT_N} <span class="ore coal"></span>${Math.max(n, 1)} → <span class="ore ${SMELT[o]}"></span>${n}</span><button class="btn small" data-a="smelt" data-o="${o}" ${n ? '' : 'disabled'}>넣기</button></div>`; }).join('');
-    smelt = rows || `<p class="dim">광석 ${SMELT_N}, 석탄 1 → 주괴 1</p>`;
+    const rows = Object.keys(SMELT).filter(o => (S.inv[o] || 0) >= SMELT_N).map(o => { const n = smeltN(o); return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${Math.max(n, 1) * SMELT_N} <span class="ore coal"></span>${Math.max(n, 1)} ${ico('ic_arrow')} <span class="ore ${SMELT[o]}"></span>${n}</span><button class="btn small" data-a="smelt" data-o="${o}" ${n ? '' : 'disabled'}>넣기</button></div>`; }).join('');
+    smelt = rows || `<p class="dim">광석 ${SMELT_N}, 석탄 1 ${ico('ic_arrow')} 주괴 1</p>`;
   }
   const cur = PICKS[S.pick], next = PICKS[S.pick + 1];
   let pick = `<div class="rowi"><span class="nm">${ico('ic_pick')}${cur.name}${S.pick ? ` <small>${QUAL[S.pickQ]}</small>` : ''}</span></div>`;
@@ -2644,7 +2648,7 @@ function showSmithy() {
   const sw = SWORDS[(S.sword || 0) + 1];
   pick += `<div class="rowi"><span class="nm">${ico('ic_sword')}${SWORDS[S.sword || 0].name}</span></div>` + (sw ? `<div class="rowi"><span class="nm">${sw.name} ${needHtml(sw.need, sw.gold)}</span><button class="btn small" data-a="sword" ${hasAll(sw.need) && S.gold >= sw.gold ? '' : 'disabled'}>만들기</button></div>` : '');
   const crafts = CRAFTS.filter(r => r.kind !== 'slot' || S.acc.slots < 2).map(r => `<div class="rowi"><span class="nm">${r.kind === 'slot' ? ico('ic_ring') + '장신구 고리' : accIco(r.id) + (ACC[r.id] || ITEMS[r.id]).n} ${needHtml(r.need, r.gold)}</span><button class="btn small" data-a="craft" data-o="${r.id}" ${hasAll(r.need) && S.gold >= r.gold ? '' : 'disabled'}>만들기</button></div>`).join('');
-  const recs = RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b)).map(([[a, b, o], i]) => `<div class="rowi"><span class="nm">${accIco(a)}<span class="${owned(a) ? '' : 'lack'}">${ACC[a].n}</span> + ${accIco(b)}<span class="${owned(b) ? '' : 'lack'}">${ACC[b].n}</span> → ${owned(a) && owned(b) ? ACC[o].n : '?'}</span><button class="btn small" data-a="combine" data-n="${i}" ${owned(a) && owned(b) && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`).join('');
+  const recs = RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b)).map(([[a, b, o], i]) => `<div class="rowi"><span class="nm">${accIco(a)}<span class="${owned(a) ? '' : 'lack'}">${ACC[a].n}</span> + ${accIco(b)}<span class="${owned(b) ? '' : 'lack'}">${ACC[b].n}</span> ${ico('ic_arrow')} ${owned(a) && owned(b) ? ACC[o].n : '?'}</span><button class="btn small" data-a="combine" data-n="${i}" ${owned(a) && owned(b) && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`).join('');
   openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div><p class="dim" style="margin-top:10px">만들기</p><div class="rows">${crafts}</div>` + (recs ? `<p class="dim" style="margin-top:10px">합치기</p><div class="rows">${recs}</div>` : ''));
 }
 const smeltN = o => Math.min(FURNACE_MAX, Math.floor((S.inv[o] || 0) / SMELT_N), S.inv.coal || 0);   // 주괴 하나에 광석 5개와 석탄 1개
@@ -2714,14 +2718,14 @@ function startFish() {
   renderHud();
   const ph = phaseIndex(), wait = (ph === 0 || ph === 2 ? 1 : 1.8) + Math.random() * 2;
   fishing = { t0: performance.now(), bite: wait * 1000, win: 750, done: false };
-  openSheet(ico('ic_rod') + '낚시', '<div class="fishing"><div class="say" id="fsay">…</div><div class="bob" id="fbob"></div></div>', `<button class="btn primary big" data-a="pull">${ico('ic_fish')}</button>`);
+  openSheet(ico('ic_rod') + '낚시', '<div class="fishing"><div class="say" id="fsay"></div><div class="bob" id="fbob"></div></div>', `<button class="btn primary big" data-a="pull">${ico('ic_fish')}</button>`);
   requestAnimationFrame(fishTick);
 }
 const fishState = () => { if (!fishing || fishing.done) return 'none'; const t = performance.now() - fishing.t0; return t < fishing.bite ? 'wait' : t < fishing.bite + fishing.win ? 'bite' : 'gone'; };
 function fishTick() {
   if (!fishing || fishing.done) return;
   const st = fishState(), say = document.getElementById('fsay'), bob = document.getElementById('fbob'); if (!say) { fishing = null; return; }
-  bob.classList.toggle('bite', st === 'bite'); say.textContent = st === 'bite' ? '!' : st === 'gone' ? '놓침' : '…';
+  bob.classList.toggle('bite', st === 'bite'); say.textContent = st === 'bite' ? '!' : st === 'gone' ? '놓침' : '.'.repeat(1 + ((performance.now() / 300) | 0) % 3);
   if (st === 'gone') { fishing.done = true; document.querySelector('#sheet .btns').innerHTML = '<button class="btn primary" data-a="cast">다시</button>'; return; }
   requestAnimationFrame(fishTick);
 }
@@ -2829,11 +2833,11 @@ function doReq() {
   S.inv[q.item] -= q.n; S.gold += q.gold; q.done = true; S.reqN = (S.reqN || 0) + 1;
   SFX.coin(); toast(`${GOLD}+${q.gold}`); questEvent('request'); save(); renderHud(); showKitchen();
 }
-/* ===== 세공소 (기획 4번 10단계): 원석 하나와 🪙30으로 깎기. 막대 놀이로 결을 맞출수록 보석이 더 나옴 =====
+/* ===== 세공소 (기획 4번 10단계): 원석 하나와 30골드로 깎기. 막대 놀이로 결을 맞출수록 보석이 더 나옴 =====
    보통 1개, 좋음 1개(반은 2개), 최상 2개. 귀한 원석일수록 바늘이 빠르고 칸이 좁음 */
 const CUTS = { crystal: { out: 'crystalGem', period: 2.2, zone: 1 }, amethyst: { out: 'amethystGem', period: 1.9, zone: .85 }, ruby: { out: 'rubyGem', period: 1.6, zone: .7 } }, CUT_GOLD = 30;
 function showJewel() {
-  const rows = Object.keys(CUTS).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o] || 0}</small> → <span class="ore ${CUTS[o].out}"></span>${ORES[CUTS[o].out].name}</span><button class="btn small" data-a="cut" data-o="${o}" ${(S.inv[o] || 0) >= 1 && S.gold >= CUT_GOLD ? '' : 'disabled'}>${GOLD}${CUT_GOLD}</button></div>`).join('');
+  const rows = Object.keys(CUTS).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o] || 0}</small> ${ico('ic_arrow')} <span class="ore ${CUTS[o].out}"></span>${ORES[CUTS[o].out].name}</span><button class="btn small" data-a="cut" data-o="${o}" ${(S.inv[o] || 0) >= 1 && S.gold >= CUT_GOLD ? '' : 'disabled'}>${GOLD}${CUT_GOLD}</button></div>`).join('');
   openSheet(ico('ic_shard') + '세공소', `<div class="rows">${rows}</div>`);
 }
 function cutGem(o) {
@@ -2866,7 +2870,7 @@ function tradeValue(o) { let g = 0; for (let k = 0; k < (S.inv[o] || 0); k++) g 
 function showMarket() {
   if (!S.market) rollMarket(true);
   const M = S.market;
-  const rows = TRADE.filter(o => S.inv[o]).map(o => { const m = M.mult[o], p = unitPrice(o), cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o]}</small> <small class="${cls}">${GOLD}${p}${cls === 'up' ? '▲' : cls === 'down' ? '▼' : ''}</small></span><button class="btn small" data-a="trade" data-o="${o}">${GOLD}${tradeValue(o)}</button></div>`; }).join('');
+  const rows = TRADE.filter(o => S.inv[o]).map(o => { const m = M.mult[o], p = unitPrice(o), cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o]}</small> <small class="${cls}">${GOLD}${p}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="trade" data-o="${o}">${GOLD}${tradeValue(o)}</button></div>`; }).join('');
   const news = M.hint ? `<p class="news">${ico('ic_shop')}내일 ${ORES[M.hint].name} 오름</p>` : '';
   openSheet(ico('ic_shop') + '시장', news + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + nightHtml());
 }
