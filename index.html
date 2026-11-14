@@ -1448,8 +1448,8 @@ function mineSee() {
     if (clear) seenSet(x, y);
   }
 }
-// 길 찾기용: 아직 못 본 곳은 지나갈 수 있다고 보고 가다가, 막힌 게 보이면 다시 짬
-function mBlocked(x, y) { if (!seenGet(x, y)) return false; return !FLOORISH(mT(x, y)); }
+// 길 찾기용: 본 바닥으로만 다님 (어둠 속을 멋대로 돌아다니지 않게)
+function mBlocked(x, y) { return !seenGet(x, y) || !FLOORISH(mT(x, y)); }
 // 벽 너머에 광석이 있으면 그쪽 틈이 반짝임 (수정 렌즈를 끼면 두 칸 너머까지)
 function glintDir(x, y) {
   const out = [], far = accEff('glint2') ? 2 : 1;
@@ -1538,6 +1538,7 @@ function walkTo(x, y, done) {
 // 광산에서 칸을 누름
 function mineTapCell(x, y) {
   const t = mT(x, y), seen = seenGet(x, y);
+  if (!seen || Math.hypot(x - hero.x, y - hero.y) > lightR() + .5) return;   // 어둠 쪽은 반응 없음
   hero.dig = null; hero.goal = null; S.exiting = false;
   if (seen && ROCKISH(t)) {
     if (t === 'h' && !canHard()) { toast(`${PICKS[2].name} 필요`); mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
@@ -1559,7 +1560,7 @@ const stepsPerEnergy = () => (accEff('walk') ? 16 : 8);
 function mineStep() {
   mineSee();
   const D = S.deep; D.x = Math.round(hero.x); D.y = Math.round(hero.y);
-  if (++D.steps % stepsPerEnergy() === 0 && !spend(1)) return;
+  if (++D.steps % stepsPerEnergy() === 0) { if (!spend(1)) return; renderHud(); }
   if (hero.path.length && hero.path.some(([a, b]) => mBlocked(a, b))) {
     let p = null;
     if (hero.dig) { const [dx, dy] = hero.dig; p = bfs(D.x, D.y, (a, b) => Math.abs(a - dx) + Math.abs(b - dy) === 1); }
@@ -1814,12 +1815,16 @@ function drawArrows(c) {
 }
 // 작은 지도 (오른쪽 위): 이 층에서 본 곳. 부엉이 깃털을 끼면 두 배 넓게
 function drawMiniMap(c) {
-  const z = UIZ, mw = 120 * z, mh = 90 * z, mx = W - mw - 10, my = hudH() + 50 * z, sc = (accEff('map2') ? 1.2 : 2.4) * z, hx = Math.round(hero.x), hy = Math.round(hero.y), rx = Math.ceil(mw / 2 / sc), ry = Math.ceil(mh / 2 / sc);
+  const z = UIZ, mw = 120 * z, mh = 90 * z, mx = W - mw - 10, my = hudH() + 50 * z, sc = (accEff('map2') ? 2 : 4) * z, hx = Math.round(hero.x), hy = Math.round(hero.y), rx = Math.ceil(mw / 2 / sc), ry = Math.ceil(mh / 2 / sc);
   c.save(); c.globalAlpha = .9; c.fillStyle = 'rgba(28,18,10,.85)'; c.beginPath(); c.roundRect(mx, my, mw, mh, 10 * z); c.fill(); c.strokeStyle = '#8a6238'; c.lineWidth = 2; c.stroke(); c.clip();
-  for (let y = hy - ry; y <= hy + ry; y++) for (let x = hx - rx; x <= hx + rx; x++) {
+  // 화면과 같은 방향: 칸 (x, y)를 마름모로 (오른쪽 아래가 x, 왼쪽 아래가 y)
+  const fx2 = hero.x - hx, fy2 = hero.y - hy, R2 = Math.ceil(Math.max(rx, ry) * 1.5);
+  for (let y = hy - R2; y <= hy + R2; y++) for (let x = hx - R2; x <= hx + R2; x++) {
     if (!seenGet(x, y)) continue; const t = mT(x, y);
+    const dx = x - hx - fx2, dy = y - hy - fy2, px = mx + mw / 2 + (dx - dy) * sc * .75, py = my + mh / 2 + (dx + dy) * sc * .375;
+    if (px < mx - sc || px > mx + mw + sc || py < my - sc || py > my + mh + sc) continue;
     c.fillStyle = t === 'd' ? '#9fd3ff' : t === 'u' ? '#ffd27a' : t === 'c' ? '#ff8a7a' : FLOORISH(t) ? '#a8906e' : '#4a3a2c';
-    c.fillRect(mx + mw / 2 + (x - hx) * sc, my + mh / 2 + (y - hy) * sc, Math.ceil(sc), Math.ceil(sc));
+    c.beginPath(); c.moveTo(px, py - sc * .375); c.lineTo(px + sc * .75, py); c.lineTo(px, py + sc * .375); c.lineTo(px - sc * .75, py); c.closePath(); c.fill();
   }
   c.fillStyle = '#fff'; c.fillRect(mx + mw / 2 - 1.5 * z, my + mh / 2 - 1.5 * z, 3 * z, 3 * z);
   c.restore();
@@ -1833,7 +1838,9 @@ function mineTap(px, py) {
     const rock = !seenGet(tx, ty) || ROCKISH(mT(tx, ty));
     const poly = rock ? [iso(tx, ty + 1, 0), iso(tx + 1, ty + 1, 0), iso(tx + 1, ty, 0), iso(tx + 1, ty, RH), iso(tx, ty, RH), iso(tx, ty + 1, RH)]
       : [iso(tx, ty, 0), iso(tx + 1, ty, 0), iso(tx + 1, ty + 1, 0), iso(tx, ty + 1, 0)];
-    if (inPoly(x, y, poly)) { mineTapCell(tx, ty); return; }
+    if (!inPoly(x, y, poly)) continue;
+    if (!seenGet(tx, ty) || Math.hypot(tx - hero.x, ty - hero.y) > lightR() + .5) continue;   // 어둠 덩어리는 건너뛰고 그 뒤에 보이는 칸을 찾음
+    mineTapCell(tx, ty); return;
   }
 }
 // 칸의 화면 위치 (테스트용). 바위는 윗면 가운데
@@ -2464,7 +2471,7 @@ window.MinerDiary = {
   cell: (x, y) => ({ t: mT(x, y), seen: seenGet(x, y), ore: mO(x, y) }),
   setCell: (x, y, t, ore) => { S.deep.dug[dKey(S.deep.L, x, y)] = t; if (ore !== undefined) { S.deep.ore = S.deep.ore || {}; S.deep.ore[dKey(S.deep.L, x, y)] = ore; } seenSet(x, y); },
   // 광부 둘레에서 본 적 있는, 바닥에 닿은 캘 수 있는 바위
-  nearRock: () => { const hx = Math.round(hero.x), hy = Math.round(hero.y); let best = null, bd = 1e9; for (let y = hy - 8; y <= hy + 8; y++) for (let x = hx - 8; x <= hx + 8; x++) { if (!seenGet(x, y) || mT(x, y) !== 'r') continue; if (!D4.some(([dx, dy]) => seenGet(x + dx, y + dy) && FLOORISH(mT(x + dx, y + dy)))) continue; const d = Math.abs(x - hx) + Math.abs(y - hy); if (d < bd) { bd = d; best = [x, y]; } } return best; },
+  nearRock: () => { const hx = Math.round(hero.x), hy = Math.round(hero.y); let best = null, bd = 1e9; for (let y = hy - 8; y <= hy + 8; y++) for (let x = hx - 8; x <= hx + 8; x++) { if (!seenGet(x, y) || mT(x, y) !== 'r' || Math.hypot(x - hero.x, y - hero.y) > lightR()) continue; if (!D4.some(([dx, dy]) => seenGet(x + dx, y + dy) && FLOORISH(mT(x + dx, y + dy)))) continue; const d = Math.abs(x - hx) + Math.abs(y - hy); if (d < bd) { bd = d; best = [x, y]; } } return best; },
   nearestHole: () => nearestHole(), ups: () => upsHere(),
   // 숲 칸을 화면 가운데로 옮기고 그 위치를 돌려줌
   forestSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, 0); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
