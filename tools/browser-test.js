@@ -136,7 +136,7 @@ const shot = process.argv[2];
     const a = await st();
     await tap(r[0], r[1]);
     const b = await st();
-    ok((await cell(r[0], r[1])).t === 'f' && spent(a, b) === 2 && (b.carry.copper || 0) === (a.carry.copper || 0) + 1, `광석 바위를 캐면 가방에 구리 1개, 기력 2 (${k + 1})`);
+    ok((await cell(r[0], r[1])).t === 'f' && spent(a, b) === 2 && [1, 2].includes((b.carry.copper || 0) - (a.carry.copper || 0)), `광석 바위를 캐면 가방에 구리 1개(연달아 캐면 가끔 2개), 기력 2 (${k + 1})`);
     if (k === 0) ok((await page.evaluate(() => window.MinerDiary.efloats())).includes('-2'), '기력이 줄면 노란 숫자 -2가 떠오름');
   }
   // 6-1. 반짝임: 벽 너머 못 본 칸에 광석이 있을 때만
@@ -194,6 +194,9 @@ const shot = process.argv[2];
   await visit('house', '#sheet [data-a="sleep"]');
   await page.click('#sheet [data-a="sleep"]');
   s = await st();
+  ok(await page.locator('#sheet .daysum').isVisible() && s.bestDay > 0, `자면 어제 얻은 것과 값이 세어지며 나옴 (🪙${s.bestDay}, 첫날이라 최고 기록)`);
+  await page.waitForFunction(() => +document.getElementById('sumv').textContent === S.bestDay, null, { timeout: 4000 });
+  ok(true, '하루 정산 값이 끝까지 올라감');
   ok(s.day === day + 1 && s.energy === expE && s.minE === s.energy, `자고 나서 ${s.day}일차 기력 ${s.energy} (저녁 전에 자면 덤 110, 새벽이면 90)`);
   ok(s.quest === 6 && (await quest()).includes('숲길 치우기'), '자고 나면 이미 간 깊이 3은 바로 끝나고 「숲길 치우기」');
 
@@ -227,6 +230,25 @@ const shot = process.argv[2];
   s = await st();
   ok(!Object.keys(s.carry).length && ['herb', 'mush', 'wood', 'fiber', 'leather', 'copper'].some(k => s.inv[k] > 0), '숲에서 마을 길까지 걸어가서 마을로, 주운 것은 창고로');
 
+  // 10-2b. 광산: 광맥 줄기와 연속 캐기, 숨은 보물 상자
+  ok((await quest()).includes('보물'), '채집 다음 퀘스트 「광산 숨은 보물 찾기」');
+  await visit('mine', '#sheet [data-a="enter"]');
+  await page.click('#sheet [data-a="enter"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => { S.energy = S.max; S.minE = S.dayStart = S.max; S.carry = {}; renderHud(); });
+  const hm = await page.evaluate(() => { const h = window.MinerDiary.hero(); return [Math.round(h.x), Math.round(h.y)]; });
+  // 광부 둘레를 바닥으로 열고, 옆에 광석 바위 둘과 보물 상자 하나를 둠
+  await page.evaluate(([x, y]) => { const M = window.MinerDiary; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) M.setCell(x + dx, y + dy, 'f', ''); M.setCell(x + 1, y, 'r', 'copper'); M.setCell(x - 1, y, 'r', 'copper'); M.setCell(x, y - 2, 'T'); }, hm);
+  await tap(hm[0] + 1, hm[1]); await tap(hm[0] - 1, hm[1]);
+  ok(await page.evaluate(() => window.MinerDiary.combo()) >= 2 && (await st()).bestCombo >= 2, '광석을 연달아 캐면 연속 캐기가 이어짐');
+  const gC = (await st()).gold, nC = await page.evaluate(() => window.MinerDiary.carryN());
+  await tap(hm[0], hm[1] - 2);
+  s = await st();
+  ok(s.chestN === 1 && s.gold > gC + 50 && await page.evaluate(() => window.MinerDiary.carryN()) > nC && (await cell(hm[0], hm[1] - 2)).t === 'f', `보물 상자를 열면 돈과 광석 (🪙${s.gold - gC}, 퀘스트 보상 🪙50 포함)`);
+  ok((await quest()).includes('대장간 복구비'), '보물을 찾으면 다음 퀘스트 「대장간 복구비 모으기」');
+  await page.evaluate(() => toVillage('home'));
+
   // 10-3. 상인에게서 나침반과 귀환서 사기
   await page.evaluate(() => { S.gold = Math.max(S.gold, 300); renderHud(); });
   await visit('merchant', '#sheet [data-a="buy"]');
@@ -242,7 +264,7 @@ const shot = process.argv[2];
   await visit('smithy', '#sheet h2:has-text("부서진 대장간")');
   ok((await page.textContent('#sheet')).includes('곡괭이 강화'), '부서진 대장간 팻말');
   await page.evaluate(() => { const s = window.MinerDiary.state(); s.gold = 1000; s.inv.copper = 27; s.inv.coal = 10; questEvent(); renderHud(); });
-  ok((await st()).quest === 9 && (await quest()).includes('대장간 고치기'), '돈이 모이면 퀘스트 「대장간 고치기」');
+  ok((await st()).quest === 10 && (await quest()).includes('대장간 고치기'), '돈이 모이면 퀘스트 「대장간 고치기」');
   await visit('smithy', '#sheet [data-a="restore"][data-o="smithy"]');
   await page.click('#sheet [data-a="restore"][data-o="smithy"]');
   s = await st();
@@ -253,7 +275,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="smelt"][data-o="copper"]');
   s = await st();
   ok(s.furnace && s.furnace.bar === 'copperBar' && s.furnace.n === 5 && s.inv.copper === 2 && s.inv.coal === 5, '용광로에 구리 광석 25개와 석탄 5개를 넣으면 주괴 5개가 내일 나옴');
-  ok(s.quest === 11 && (await quest()).includes('구리 곡괭이'), '다음 퀘스트 「구리 곡괭이 만들기」');
+  ok(s.quest === 12 && (await quest()).includes('구리 곡괭이'), '다음 퀘스트 「구리 곡괭이 만들기」');
   await page.click('#sheet [data-a="close"]');
 
   // 11. 쓰러짐
