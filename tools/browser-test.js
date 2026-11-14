@@ -181,11 +181,11 @@ const shot = process.argv[2];
   ok(s.quest === 4, '팔고 나면 퀘스트 「집에서 자기」');
 
   // 10. 집에서 자기
-  const day = s.day, late = await page.evaluate(() => window.MinerDiary.phaseIndex()) === 3;
+  const day = s.day, ph = await page.evaluate(() => window.MinerDiary.phaseIndex()), expE = ph === 3 ? 90 : ph <= 1 ? 110 : 100;
   await visit('house', '#sheet [data-a="sleep"]');
   await page.click('#sheet [data-a="sleep"]');
   s = await st();
-  ok(s.day === day + 1 && s.energy === (late ? 90 : 100) && s.minE === s.energy, `자고 나서 ${s.day}일차 기력 ${s.energy}`);
+  ok(s.day === day + 1 && s.energy === expE && s.minE === s.energy, `자고 나서 ${s.day}일차 기력 ${s.energy} (저녁 전에 자면 덤 110, 새벽이면 90)`);
   ok(s.quest === 6 && (await quest()).includes('숲길 치우기'), '자고 나면 이미 간 깊이 3은 바로 끝나고 「숲길 치우기」');
 
   // 10-1. 숲길 치우기 (🪙100), 광맥 추 받기
@@ -308,6 +308,15 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="trade"][data-o="iron"]');
   s = await st();
   ok(s.gold === gM + pr[2] + 50 && s.inv.iron === 0 && s.market.sold.iron === 20, `철 광석 20개를 시세로 팔아 🪙${pr[2]} (퀘스트 보상 🪙50)`);
+  // 13-0b. 집 고치기: 최대 기력 +20
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => { S.inv.wood = 15; S.inv.ironBar = 2; S.gold += 400; renderHud(); });
+  await visit('house', '#sheet [data-a="home"]');
+  const mx0 = (await st()).max;
+  await page.click('#sheet [data-a="home"]');
+  s = await st();
+  ok(s.home === 1 && s.max === mx0 + 20 && (await page.textContent('#sheet h2')).includes('고친 집'), `집을 고치면 최대 기력 ${s.max}`);
+  await visit('market', '#sheet [data-a="close"]');
   ok(await page.evaluate(() => { const next = { ...S.market.next }; rollMarket(false); return Object.keys(next).every(o => Math.abs(S.market.mult[o] - next[o]) < 1e-9) && S.market.sold.iron === 10; }), '다음 날 시세는 전날 예고대로, 판 만큼 떨어진 값은 절반 회복');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { const s = window.MinerDiary.state(); s.inv.ironBar = 5; s.gold += 600; renderHud(); });
