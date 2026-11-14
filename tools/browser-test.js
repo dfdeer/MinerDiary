@@ -87,13 +87,12 @@ const shot = process.argv[2];
   await visit('chief', '#sheet h2:has-text("촌장")');
   ok(true, '촌장까지 걸어가서 대화');
 
-  // 3-1. 대화창이 열려 있으면 다른 행동을 못 함
+  // 3-1. 대화창이 열려 있을 때 바깥을 누르면 창만 닫히고, 그 누르기로 걷거나 화면이 끌리지 않음
   const h0 = await page.evaluate(() => [hero.x, hero.y, cam.fx]);
-  await page.mouse.click(60, 200);
   await page.mouse.move(200, 250); await page.mouse.down(); await page.mouse.move(80, 250, { steps: 4 }); await page.mouse.up();
   await page.waitForTimeout(300);
   const h1 = await page.evaluate(() => [hero.x, hero.y, cam.fx, hero.path.length]);
-  ok(h0[0] === h1[0] && h0[1] === h1[1] && h0[2] === h1[2] && h1[3] === 0 && await page.locator('#sheet').isVisible(), '대화창이 열린 동안엔 걷기와 끌기가 막힘');
+  ok(h0[0] === h1[0] && h0[1] === h1[1] && h0[2] === h1[2] && h1[3] === 0 && await page.locator('#sheet').isHidden(), '대화창 바깥을 누르면 창이 닫히고 걷기와 끌기는 일어나지 않음');
 
   let s0;
   const cell = (x, y) => page.evaluate(([x, y]) => window.MinerDiary.cell(x, y), [x, y]);
@@ -171,12 +170,13 @@ const shot = process.argv[2];
 
   // 8. 나가기: 위로 가는 사다리까지 걸어가 올라가고, 깊이 1의 입구까지 이어서 마을로
   const dug0 = Object.keys((await deep()).dug).length;
+  const carry0 = (await st()).carry;   // 구멍까지 가며 캔 바위에서 광석이 더 나올 수 있으니 나가기 직전 가방을 기준으로
   await page.click('[data-a="leave"]');
   ok(await page.evaluate(() => window.MinerDiary.hero().moving || window.MinerDiary.state().deep.L < 3 || S.exiting), '나가기를 누르면 사다리까지 걸어감 (바로 옆이면 바로 올라감)');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 30000 });
   await page.waitForTimeout(1000);
   s = await st();
-  ok(s.screen === 'village' && s.inv.copper === 5 && !Object.keys(s.carry).length, `깊이 3에서 걸어서 마을까지, 가방 것은 창고로 (${s.screen} ${JSON.stringify(s.inv)} ${JSON.stringify(s.carry)} ${s.day})`);
+  ok(s.screen === 'village' && carry0.copper >= 5 && Object.entries(carry0).every(([k, n]) => s.inv[k] === n) && !Object.keys(s.carry).length, `깊이 3에서 걸어서 마을까지, 가방 것은 창고로 (${s.screen} ${JSON.stringify(s.inv)} ${JSON.stringify(s.carry)} ${s.day})`);
   ok(Object.keys(s.deep.dug).length >= dug0, '판 곳은 사라지지 않음');
 
   // 9. 팔기
@@ -288,7 +288,8 @@ const shot = process.argv[2];
   const forge = async () => {
     await visit('smithy', '#sheet [data-a="forge"]');
     await page.click('#sheet [data-a="forge"]');
-    ok(await page.locator('#sheet [data-a="close"]').count() === 0, '망치질 중에는 창을 닫을 수 없음');
+    await page.mouse.click(30, 200); await page.waitForTimeout(100);
+    ok(await page.locator('#sheet [data-a="close"]').count() === 0 && await page.locator('#sheet').isVisible(), '망치질 중에는 창을 닫을 수 없고 바깥을 눌러도 안 닫힘');
     for (let k = 0; k < 3; k++) {
       // 바늘이 가운데에 올 때 단추를 누름 (페이지 안에서 바로 눌러 지연을 없앰)
       await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
