@@ -104,6 +104,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .slots{display:flex;gap:8px;margin:2px 0 8px}.slot{flex:1;min-height:52px;border-radius:12px;border:2px dashed rgba(255,255,255,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
 .slot.on{border:2px solid #e9b04f;background:rgba(233,176,79,.15)}.slot .ico{width:22px;height:22px}
 .nd{display:inline-flex;align-items:center;gap:3px;font-size:12px;margin-left:6px}.nd.lack,.lack{color:#e68a7a}
+.ore.carp,.ore.trout,.ore.catfish,.ore.eel,.ore.moonkoi{transform:none;border-radius:50% 40% 40% 50%;width:15px;height:10px}.ore.carp{background:#b8a070}.ore.trout{background:#e08a8a}.ore.catfish{background:#6a6a5a}.ore.eel{background:#4a5a3a}.ore.moonkoi{background:#cfc4ff;box-shadow:0 0 6px #b9a8ff}
+.fishing{height:110px;border-radius:14px;background:linear-gradient(#4f9fd8,#3f7fb0);position:relative;overflow:hidden;margin-bottom:6px}.fishing .bob{position:absolute;left:50%;top:44px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#fff 0 30%,#e04a3a 31%);border:2px solid #2b1a12;transition:transform .1s}.fishing .bob.bite{transform:translateY(10px) scale(.9)}.fishing .say{position:absolute;left:0;right:0;top:8px;text-align:center;font-size:22px;color:#fff;text-shadow:0 2px 0 #2b1a12}
 .ore.herb{background:#4fae55}.ore.mush{background:#d9483a}.ore.wood{background:#a8703a}.ore.fiber{background:#d8c46a}.ore.leather{background:#8a5a32;transform:none;border-radius:4px}
 .ore.copper{background:#d97a3a}.ore.coal{background:#3a3a40}.ore.silver{background:#e6ecf2}.ore.gold{background:#f2c230}.ore.amethyst{background:#a46be0}.ore.ruby{background:#e0405a}
 .ore.silverBar,.ore.goldBar{transform:none;width:15px;height:9px;border-radius:2px}.ore.silverBar{background:#e8eef4}.ore.goldBar{background:#f5cf45}
@@ -253,10 +255,15 @@ const ORES = {
   wood:      { name: '나뭇가지', price: 4,   color: '#a8703a', light: '#e0b080' },
   fiber:     { name: '풀실',     price: 3,   color: '#d8c46a', light: '#fff0b0' },
   leather:   { name: '가죽',     price: 20,  color: '#8a5a32', light: '#c89a6a' },
+  carp:      { name: '붕어',     price: 12,  color: '#b8a070', light: '#e8d8b0' },
+  trout:     { name: '송어',     price: 28,  color: '#e08a8a', light: '#ffd0d0' },
+  catfish:   { name: '메기',     price: 40,  color: '#6a6a5a', light: '#b0b0a0' },
+  eel:       { name: '뱀장어',   price: 65,  color: '#4a5a3a', light: '#9aaa80' },
+  moonkoi:   { name: '달빛 잉어', price: 160, color: '#cfc4ff', light: '#ffffff' },
   silverBar: { name: '은 주괴',   price: 280, color: '#e8eef4', light: '#ffffff' },
   goldBar:   { name: '금 주괴',   price: 560, color: '#f5cf45', light: '#fff4b8' },
 };
-const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather'];
+const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi'];
 /* ===== 대장간 (3단계): 용광로에 광석 5개와 석탄 1개를 넣고 자면 아침에 주괴. 주괴와 돈으로 곡괭이 강화 (망치질 박자로 품질) ===== */
 const SMELT = { copper: 'copperBar', iron: 'ironBar', silver: 'silverBar', gold: 'goldBar' }, SMELT_N = 5, FURNACE_MAX = 10;
 // 곡괭이: 구리는 7층까지, 철(가운데 단계)부터 단단한 바위와 10층, 은은 캐는 기력 1, 금은 단단한 바위도 쉽게. 높은 단계일수록 망치질이 빠르고 칸이 좁음
@@ -309,12 +316,14 @@ const QUESTS = [
   { id: 'market', text: '시장 고치기', target: 'market' },
   { id: 'trade', text: '시장에서 팔기', target: 'market', reward: 50 },
   { id: 'home', text: '집 고치기', need: 1, target: 'house', reward: 50 },
+  { id: 'bridge', text: '강가 다리 고치기', target: 'bridge' },
+  { id: 'fish', text: '물고기 낚기', need: 3, target: 'bridge', reward: 60 },
   { id: 'deep7', text: '깊이 7 도달', need: 7, target: 'mine', reward: 100 },
   { id: 'pick2', text: '철 곡괭이 만들기', need: 2, target: 'smithy', reward: 100 },
   { id: 'deep10', text: '깊이 10 도달', need: 10, target: 'mine', reward: 200 },
 ];
 const questNow = () => QUESTS[S.quest];
-const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : 0);
+const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
   let q = questNow(), flag = false;
@@ -440,6 +449,8 @@ const ICONS = {
   ic_scroll: [['M6 5h11v14H6Z', '#f4e6c4'], ['M5 3.5a2 2 0 0 0 0 4h2v-4ZM17 16.5h2a2 2 0 0 1 0 4h-2Z', '#c9a46a'], ['M9 9h6M9 12h6M9 15h4', 'none', 1.2]],
   ic_tent: [['M2.5 20 12 4l9.5 16Z', '#d4473a'], ['M12 10.5 9 20h6Z', '#5a2a20']],
   ic_ring: [['M12 7.5a6.5 6.5 0 1 0 .01 0Z', 'none', 3, '#e9b04f'], ['M12 2.5l2.4 3.2H9.6Z', '#7fdcef']],
+  ic_rod: [['M5 21 19 3', 'none', 2.2, '#8a5a32'], ['M19 3v11', 'none', 1, '#e8e0d0'], ['M19 14.5a2 2 0 1 0 .01 0Z', '#e04a3a']],
+  ic_fish: [['M3 12c3-5 9-6 13-2l5-3-1 5 1 5-5-3c-4 4-10 3-13-2Z', '#7fb6e0'], ['M8 11a1 1 0 1 0 .01 0Z', '#2b1a12', 0]],
   ic_lock: [['M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10', 'none', 2.2], ['M5 10h14v10.5H5Z', '#f2c230'], ['M12 13.5a1.5 1.5 0 1 0 .01 0Zm-.7 2h1.4v2.5h-1.4Z', '#2b1a12', 0]],
   ic_hearth: [['M3 8.5h15.5c0 2.4-2.4 3.6-4.8 3.6V15h2.6v2.6H7.2V15h2.6v-2.9C5.6 12.1 3 10.8 3 8.5Z', '#6a6f78'], ['M6 18.8h11v2H6Z', '#4a4e55'], ['M20 4.5l1.6 1.6-3 3-1.6-1.6Z', '#f2a33a']],
   ic_rest: [['M3 11.5h18a9 7.5 0 0 1-18 0Z', '#f4efe6'], ['M7.5 9C7 7.5 8.5 6.5 8 5M12 9c-.5-1.5 1-2.5.5-4M16.5 9c-.5-1.5 1-2.5.5-4', 'none', 1.6, '#c9bfae'], ['M6 13h12', 'none', 1.4, '#e04a3a']],
@@ -1336,6 +1347,7 @@ function walkStep(dt) {
     if (scene === 'mine') { mineStep(); if (!hero.path.length) mineArrive(); }
     else if (scene === 'forest') { forestStep(); if (scene === 'forest' && !hero.path.length) forestArrive(); }
     else if (!hero.path.length && hero.target) { const o = hero.target; hero.target = null; arrive(o); }
+    else if (!hero.path.length && hero.fishAt) { hero.fishAt = null; startFish(); }
   }
   else { hero.x += dx / d * st; hero.y += dy / d * st; }
 }
@@ -1372,7 +1384,7 @@ function tap(px, py) {
     const ty = s - tx; if (ty < vr.y0 || ty > vr.y1) continue;
     const z = hgt(tx, ty);
     if (inPoly(x, y, [iso(tx, ty, z), iso(tx + 1, ty, z), iso(tx + 1, ty + 1, z), iso(tx, ty + 1, z)])) {
-      if (blocked(tx, ty)) { mark(tx, ty, '235,95,80'); return; }
+      if (blocked(tx, ty)) { if (isWater(tx, ty) && S.rod) { goFish(tx, ty); return; } mark(tx, ty, '235,95,80'); return; }
       mark(tx, ty, '255,255,255');
       const path = bfs(Math.round(hero.x), Math.round(hero.y), (a, b) => a === tx && b === ty);
       if (path) { hero.path = path; hero.target = null; selected = null; follow = true; showHome(); }
@@ -2237,6 +2249,7 @@ function showMenu() {
 const RESTORE = {
   forest: { gold: 100, who: '촌장', line: '숲길이 열렸네요. 숲에선 약초랑 나뭇가지 같은 걸 주울 수 있어요. 그리고 이 추를 가져가요. 끼고 광산에 들어가면 귀한 광맥 가까이에서 크게 흔들려요.', then: () => gainAcc('dowse') },
   smithy: { gold: 500, who: '대장장이', line: '대장간을 고쳐 줘서 고마워요. 광석을 용광로에 넣고 자면 아침엔 주괴가 돼 있을 거예요. 주괴를 모아 오면 곡괭이도 새로 두드려 줄게요.' },
+  bridge: { gold: 300, need: { wood: 20, ironBar: 2 }, who: '촌장', line: '다리가 이어졌네요. 이 낚싯대도 가져가요. 강에선 아침이랑 저녁에 잘 잡히고, 새벽엔 그때만 나오는 물고기가 있대요.', then: () => { S.rod = 1; } },
   market: { gold: 800, need: { wood: 10 }, who: '시장 상인', line: '시장이 다시 열렸어요. 값은 날마다 바뀌어요. 많이 팔면 값이 떨어지니 나눠서 파는 게 좋아요. 내일 무엇이 오를지도 알려 줄게요.', then: () => rollMarket(true) },
 };
 const canRestore = id => { const i = QUESTS.findIndex(q => q.id === id); return i >= 0 && S.quest >= i; };
@@ -2329,6 +2342,52 @@ function finishForge(q) {
   SFX.stairs(); questEvent('pick'); save(); renderHud();
   openSheet('대장장이', `<p>${next.name} 완성이에요. ${['쓸 만하게 나왔네요.', '솜씨가 좋은데요.', '이건 정말 잘 나왔어요.'][q]}</p><div class="feat"><span>${ico('ic_pick')}${next.name} ${QUAL[q]}</span></div>`);
 }
+/* ===== 낚시 (기획 4번 4단계): 다리를 고치면 낚싯대. 강을 누르면 물가로 걸어가서 찌를 던지고, 찌가 잠길 때 당김 =====
+   아침과 저녁에 빨리 물고 종류가 많음. 새벽엔 달빛 잉어. 던질 때 기력 2 */
+const FISH = [
+  [['carp', .5], ['trout', .35], ['catfish', .15]],
+  [['carp', .6], ['trout', .3], ['catfish', .1]],
+  [['trout', .35], ['catfish', .3], ['eel', .3], ['carp', .05]],
+  [['moonkoi', .25], ['eel', .35], ['catfish', .4]],
+];
+let fishing = null;
+function goFish(tx, ty) {
+  mark(tx, ty, '159,211,255');
+  const near = (a, b) => D4.some(([dx, dy]) => a + dx === tx && b + dy === ty);
+  const path = bfs(Math.round(hero.x), Math.round(hero.y), near);
+  if (!path) return;
+  hero.target = null; selected = null; follow = true; showHome();
+  if (!path.length) { startFish(); return; }
+  hero.path = path; hero.fishAt = [tx, ty];
+}
+function startFish() {
+  if (!spend(2)) return;
+  renderHud();
+  const ph = phaseIndex(), wait = (ph === 0 || ph === 2 ? 1 : 1.8) + Math.random() * 2;
+  fishing = { t0: performance.now(), bite: wait * 1000, win: 750, done: false };
+  openSheet(ico('ic_rod') + '낚시', '<div class="fishing"><div class="say" id="fsay">…</div><div class="bob" id="fbob"></div></div>', `<button class="btn primary big" data-a="pull">${ico('ic_fish')}</button>`);
+  requestAnimationFrame(fishTick);
+}
+const fishState = () => { if (!fishing || fishing.done) return 'none'; const t = performance.now() - fishing.t0; return t < fishing.bite ? 'wait' : t < fishing.bite + fishing.win ? 'bite' : 'gone'; };
+function fishTick() {
+  if (!fishing || fishing.done) return;
+  const st = fishState(), say = document.getElementById('fsay'), bob = document.getElementById('fbob'); if (!say) { fishing = null; return; }
+  bob.classList.toggle('bite', st === 'bite'); say.textContent = st === 'bite' ? '!' : st === 'gone' ? '놓침' : '…';
+  if (st === 'gone') { fishing.done = true; document.querySelector('#sheet .btns').innerHTML = '<button class="btn primary" data-a="cast">다시</button>'; return; }
+  requestAnimationFrame(fishTick);
+}
+function pull() {
+  if (!fishing || fishing.done) return;
+  const st = fishState(); fishing.done = true;
+  const btns = document.querySelector('#sheet .btns'), say = document.getElementById('fsay');
+  if (st !== 'bite') { if (say) say.textContent = '놓침'; SFX.deny(); }
+  else {
+    const f = pickFrom(FISH[phaseIndex()]); addItem(f, 1); S.fishN = (S.fishN || 0) + 1;
+    if (say) say.innerHTML = `<span class="ore ${f}"></span> ${ORES[f].name}`;
+    SFX.ore(2); buzz(20); questEvent('fish'); save();
+  }
+  if (btns) btns.innerHTML = '<button class="btn primary" data-a="cast">다시</button>';
+}
 /* ===== 시장 (기획 5번): 매일 바뀌는 시세. 많이 팔면 값이 떨어졌다가 며칠에 걸쳐 회복. 내일 오를 것 하나를 미리 알려 줌 ===== */
 const TRADE = ORE_ORDER;
 const clampM = v => Math.max(.5, Math.min(1.8, v));
@@ -2373,6 +2432,8 @@ document.addEventListener('click', e => {
   else if (a === 'restore') restoreObj(b.dataset.o);
   else if (a === 'market') showMarket();
   else if (a === 'home') upgradeHome();
+  else if (a === 'pull') pull();
+  else if (a === 'cast') startFish();
   else if (a === 'trade') trade(b.dataset.o);
   else if (a === 'smelt') smelt(b.dataset.o);
   else if (a === 'forge') startHammer();
@@ -2528,7 +2589,10 @@ window.MinerDiary = {
   cell: (x, y) => ({ t: mT(x, y), seen: seenGet(x, y), ore: mO(x, y) }),
   setCell: (x, y, t, ore) => { S.deep.dug[dKey(S.deep.L, x, y)] = t; if (ore !== undefined) { S.deep.ore = S.deep.ore || {}; S.deep.ore[dKey(S.deep.L, x, y)] = ore; } seenSet(x, y); },
   // 광부 둘레에서 본 적 있는, 바닥에 닿은 캘 수 있는 바위
-  nearRock: () => { const hx = Math.round(hero.x), hy = Math.round(hero.y); let best = null, bd = 1e9; for (let y = hy - 8; y <= hy + 8; y++) for (let x = hx - 8; x <= hx + 8; x++) { if (!seenGet(x, y) || mT(x, y) !== 'r' || Math.hypot(x - hero.x, y - hero.y) > lightR()) continue; if (!D4.some(([dx, dy]) => seenGet(x + dx, y + dy) && FLOORISH(mT(x + dx, y + dy)))) continue; const d = Math.abs(x - hx) + Math.abs(y - hy); if (d < bd) { bd = d; best = [x, y]; } } return best; },
+  nearRock: () => { const hx = Math.round(hero.x), hy = Math.round(hero.y); let best = null, bd = 1e9; for (let y = hy - 8; y <= hy + 8; y++) for (let x = hx - 8; x <= hx + 8; x++) { if (!seenGet(x, y) || mT(x, y) !== 'r' || Math.hypot(x - hero.x, y - hero.y) > lightR()) continue; if (!D4.some(([dx, dy]) => seenGet(x + dx, y + dy) && FLOORISH(mT(x + dx, y + dy)))) continue; const d = Math.abs(x - hx) + Math.abs(y - hy); if (d < bd) { bd = d; best = [x, y]; } }
+    // 둘레에 바위가 없으면(넓은 방) 옆 바닥 칸 하나를 바위로 만들어 돌려줌 (시험용)
+    if (!best) for (const [dx, dy] of D4) { const x = hx + dx * 2, y = hy + dy * 2; if (mT(x, y) === 'f' && mT(hx + dx, hy + dy) === 'f') { S.deep.dug[dKey(S.deep.L, x, y)] = 'r'; seenSet(x, y); best = [x, y]; break; } }
+    return best; },
   nearestHole: () => nearestHole(), ups: () => upsHere(),
   // 숲 칸을 화면 가운데로 옮기고 그 위치를 돌려줌
   forestSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, 0); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
@@ -2540,6 +2604,9 @@ window.MinerDiary = {
     return { x: W / 2, y: H / 2 };
   },
   speed: k => { hero.speed = 5.2 * k; },
+  fishState: () => fishState(),
+  // 마을 칸을 화면 가운데로 옮기고 그 위치를 돌려줌
+  tileSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, isWater(x, y) ? -.12 : hgt(x, y)); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
 };
 // 둥근 글꼴을 다 읽은 뒤에 염 (그동안 로딩 화면). 못 읽으면 기본 글꼴로 시작
 Promise.race([document.fonts.load(`16px ${FONT}`, '광부일기 0'), new Promise(r => setTimeout(r, 4000))]).catch(() => {}).then(startGame);

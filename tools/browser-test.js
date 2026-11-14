@@ -316,6 +316,30 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="home"]');
   s = await st();
   ok(s.home === 1 && s.max === mx0 + 20 && (await page.textContent('#sheet h2')).includes('고친 집'), `집을 고치면 최대 기력 ${s.max}`);
+  // 13-0c. 강가 다리 고치기, 낚싯대, 낚시 세 번 (찌가 잠길 때 당김)
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => { S.inv.wood = 20; S.inv.ironBar = 2; S.gold += 300; renderHud(); });
+  await visit('bridge', '#sheet [data-a="restore"][data-o="bridge"]');
+  await page.click('#sheet [data-a="restore"][data-o="bridge"]');
+  s = await st();
+  ok(s.restored.includes('bridge') && s.rod && (await quest()).includes('물고기'), '다리를 고치면 낚싯대를 받고 퀘스트 「물고기 낚기」');
+  await page.click('#sheet [data-a="close"]');
+  ok(await page.evaluate(() => !blocked(16, riverY(16))), '고친 다리는 건널 수 있음');
+  const wx = 13, wy = await page.evaluate(() => riverY(13));
+  const wp = await page.evaluate(([x, y]) => window.MinerDiary.tileSpot(x, y), [wx, wy]);
+  await page.mouse.click(wp.x, wp.y);
+  await page.waitForSelector('#sheet [data-a="pull"]', { timeout: 15000 });
+  if (shot) await page.screenshot({ path: path.join(shot, 'fishing.png') });
+  const eFi = (await st()).energy;
+  for (let k = 0; k < 3; k++) {
+    if (k) await page.click('#sheet [data-a="cast"]');
+    await page.waitForFunction(() => window.MinerDiary.fishState() === 'bite', null, { timeout: 8000, polling: 20 });
+    await page.evaluate(() => document.querySelector('#sheet [data-a="pull"]').click());
+  }
+  s = await st();
+  ok(s.fishN === 3 && Object.keys(s.inv).some(k => ['carp', 'trout', 'catfish', 'eel', 'moonkoi'].includes(k) && s.inv[k] > 0) && s.energy === eFi - 4, '강을 누르면 물가로 걸어가 낚시, 찌가 잠길 때 당기면 물고기 (던질 때 기력 2)');
+  ok((await quest()).includes('깊이 7'), '물고기 셋을 낚으면 퀘스트 끝');
+  await page.click('#sheet [data-a="close"]');
   await visit('market', '#sheet [data-a="close"]');
   ok(await page.evaluate(() => { const next = { ...S.market.next }; rollMarket(false); return Object.keys(next).every(o => Math.abs(S.market.mult[o] - next[o]) < 1e-9) && S.market.sold.iron === 10; }), '다음 날 시세는 전날 예고대로, 판 만큼 떨어진 값은 절반 회복');
   await page.click('#sheet [data-a="close"]');
