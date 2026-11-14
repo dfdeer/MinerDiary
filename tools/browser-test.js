@@ -138,6 +138,7 @@ const shot = process.argv[2];
     await tap(r[0], r[1]);
     s = await st();
     ok(s.mine.t[r[1] * s.mine.w + r[0]] === 'f' && s.energy === eK - 2 && s.inv.copper === cu + 1, `광석 바위를 캐면 구리 1개, 기력 2 (${k + 1})`);
+    if (k === 0) ok((await page.evaluate(() => window.MinerDiary.efloats())).includes('-2'), '기력이 줄면 노란 숫자 -2가 떠오름');
     cu++;
   }
   // 7-1. 반짝임: 벽 너머 못 본 칸에 광석이 있으면 그 벽이 반짝임
