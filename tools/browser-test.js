@@ -276,6 +276,17 @@ const shot = process.argv[2];
   await tap(hm[0] + 1, hm[1]);
   ok(((await st()).carry.iron || 0) - ir0 >= 2, '풍요의 고리를 끼면 광석을 캘 때마다 하나 더');
   await page.evaluate(() => { S.acc.have.plenty = 0; S.acc.eq = ['dowse']; });
+  // 능력치 창: 가방에서 열고, 장신구 효과는 숫자로
+  await page.evaluate(() => { S.acc.have.clover = 1; S.acc.eq = ['clover']; showBag(); });
+  ok((await page.textContent('#sheet')).includes('광석 2배 확률 +10%'), '가방에서 장신구 효과가 숫자로 보임 (광석 2배 확률 +10%)');
+  await page.click('#sheet [data-a="stats"]');
+  await page.waitForSelector('#sheet h2:has-text("능력치")');
+  const stTxt = await page.textContent('#sheet');
+  ok(stTxt.includes('광석 2배 확률') && stTxt.includes('10%') && stTxt.includes('캐기 기력') && stTxt.includes('가방'), '능력치 창에 2배 확률, 캐기 기력, 가방 칸 등이 숫자로');
+  await page.click('#sheet [data-a="bag"]');
+  await page.waitForSelector('#sheet [data-a="stats"]');
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => { S.acc.have.clover = 0; S.acc.eq = ['dowse']; });
   const gC = (await st()).gold, nC = await page.evaluate(() => window.MinerDiary.carryN());
   await tap(hm[0], hm[1] - 2);
   s = await st();
