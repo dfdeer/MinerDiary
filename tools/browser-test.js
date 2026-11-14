@@ -33,7 +33,7 @@ const shot = process.argv[2];
 
   /* ===== 폰 크기 ===== */
   const page = await open(390, 844);
-  const { st, tap, visit, nearRock } = helpers(page);
+  const { st, tap, visit } = helpers(page);
   await page.evaluate(() => window.MinerDiary.speed(10));
 
   ok(await page.locator('#loading').isHidden() && await page.evaluate(() => document.fonts.check('16px Jua', '광부')), '둥근 글꼴을 읽은 뒤 로딩 화면이 사라짐');
@@ -87,91 +87,84 @@ const shot = process.argv[2];
   ok(h0[0] === h1[0] && h0[1] === h1[1] && h0[2] === h1[2] && h1[3] === 0 && await page.locator('#sheet').isVisible(), '대화창이 열린 동안엔 걷기와 끌기가 막힘');
 
   let s0;
-  // 4. 광산 입장
+  const cell = (x, y) => page.evaluate(([x, y]) => window.MinerDiary.cell(x, y), [x, y]);
+  const deep = async () => (await st()).deep;
+  // 기력이 캐기 비용과 걸음(8칸마다 1)만큼 줄었는지
+  const spent = (a, b) => (a.energy - b.energy) - (Math.floor(b.deep.steps / 8) - Math.floor(a.deep.steps / 8));
+  // 4. 광산(땅속) 입장
   await visit('mine', '#sheet [data-a="enter"]');
-  await page.click('#sheet [data-a="enter"][data-n="1"]');
+  await page.click('#sheet [data-a="enter"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
   await page.waitForTimeout(300);
-  ok((await st()).screen === 'mine', '광산 1층 입장');
+  ok((await st()).screen === 'mine', '광산 입장 (깊이 1, 입구)');
   ok((await quest()).includes('광석 캐기'), '광산에 들어가면 퀘스트 「광석 캐기」');
-  s0 = await st();
-  ok(s0.mine.hid.every((h, i) => !h || !s0.mine.seen[i]), '숨은 방은 처음엔 안 보임');
-  ok(s0.mine.seen.filter(Boolean).length < s0.mine.t.length / 3, '등불이 닿는 곳만 보임');
-  const e0 = s0.energy, edge = s0.mine.t.findIndex((t, i) => t === 'e' && s0.mine.seen[i]);
-  await tap(edge % s0.mine.w, Math.floor(edge / s0.mine.w));
-  ok((await st()).energy === e0, '끝 벽은 못 캐고 기력 그대로');
+  ok((await cell(0, 0)).t === 'u' && (await cell(0, 0)).seen && !(await cell(30, 30)).seen, '등불이 닿는 곳만 보임');
+  ok(Object.keys((await deep()).seen).length >= 1, '본 곳이 저장됨');
 
-  // 5. 계단으로 5층까지. 1층은 본 계단을 아래 막대 단추로, 2~4층은 못 본 계단 쪽을 눌러 걸어가서 (막히면 길을 다시 짬)
-  ok(!(await page.isEnabled('[data-a="descend"]')) || (await st()).mine.seen[(await st()).mine.t.indexOf('d')], '계단을 보기 전엔 아래층 단추가 꺼져 있음');
-  await page.evaluate(() => { const m = window.MinerDiary.state().mine; m.seen[m.t.indexOf('d')] = 1; renderDock(); });
-  if (shot) await page.screenshot({ path: path.join(shot, 'mine.png') });
-  ok(await page.isEnabled('[data-a="descend"]'), '계단을 보면 아래층 단추가 켜짐');
-  await page.click('[data-a="descend"]');
-  await page.waitForFunction(() => window.MinerDiary.state().mine.floor === 2, null, { timeout: 15000 });
-  ok(true, '단추를 누르면 계단까지 걸어가서 2층으로');
-  for (let f = 2; f < 5; f++) {
-    for (let k = 0; k < 30 && (await st()).mine.floor === f; k++) { const m = (await st()).mine, si = m.t.indexOf('d'); await tap(si % m.w, Math.floor(si / m.w)); }
-    ok((await st()).mine.floor === f + 1, `${f}층 못 본 계단을 눌러 걸어가서 ${f + 1}층으로`);
-  }
+  // 5. 끝없는 굴: 처음 구멍까지 걸어가서 깊이 2로, 깊이 2에서 다음 구멍으로 깊이 3
+  for (let k = 0; k < 20 && (await deep()).L === 1; k++) { const h = await page.evaluate(() => window.MinerDiary.nearestHole()); await tap(h[0], h[1]); }
   let s = await st();
-  ok(s.deepest === 5, '가장 깊은 층 5층 기록');
-  ok(!s.mine.t.includes('d'), '5층엔 계단 없음');
-
-  // 6. 숨은 방: 돌무더기를 치우면 열림 (기력 1)
-  await page.evaluate(() => { for (let k = 0; k < 30; k++) { window.MinerDiary.newFloor(2); if (window.MinerDiary.state().mine.t.includes('b')) break; } });
+  ok(s.deep.L === 2 && s.deepest === 2, '구멍을 찾아 걸어가면 깊이 2로 내려감');
+  ok((await page.evaluate(() => window.MinerDiary.ups())).length === 1 && (await cell(s.deep.x, s.deep.y - 1)).t === 'u', '내려온 자리에 위로 가는 사다리');
+  if (shot) await page.screenshot({ path: path.join(shot, 'mine.png') });
+  await page.evaluate(() => { const h = hero; window.MinerDiary.setCell(Math.round(h.x) + 1, Math.round(h.y), 'd'); });
+  await page.evaluate(() => mineTapCell(Math.round(hero.x) + 1, Math.round(hero.y)));
+  await page.waitForFunction(() => window.MinerDiary.state().deep.L === 3, null, { timeout: 15000 });
   s = await st();
-  const rb = s.mine.t.indexOf('b');
-  ok(rb >= 0, '숨은 방을 막은 돌무더기가 있음');
-  await page.evaluate(i => { window.MinerDiary.state().mine.seen[i] = 1; }, rb);
-  const eR = s.energy, hid0 = s.mine.hid.filter(Boolean).length;
-  await tap(rb % s.mine.w, Math.floor(rb / s.mine.w));
-  s = await st();
-  ok(s.mine.t[rb] === 'f' && s.energy === eR - 1, '돌무더기를 치우면 기력 1');
-  ok(s.mine.hid.filter(Boolean).length === hid0 - 9, '돌무더기 뒤 숨은 방(3×3)이 열림');
+  ok(s.deep.L === 3 && s.deepest === 3, '깊이 3 도달');
 
-  // 7. 광석 캐기: 벽에 박힌 광석을 누르면 걸어가서 캠 (기력 2, 광석 1)
-  let cu = (await st()).inv.copper || 0;
+  // 6. 광석 캐기: 벽에 박힌 광석을 누르면 걸어가서 캐고 가방에 담김 (기력 2, 걸음 기력 따로)
   for (let k = 0; k < 5; k++) {
-    const r = await nearRock(false);
-    await page.evaluate(([x, y]) => { const m = window.MinerDiary.state().mine; m.o[y * m.w + x] = 'copper'; m.t[y * m.w + x] = 'r'; }, r);
-    const eK = (await st()).energy;
+    const r = await page.evaluate(() => window.MinerDiary.nearRock());
+    await page.evaluate(([x, y]) => window.MinerDiary.setCell(x, y, 'r', 'copper'), r);
+    const a = await st();
     await tap(r[0], r[1]);
-    s = await st();
-    ok(s.mine.t[r[1] * s.mine.w + r[0]] === 'f' && s.energy === eK - 2 && s.inv.copper === cu + 1, `광석 바위를 캐면 구리 1개, 기력 2 (${k + 1})`);
+    const b = await st();
+    ok((await cell(r[0], r[1])).t === 'f' && spent(a, b) === 2 && (b.carry.copper || 0) === (a.carry.copper || 0) + 1, `광석 바위를 캐면 가방에 구리 1개, 기력 2 (${k + 1})`);
     if (k === 0) ok((await page.evaluate(() => window.MinerDiary.efloats())).includes('-2'), '기력이 줄면 노란 숫자 -2가 떠오름');
-    cu++;
   }
-  // 7-1. 반짝임: 벽 너머 못 본 칸에 광석이 있으면 그 벽이 반짝임
+  // 6-1. 반짝임: 벽 너머 못 본 칸에 광석이 있을 때만
   ok(await page.evaluate(() => {
-    const MD = window.MinerDiary, m = MD.state().mine;
-    for (let i = 0; i < m.t.length; i++) {
-      if (!m.seen[i] || m.t[i] !== 'r') continue;
-      const x = i % m.w, y = Math.floor(i / m.w);
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const j = (y + dy) * m.w + x + dx; if (x + dx > 0 && y + dy > 0 && x + dx < m.w - 1 && y + dy < m.h - 1 && !m.seen[j] && m.t[j] === 'r') { const o0 = m.o[j]; m.o[j] = ''; const before = MD.glintDir(x, y).some(g => g[0] === dx && g[1] === dy); m.o[j] = 'iron'; const after = MD.glintDir(x, y).some(g => g[0] === dx && g[1] === dy && g[2] === 'iron'); m.o[j] = o0; return !before && after; } }
+    const MD = window.MinerDiary, hx = Math.round(hero.x), hy = Math.round(hero.y);
+    for (let y = hy - 6; y <= hy + 6; y++) for (let x = hx - 6; x <= hx + 6; x++) {
+      const c0 = MD.cell(x, y); if (!c0.seen || c0.t !== 'r') continue;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const c1 = MD.cell(x + dx, y + dy); if (c1.seen || c1.t !== 'r') continue;
+        const k = dKey(S.deep.L, x + dx, y + dy); S.deep.ore = S.deep.ore || {};
+        S.deep.ore[k] = ''; const before = MD.glintDir(x, y).some(g => g[0] === dx && g[1] === dy);
+        S.deep.ore[k] = 'iron'; const after = MD.glintDir(x, y).some(g => g[0] === dx && g[1] === dy && g[2] === 'iron');
+        delete S.deep.ore[k]; return !before && after;
+      }
     }
     return false;
   }), '못 본 벽 너머 광석이 있을 때만 반짝임');
+  // 6-2. 가방이 가득이면 광석을 못 캠
+  {
+    const r = await page.evaluate(() => window.MinerDiary.nearRock());
+    await page.evaluate(([x, y]) => { window.MinerDiary.setCell(x, y, 'r', 'iron'); S.carry.coal = 99; }, r);
+    await tap(r[0], r[1]);
+    ok((await cell(r[0], r[1])).t === 'r', '가방이 가득이면 광석을 캐지 않음');
+    await page.evaluate(() => { delete S.carry.coal; renderDock(); });
+  }
 
-  // 8. 시간대
+  // 7. 시간대
   s = await st();
   const used = (s.dayStart - s.minE) / s.max * 100;
   ok(await page.evaluate(() => window.MinerDiary.phaseIndex()) === (used >= 90 ? 3 : used >= 60 ? 2 : used >= 30 ? 1 : 0), `시간대가 쓴 기력 ${used}%와 맞음`);
 
-  // 9. 마을로 나와서 팔기
-  const keepT = (await st()).mine.t.join('');
+  // 8. 나가기: 위로 가는 사다리까지 걸어가 올라가고, 깊이 1의 입구까지 이어서 마을로
+  const dug0 = Object.keys((await deep()).dug).length;
   await page.click('[data-a="leave"]');
   ok(await page.evaluate(() => window.MinerDiary.hero().moving), '나가기를 누르면 사다리까지 걸어감');
-  await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 15000 });
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 30000 });
   await page.waitForTimeout(1000);
-  ok((await st()).screen === 'village', '사다리에서 마을로 돌아옴');
-  await page.evaluate(() => enterMine(2)); await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
-  ok((await st()).mine.t.join('') === keepT, '같은 날 다시 들어가면 판 곳이 그대로');
-  await page.evaluate(() => leaveMine()); await page.waitForTimeout(1000);
   s = await st();
-  const value = { copper: 10, iron: 25, crystal: 60, moon: 150 };
-  const worth = Object.entries(s.inv).reduce((a, [o, n]) => a + n * value[o], 0), g0 = s.gold;
+  ok(s.screen === 'village' && s.inv.copper === 5 && !Object.keys(s.carry).length, '깊이 3에서 걸어서 마을까지, 가방 것은 창고로');
+  ok(Object.keys(s.deep.dug).length >= dug0, '판 곳은 사라지지 않음');
+
+  // 9. 팔기
+  const worth = await page.evaluate(() => ORE_ORDER.reduce((a, o) => a + (S.inv[o] || 0) * ORES[o].price, 0)), g0 = s.gold;
   ok(s.quest === 3 && g0 === 20, '광석 5개를 캐면 보상 🪙20과 함께 「상인에게 광석 팔기」로');
-  ok(worth > 0, `가방에 광석 있음 (🪙${worth}어치)`);
   await visit('merchant', '#sheet [data-a="sellAll"]');
   if (shot) await page.screenshot({ path: path.join(shot, 'merchant.png') });
   await page.click('#sheet [data-a="sellAll"]');
@@ -185,7 +178,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="sleep"]');
   s = await st();
   ok(s.day === day + 1 && s.energy === (late ? 90 : 100) && s.minE === s.energy, `자고 나서 ${s.day}일차 기력 ${s.energy}`);
-  ok(s.quest === 6 && (await quest()).includes('숲길 치우기'), '자고 나면 이미 간 3층은 바로 끝나고 「숲길 치우기」');
+  ok(s.quest === 6 && (await quest()).includes('숲길 치우기'), '자고 나면 이미 간 깊이 3은 바로 끝나고 「숲길 치우기」');
 
   // 10-1. 숲길 치우기 (🪙100), 광맥 추 받기
   if (s.gold < 100) await page.evaluate(() => { window.MinerDiary.state().gold = 100; renderHud(); });
@@ -193,43 +186,39 @@ const shot = process.argv[2];
   const gF = (await st()).gold;
   await page.click('#sheet [data-a="clearForest"]');
   s = await st();
-  ok(s.gold === gF - 100 && s.restored.includes('forest') && s.pendulum, '숲길을 치우면 🪙100이 들고 광맥 추를 받음');
-  ok(s.quest === 7 && (await quest()).includes('동굴 찾기'), '다음 퀘스트 「숲에서 동굴 찾기」');
-  ok((await page.textContent('#sheet h2')).includes('촌장'), '촌장이 추를 건넴');
+  ok(s.gold === gF - 100 && s.restored.includes('forest') && s.acc.have.dowse === 1 && s.acc.eq.includes('dowse'), '숲길을 치우면 🪙100이 들고 광맥 추를 받아 낌');
+  ok(s.quest === 7 && (await quest()).includes('채집'), '다음 퀘스트 「숲에서 채집」');
 
-  // 10-2. 숲 탐험: 안개, 광맥 추, 못 본 동굴 쪽으로 걸어가 들어감
+  // 10-2. 숲 채집: 안개 속에서 주울 것을 찾아 밟으면 가방에
   await visit('forest', '#sheet [data-a="forest"]');
   await page.click('#sheet [data-a="forest"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'forest', null, { timeout: 5000 });
   s = await st();
-  ok(s.forest.seen.filter(Boolean).length < s.forest.t.length / 10, '숲은 안개에 덮여 있고 걸어간 곳만 보임');
-  ok(s.forest.caves.length === 3 && s.forest.caves.every(c => !s.forest.seen[c.y * 36 + c.x]), '동굴 셋은 처음엔 안 보임');
+  ok(s.forest.seen.filter(Boolean).length < s.forest.t.length / 10 && Object.keys(s.forest.it).length > 20, '숲은 안개에 덮여 있고 주울 것이 흩어져 있음');
   if (shot) await page.screenshot({ path: path.join(shot, 'forest.png') });
-  const near0 = await page.evaluate(() => window.MinerDiary.caveNear()), eF = s.energy;
-  const target = s.forest.caves.slice().sort((a, b) => Math.hypot(a.x - s.forest.hx, a.y - s.forest.hy) - Math.hypot(b.x - s.forest.hx, b.y - s.forest.hy))[0];
-  let nearMin = near0;
-  for (let k = 0; k < 20 && await page.evaluate(() => window.MinerDiary.scene()) === 'forest'; k++) {
-    const p = await page.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), [target.x, target.y]);
+  const eF = s.energy;
+  for (let k = 0; k < 20 && (await st()).gatherN < 5; k++) {
+    const it = await page.evaluate(() => { const f = S.forest; return Object.keys(f.it).filter(k2 => f.it[k2] !== 'chest').map(k2 => k2.split(',').map(Number)).sort((a, b) => Math.hypot(a[0] - hero.x, a[1] - hero.y) - Math.hypot(b[0] - hero.x, b[1] - hero.y))[0]; });
+    const p = await page.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), it);
     await page.mouse.click(p.x, p.y); await page.waitForTimeout(60);
     await page.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 15000 });
   }
   s = await st();
-  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'mine' && s.mine.cave !== undefined, '못 본 동굴 쪽을 눌러 걸어가서 동굴에 들어감');
-  ok(s.forest.caves.filter(c => c.found).length === 1 && s.quest === 8, '동굴을 찾으면 퀘스트 끝');
-  ok(s.energy < eF && s.energy === eF - Math.floor(s.forest.steps / 5), `숲에서는 5칸마다 기력 1 (걸음 ${s.forest.steps})`);
-  ok(near0 > 3, '광맥 추: 처음엔 동굴이 멀리 있음');
-  if (shot) await page.screenshot({ path: path.join(shot, 'cave.png') });
-
-  // 10-3. 동굴에서 캐고 숲으로, 숲에서 마을로
-  const rC = await nearRock(false);
-  await page.evaluate(([x, y]) => { const m = window.MinerDiary.state().mine; m.o[y * m.w + x] = 'iron'; m.t[y * m.w + x] = 'r'; }, rC);
-  const ir = (await st()).inv.iron || 0;
-  await tap(rC[0], rC[1]);
-  ok((await st()).inv.iron === ir + 1, '동굴에서도 벽 광석을 캠');
-  await page.click('[data-a="leave"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'forest', null, { timeout: 15000 });
-  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'forest' && (await page.textContent('#minebar')).includes('1/3'), '동굴을 나오면 숲, 찾은 동굴 1/3');
+  ok(s.gatherN >= 5 && s.quest === 8 && Object.keys(s.carry).length > 0, '숲에서 다섯 번 주우면 퀘스트 끝, 주운 것은 가방에');
+  ok(s.energy === eF - Math.floor(s.forest.steps / 5), `숲에서는 5칸마다 기력 1 (걸음 ${s.forest.steps})`);
   await page.click('[data-a="leave"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 });
-  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'village', '숲에서 마을 길까지 걸어가서 마을로');
+  s = await st();
+  ok(!Object.keys(s.carry).length && ['herb', 'mush', 'wood', 'fiber', 'leather', 'copper'].some(k => s.inv[k] > 0), '숲에서 마을 길까지 걸어가서 마을로, 주운 것은 창고로');
+
+  // 10-3. 상인에게서 나침반과 귀환서 사기
+  await page.evaluate(() => { S.gold = Math.max(S.gold, 300); renderHud(); });
+  await visit('merchant', '#sheet [data-a="buy"]');
+  const gB = (await st()).gold;
+  await page.click('#sheet [data-a="buy"][data-n="3"]');
+  await page.click('#sheet [data-a="buy"][data-n="0"]');
+  s = await st();
+  ok(s.acc.have.compass === 1 && s.items.recall === 1 && s.gold === gB - 230, '나침반 🪙150과 귀환서 🪙80을 삼');
+  await page.click('#sheet [data-a="close"]');
 
   // 10-4. 대장간: 무너진 팻말, 🪙500으로 복구, 용광로에 광석 넣기
   await visit('smithy', '#sheet h2:has-text("부서진 대장간")');
@@ -251,15 +240,16 @@ const shot = process.argv[2];
 
   // 11. 쓰러짐
   await visit('mine', '#sheet [data-a="enter"]');
-  await page.click('#sheet [data-a="enter"][data-n="1"]');
+  await page.click('#sheet [data-a="enter"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
   const dayBefore = (await st()).day;
   let guarded = false;
   for (let k = 0; k < 200; k++) {
     s = await st();
     if (s.day !== dayBefore) break;
-    const r = await nearRock(false);
+    const r = await page.evaluate(() => window.MinerDiary.nearRock());
     if (!r) break;
+    await page.evaluate(([x, y]) => window.MinerDiary.setCell(x, y, 'r', ''), r);
     await tap(r[0], r[1]);
     if (await page.locator('#sheet [data-a="digForce"]').count()) { guarded = true; await page.click('#sheet [data-a="digForce"]'); }
   }
@@ -293,29 +283,52 @@ const shot = process.argv[2];
   s = await st();
   ok(s.pick === 1 && s.inv.copperBar === 0 && s.gold === gP - 200 + 50, '구리 주괴 5개와 🪙200으로 구리 곡괭이 (퀘스트 보상 🪙50)');
   ok(s.pickQ >= 1, `가운데를 맞춰 두드리면 품질이 오름 (${['보통', '좋음', '최상'][s.pickQ]})`);
-  ok(await page.evaluate(() => window.MinerDiary.maxFloor()) === 7 && (await quest()).includes('7층'), '구리 곡괭이로 광산 7층까지, 다음 퀘스트 「광산 7층 도착」');
+  ok(await page.evaluate(() => window.MinerDiary.maxFloor()) === 7 && (await quest()).includes('깊이 7'), '구리 곡괭이로 깊이 7까지, 다음 퀘스트 「깊이 7 도달」');
   await page.evaluate(() => { const s = window.MinerDiary.state(); s.inv.ironBar = 5; s.gold += 600; renderHud(); });
   await forge();
   s = await st();
-  ok(s.pick === 2 && s.inv.ironBar === 0 && await page.evaluate(() => window.MinerDiary.maxFloor()) === 10, '철 곡괭이로 단단한 바위와 광산 10층까지');
+  ok(s.pick === 2 && s.inv.ironBar === 0 && await page.evaluate(() => window.MinerDiary.maxFloor()) === 10, '철 곡괭이로 단단한 바위와 깊이 10까지');
   await visit('smithy', '#sheet [data-a="close"]');
 
-  // 13-1. 단단한 바위를 깨고, 5층에서 6층으로
+  // 13-1. 장신구: 만들기, 합치기, 끼기
+  await page.evaluate(() => { S.inv.fiber = 6; S.inv.wood = 4; S.acc.have.plumb = 1; S.gold += 200; renderHud(); });
+  await visit('smithy', '#sheet [data-a="craft"][data-o="tent"]');
+  await page.click('#sheet [data-a="craft"][data-o="tent"]');
+  ok((await st()).items.tent === 1, '대장간에서 풀실과 나뭇가지로 야영 천막을 만듦');
+  await page.click('#sheet [data-a="combine"][data-n="0"]');
+  s = await st();
+  ok(s.acc.have.guide === 1 && !s.acc.have.compass && !s.acc.have.plumb, '나침반과 깊이 추를 합치면 길잡이 나침반');
   await page.click('#sheet [data-a="close"]');
-  await page.evaluate(() => window.MinerDiary.newFloor(5)); await page.waitForTimeout(200);
-  s = await st();
-  ok(s.mine.t.includes('d'), '곡괭이를 강화하면 5층에도 계단');
-  const hr = await nearRock(false);
-  await page.evaluate(([x, y]) => { const m = window.MinerDiary.state().mine; m.t[y * m.w + x] = 'h'; m.o[y * m.w + x] = ''; }, hr);
-  const eH = (await st()).energy;
+  await page.evaluate(() => showBag());
+  if ((await st()).acc.eq.length >= (await st()).acc.slots) await page.click('#sheet [data-a="unequip"]');
+  await page.click('#sheet [data-a="equip"][data-o="guide"]');
+  ok(await page.evaluate(() => window.MinerDiary.accEff('home') === 1 && window.MinerDiary.accEff('hole') === 1), '길잡이 나침반을 끼면 입구와 구멍 화살표가 켜짐');
+  await page.click('#sheet [data-a="close"]');
+
+  // 13-2. 단단한 바위와 야영지: 천막을 치고 자면 다음 날 그 자리에서 이어 감, 귀환서로 마을
+  await page.evaluate(() => enterMine()); await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
+  const hr = await page.evaluate(() => window.MinerDiary.nearRock());
+  await page.evaluate(([x, y]) => window.MinerDiary.setCell(x, y, 'h', ''), hr);
+  const hA = await st();
   await tap(hr[0], hr[1]);
+  const hB = await st();
+  ok((await cell(hr[0], hr[1])).t === 'f' && spent(hA, hB) === 3, '철 곡괭이로 단단한 바위를 기력 3으로 깸');
+  await page.evaluate(() => { S.carry.copper = 3; showBag(); });
+  await page.click('#sheet [data-a="use"][data-o="tent"]');
   s = await st();
-  ok(s.mine.t[hr[1] * s.mine.w + hr[0]] === 'f' && s.energy === eH - 3, '단단한 바위는 기력 3으로 깸');
-  await page.evaluate(() => { const m = window.MinerDiary.state().mine; m.seen[m.t.indexOf('d')] = 1; renderDock(); });
-  await page.click('[data-a="descend"]');
-  await page.waitForFunction(() => window.MinerDiary.state().mine && window.MinerDiary.state().mine.floor === 6, null, { timeout: 15000 });
-  ok((await st()).deepest === 6, '6층 도착');
-  await page.click('[data-a="leave"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 15000 }); await page.waitForTimeout(1000);
+  const camp = s.deep.lastCamp;
+  ok(camp && (await cell(camp[1], camp[2])).t === 'c' && s.items.tent === 0, '천막을 치면 그 자리가 야영지');
+  await page.evaluate(() => showCamp());
+  const dayC = (await st()).day;
+  await page.click('#sheet [data-a="campSleep"]');
+  s = await st();
+  ok(s.day === dayC + 1 && s.screen === 'mine' && s.deep.x === camp[1] && s.deep.y === camp[2] && s.carry.copper === 3, '야영지에서 자면 다음 날 그 자리에서 시작, 가방도 그대로');
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => showBag());
+  await page.click('#sheet [data-a="use"][data-o="recall"]');
+  s = await st();
+  ok(s.screen === 'village' && s.items.recall === 0 && s.inv.copper >= 3, '귀환서를 쓰면 바로 마을, 가방 것은 창고로');
+  await page.waitForTimeout(800);
   await visit('smithy', '#sheet [data-a="close"]');
 
   // 14. 화면 밖으로 끌어도 계속 움직이고, 말풍선으로 돌아옴
@@ -337,12 +350,16 @@ const shot = process.argv[2];
   const d = helpers(desk);
   await desk.evaluate(() => { const s = window.MinerDiary.state(); s.introSeen = true; window.MinerDiary.speed(10); });
   await d.visit('mine', '#sheet [data-a="enter"]');
-  await desk.click('#sheet [data-a="enter"][data-n="1"]');
+  await desk.click('#sheet [data-a="enter"]');
   await desk.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
   const dug = [];
-  for (let k = 0; k < 3; k++) { const r = await d.nearRock(false); await desk.evaluate(([x, y]) => { const m = window.MinerDiary.state().mine; m.t[y * m.w + x] = 'r'; m.o[y * m.w + x] = ''; }, r); const fBefore = (await d.st()).mine.t.filter(t => t === 'f').length; await d.tap(r[0], r[1]); const s2 = await d.st(); dug.push(s2.mine.t[r[1] * s2.mine.w + r[0]] === 'f' && s2.mine.t.filter(t => t === 'f').length === fBefore + 1); }
-  s = await d.st();
-  ok(dug.every(Boolean) && s.energy === 94, '컴퓨터 화면에서도 누른 칸이 정확히 캐짐');
+  for (let k = 0; k < 3; k++) {
+    const r = await desk.evaluate(() => window.MinerDiary.nearRock());
+    await desk.evaluate(([x, y]) => window.MinerDiary.setCell(x, y, 'r', ''), r);
+    const a = await d.st(); await d.tap(r[0], r[1]); const b = await d.st();
+    dug.push((await desk.evaluate(([x, y]) => window.MinerDiary.cell(x, y).t, r)) === 'f' && (a.energy - b.energy) - (Math.floor(b.deep.steps / 8) - Math.floor(a.deep.steps / 8)) === 2);
+  }
+  ok(dug.every(Boolean), '컴퓨터 화면에서도 누른 칸이 정확히 캐짐');
   if (shot) await desk.screenshot({ path: path.join(shot, 'desktop.png') });
   await desk.close();
 
