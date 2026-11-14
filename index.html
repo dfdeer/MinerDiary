@@ -72,7 +72,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sheet header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .sheet h2{margin:0;font-size:18px;flex:1}
 .sheet .x{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.08);font-size:15px}
-.sheet .x{display:grid;place-items:center}.sheet .x .ico{margin:0;width:18px;height:18px}
+.sheet .x{display:grid;place-items:center}.vol input{flex:1;min-width:0;margin:0 10px;accent-color:#e9b04f;height:28px}.vol small{width:26px;text-align:right}.sheet .x .ico{margin:0;width:18px;height:18px}
 .sheet p{margin:0 0 8px;line-height:1.55}
 .sheet .warn{color:var(--bad);font-size:13px;font-weight:700}
 .btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end;margin-top:10px}
@@ -359,7 +359,7 @@ function questEvent(type, n) {
 /* ===== 상태와 저장 ===== */
 let S;
 function freshState() {
-  return { v: 3, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], farm: {}, home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0,
+  return { v: 3, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], farm: {}, home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0, vol: { sfx: .8, bgm: .5 },
     deep: { seed: (Math.random() * 1e6) | 0, L: 1, x: 0, y: 1, dug: {}, seen: {}, ups: {}, camps: [], lastCamp: null, steps: 0 } };
 }
 function load() {
@@ -439,6 +439,7 @@ function gearPath() {
 const ICONS = {
   ic_gold: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#f2c230'], ['M12 6.2a5.8 5.8 0 1 0 .01 0Z', '#e0a81e', 0], ['M10.8 8.5h2.4v7h-2.4Z', '#fff2b0', 0]],
   ic_check: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#4fb35a'], ['M7 12.5l3.2 3.2L17.2 8.6', 'none', 2.6, '#fff']],
+  ic_note: [['M9 17.5V5.5l10-2v12', 'none', 1.8, '#2b1a12'], ['M3.8 17.6a2.8 2.2 0 1 0 5.6 0a2.8 2.2 0 1 0-5.6 0Z', '#e9b04f'], ['M13.8 15.6a2.8 2.2 0 1 0 5.6 0a2.8 2.2 0 1 0-5.6 0Z', '#e9b04f'], ['M9 5.5l10-2v3l-10 2Z', '#e9b04f', 1.2]],
   ic_close: [['M6 6l12 12M18 6 6 18', 'none', 2.6, '#f6ecdd']],
   ic_up: [['M12 5 20 17H4Z', '#8fe08a', 1.2]],
   ic_down: [['M12 19 4 7h16Z', '#f0907a', 1.2]],
@@ -2465,19 +2466,101 @@ const featHtml = o => `<p class="dim">복구하면</p><div class="feat">${o.feat
 // 기력은 번개 모양을 직접 그림 (동전 모양 아이콘과 헷갈리지 않게)
 const PWR = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 1 3 14h6.5L8 23l11-14h-6.5z" fill="#ffe27a" stroke="#6b4310" stroke-width="1.6" stroke-linejoin="round"/></svg>';
 
-/* ===== 소리 (기기 소리 합성, 파일 없음) ===== */
-let AC = null;
-function beep(freq, dur, type, vol, slide) {
-  if (S.mute) return;
+/* ===== 소리 (기기 소리 합성, 파일 없음). 효과음과 배경음은 따로 크기를 조절 (S.vol) ===== */
+let AC = null, SFX_BUS = null, BGM_BUS = null;
+const vol = k => (S.mute ? 0 : (S.vol ? S.vol[k] : k === 'sfx' ? .8 : .5));
+function audio() {
+  if (!AC) {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    SFX_BUS = AC.createGain(); SFX_BUS.connect(AC.destination);
+    BGM_BUS = AC.createGain(); BGM_BUS.gain.value = 0; BGM_BUS.connect(AC.destination);
+  }
+  if (AC.state === 'suspended') AC.resume();
+  SFX_BUS.gain.value = vol('sfx') * 1.25;
+  return AC;
+}
+function setVolumes() { if (!AC) return; SFX_BUS.gain.setTargetAtTime(vol('sfx') * 1.25, AC.currentTime, .05); BGM_BUS.gain.setTargetAtTime(bgm.mood ? vol('bgm') * 2.4 : 0, AC.currentTime, .1); }
+function beep(freq, dur, type, v, slide) {
+  if (S.mute || !vol('sfx')) return;
   try {
-    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    audio();
     const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
     o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
     if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
-    g.gain.setValueAtTime(vol || .06, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-    o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + dur);
+    g.gain.setValueAtTime(v || .06, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g); g.connect(SFX_BUS); o.start(t); o.stop(t + dur);
   } catch (e) { /* 소리를 못 내는 기기는 조용히 */ }
 }
+
+/* ===== 배경음 (기획 37번): 장소와 때마다 다른 곡을 그 자리에서 합성. 화음 넷이 돌고, 선율은 정해진 씨앗으로 만들어 마디마다 조금씩 바뀜 =====
+   마을 낮(밝은 장조), 마을 밤(느린 곡), 땅속(낮고 울리는 단조, 물방울), 숲(피리 소리, 새소리), 성 밖(빠른 단조, 북) */
+const NOTE = n => 440 * Math.pow(2, (n - 69) / 12);
+const BGM_SONGS = {
+  day:    { bpm: 96,  root: 60, scale: [0, 2, 4, 7, 9], chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'triangle', leadVol: .05, bass: 'sine', density: .62, oct: 12 },
+  night:  { bpm: 72,  root: 57, scale: [0, 2, 3, 7, 8], chords: [[0, 3, 7], [-4, 0, 3], [-7, -3, 0], [-5, -1, 2]], lead: 'sine', leadVol: .045, bass: 'sine', density: .42, oct: 12, bell: 1 },
+  mine:   { bpm: 64,  root: 50, scale: [0, 3, 5, 7, 10], chords: [[0, 3, 7], [0, 3, 7], [-2, 2, 5], [-4, 0, 3]], lead: 'sine', leadVol: .04, bass: 'triangle', density: .3, oct: 12, drip: 1 },
+  forest: { bpm: 88,  root: 62, scale: [0, 2, 3, 5, 7, 9, 10], chords: [[0, 3, 7], [5, 9, 12], [-2, 2, 5], [0, 3, 7]], lead: 'sine', leadVol: .05, bass: 'sine', density: .5, oct: 12, bird: 1, vib: 1 },
+  hunt:   { bpm: 132, root: 52, scale: [0, 2, 3, 5, 7, 8, 10], chords: [[0, 3, 7], [-4, 0, 3], [-2, 2, 5], [-5, -1, 2]], lead: 'square', leadVol: .022, bass: 'triangle', density: .7, oct: 12, drum: 1 },
+};
+const bgm = { mood: null, next: 0, step: 0, timer: 0, want: null };
+function bgmMood() {
+  if (scene === 'mine') return 'mine';
+  if (scene === 'forest') return 'forest';
+  if (scene === 'hunt') return 'hunt';
+  return phaseIndex() >= 2 ? 'night' : 'day';
+}
+function tone(t, freq, dur, type, v, opt = {}) {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (opt.vib) { const l = AC.createOscillator(), lg = AC.createGain(); l.frequency.value = 5.2; lg.gain.value = freq * .012; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + dur + .05); }
+  if (opt.slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq * opt.slide), t + dur);
+  const a = opt.attack || .02;
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(BGM_BUS); o.start(t); o.stop(t + dur + .02);
+}
+function noiseHit(t, dur, v, hp) {
+  const n = Math.floor(AC.sampleRate * dur), buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = buf; f.type = hp ? 'highpass' : 'lowpass'; f.frequency.value = hp || 900; g.gain.value = v;
+  s.connect(f); f.connect(g); g.connect(BGM_BUS); s.start(t);
+}
+// 8분음표 하나를 만듦
+function bgmStep(song, t, step) {
+  const e = 60 / song.bpm / 2, bar = Math.floor(step / 8), pos = step % 8, ch = song.chords[bar % 4], R = song.root;
+  const phrase = [0, 0, 1, 0][Math.floor(bar / 4) % 4], seed = (bar % 4) * 17 + phrase * 131 + pos * 7;
+  // 깔리는 화음 (마디 첫 박)
+  if (pos === 0) ch.forEach((c, i) => tone(t, NOTE(R + c), e * 8 * .95, 'sine', .018 - i * .003, { attack: .25 }));
+  // 베이스
+  if (pos === 0 || pos === 4 || (song.drum && pos % 2 === 0)) tone(t, NOTE(R + ch[0] - 12), e * (song.drum ? 1.6 : 3.6), song.bass, song.drum ? .07 : .06, { attack: .01 });
+  // 선율: 같은 씨앗이면 같은 음이라 귀에 남고, 넷째 마디 묶음마다 조금 바뀜
+  if (H32(seed) < song.density) {
+    const pool = song.scale.map(s => s + song.oct).concat(ch.map(c => c + song.oct)), n = pool[Math.floor(H32(seed + 3) * pool.length)];
+    const len = H32(seed + 5) < .3 ? 2 : 1;
+    tone(t, NOTE(R + n), e * len * .95, song.lead, song.leadVol, { vib: song.vib, attack: song.lead === 'sine' ? .04 : .01 });
+  }
+  if (song.bell && pos === 6 && bar % 2) tone(t, NOTE(R + 24 + ch[2]), e * 6, 'sine', .02, { attack: .005 });
+  if (song.drum) { if (pos % 4 === 0) noiseHit(t, .12, .12); if (pos % 4 === 2) noiseHit(t, .06, .05, 4000); }
+  if (song.drip && Math.random() < .07) tone(t + Math.random() * e, 1400 + Math.random() * 900, .25, 'sine', .025, { slide: .6, attack: .003 });
+  if (song.bird && Math.random() < .05) { const f0 = 2200 + Math.random() * 900; tone(t, f0, .09, 'sine', .018, { slide: 1.25, attack: .005 }); tone(t + .12, f0 * 1.1, .09, 'sine', .015, { slide: 1.3, attack: .005 }); }
+}
+function bgmTick() {
+  if (!AC || document.hidden) return;
+  const want = bgmMood();
+  if (want !== bgm.mood) {   // 곡이 바뀌면 잠깐 줄였다가 새 곡으로
+    if (bgm.want !== want) { bgm.want = want; BGM_BUS.gain.setTargetAtTime(0, AC.currentTime, .15); bgm.swap = AC.currentTime + .6; }
+    if (AC.currentTime < bgm.swap) return;
+    bgm.mood = want; bgm.step = 0; bgm.next = AC.currentTime + .1; setVolumes();
+  }
+  if (!vol('bgm')) return;
+  const song = BGM_SONGS[bgm.mood], e = 60 / song.bpm / 2;
+  if (bgm.next < AC.currentTime) bgm.next = AC.currentTime + .05;
+  while (bgm.next < AC.currentTime + .35) { try { bgmStep(song, bgm.next, bgm.step); } catch (err) { /* 무시 */ } bgm.next += e; bgm.step++; }
+}
+// 첫 누르기에서 소리를 켬 (브라우저는 사람이 누르기 전엔 소리를 막음)
+function startAudio() { try { audio(); setVolumes(); if (!bgm.timer) bgm.timer = setInterval(bgmTick, 100); } catch (e) { /* 무시 */ } }
+window.addEventListener('pointerdown', startAudio);
+window.addEventListener('keydown', startAudio);
 const SFX = {
   dig: () => beep(150, .09, 'triangle', .14, -70),
   open: k => setTimeout(() => beep(240 + k * 14, .04, 'triangle', .05), k * 22),
@@ -2585,7 +2668,8 @@ function showBag() {
     + `<p class="dim" style="margin-top:10px">장신구</p><div class="slots">${slots.join('')}</div>` + (accs ? `<div class="rows">${accs}</div>` : ''));
 }
 function showMenu() {
-  openSheet(ico('ic_settings') + '설정', '', `<button class="btn" data-a="mute">${S.mute ? ico('ic_mute') + '소리 꺼짐' : ico('ic_sound') + '소리 켜짐'}</button><button class="btn" data-a="resetAsk">처음부터</button>`);
+  const sl = (k, ic, name) => { const v = Math.round(S.vol[k] * 100); return `<div class="rowi vol"><span class="nm">${ico(ic)}${name}</span><input type="range" min="0" max="100" step="5" value="${v}" data-vol="${k}" aria-label="${name}"><small>${v}</small></div>`; };
+  openSheet(ico('ic_settings') + '설정', `<div class="rows">${sl('sfx', 'ic_sound', '효과음')}${sl('bgm', 'ic_note', '배경음')}</div>`, `<button class="btn" data-a="mute">${S.mute ? ico('ic_mute') + '소리 꺼짐' : ico('ic_sound') + '소리 켜짐'}</button><button class="btn" data-a="resetAsk">처음부터</button>`);
 }
 /* ===== 시설 고치기: 값(돈과 재료)을 내면 고쳐지고, 그 시설의 퀘스트 차례가 와야 고칠 수 있음 ===== */
 const RESTORE = {
@@ -2881,6 +2965,13 @@ function trade(o) {
 }
 function sell(o) { const n = S.inv[o] || 0; if (!n) return; S.inv[o] = 0; S.gold += ORES[o].price * n; SFX.coin(); toast(`${GOLD}+${ORES[o].price * n}`); questEvent('sell'); save(); renderHud(); showMerchant(); }
 function sellAll() { let g = 0; ORE_ORDER.forEach(o => { g += (S.inv[o] || 0) * ORES[o].price; S.inv[o] = 0; }); if (!g) return; S.gold += g; SFX.coin(); toast(`${GOLD}+${g}`); questEvent('sell'); save(); renderHud(); showMerchant(); }
+// 소리 크기 막대
+document.addEventListener('input', e => {
+  const k = e.target.dataset && e.target.dataset.vol; if (!k) return;
+  S.vol[k] = +e.target.value / 100; e.target.nextElementSibling.textContent = e.target.value;
+  startAudio(); setVolumes(); save();
+});
+document.addEventListener('change', e => { if (e.target.dataset && e.target.dataset.vol === 'sfx') SFX.coin(); });
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
   const a = b.dataset.a, n = +b.dataset.n;
@@ -2927,7 +3018,7 @@ document.addEventListener('click', e => {
   else if (a === 'bag') showBag();
   else if (a === 'menu') showMenu();
   else if (a === 'quest') { const q = questNow(); if (q && scene === 'village' && !cam.to) { const o = OBJ.find(v => v.id === q.target); mark(o.gx, o.gy, '233,176,79', o.w, o.d); goTo(o); } }
-  else if (a === 'mute') { S.mute = !S.mute; save(); showMenu(); }
+  else if (a === 'mute') { S.mute = !S.mute; save(); setVolumes(); showMenu(); }
   else if (a === 'resetAsk') openSheet('처음부터', '<p class="warn">모든 기록 삭제</p>', '<button class="btn primary" data-a="reset">삭제</button>');
   else if (a === 'reset') { S = freshState(); applyRestored(); newDayReset(); save(); renderHud(); showHome(); }
 });
@@ -3089,6 +3180,7 @@ window.MinerDiary = {
     return { x: W / 2, y: H / 2 };
   },
   speed: k => { hero.speed = 5.2 * k; },
+  bgm: () => bgm.mood,
   huntSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, 0); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
   mons: () => (S.hunt ? S.hunt.mons.map(m => ({ id: m.id, kind: m.kind, x: m.x, y: m.y, hp: m.hp })) : []),
   setMon: (id, x, y) => { const m = S.hunt.mons.find(o => o.id === id); m.x = m.wx = x; m.y = m.wy = y; },

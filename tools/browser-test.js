@@ -53,6 +53,15 @@ const shot = process.argv[2];
   ok((await st()).introSeen && (await quest()).includes('광산 들어가기'), '소개가 끝나면 다음 퀘스트 「광산 들어가기」');
   ok(!/누른 곳|끌어서|스페이스바|밝은 테두리/.test(await page.evaluate(() => document.body.innerText)), '조작 설명 문구 없음');
   if (shot) await page.screenshot({ path: path.join(shot, 'village.png') });
+  // 소리: 설정에서 효과음과 배경음 크기를 따로 바꾸고, 배경음은 장소마다 다른 곡
+  await page.click('[data-a="menu"]');
+  await page.locator('#sheet input[data-vol="bgm"]').fill('20');
+  await page.locator('#sheet input[data-vol="sfx"]').fill('60');
+  let sv = await page.evaluate(() => [S.vol.bgm, S.vol.sfx, JSON.parse(localStorage.getItem('minerdiary.v1')).vol.bgm]);
+  ok(sv[0] === .2 && sv[1] === .6 && sv[2] === .2, '설정에서 효과음과 배경음 크기를 따로 바꾸고 저장');
+  await page.click('#sheet [data-a="close"]');
+  await page.waitForFunction(() => window.MinerDiary.bgm() === 'day', null, { timeout: 5000 });
+  ok(true, '마을 낮엔 낮 배경음');
 
   // 2. 상호작용하는 것끼리 화면에서 겹치지 않음 (누르는 모양 기준)
   const overlaps = await page.evaluate(() => {
@@ -445,6 +454,8 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="hunt"]');
   ok(await page.evaluate(() => window.MinerDiary.scene()) === 'hunt' && (await page.evaluate(() => window.MinerDiary.mons())).length >= 3, '성벽 문으로 나가면 몬스터가 있는 성 밖');
   if (shot) await page.screenshot({ path: path.join(shot, 'hunt.png') });
+  await page.waitForFunction(() => window.MinerDiary.bgm() === 'hunt', null, { timeout: 5000 });
+  ok(true, '성 밖에선 배경음이 사냥 곡으로 바뀜');
   await page.evaluate(() => { S.energy = S.max; S.minE = S.dayStart = S.max; renderHud(); });
   const e0 = (await st()).energy;
   for (let k = 0; k < 3; k++) {
