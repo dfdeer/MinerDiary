@@ -234,7 +234,7 @@ const blocked = (x, y) => {
 const KEY = 'minerdiary.v1';
 const MAX_ENERGY = 100, DIG_COST = 2, MAX_FLOOR = 10;
 const FAINT_LOSS = 0.3;                                    // 쓰러지면 그날 캔 광석 중 잃는 비율 (1단계 임시값)
-const START_FRAC = { normal: 1, late: 0.9, faint: 0.7 };
+const START_FRAC = { normal: 1, late: 0.9, faint: 0.7, early: 1.1 };   // early: 저녁 전에 자면 다음 날 기력 덤
 // 광석: 층이 깊을수록 비싼 것이 나옴. 석탄은 제련 연료, 원석(수정, 자수정, 루비)은 나중에 세공소에서 씀
 const ORES = {
   copper:   { name: '구리 광석', price: 10,  color: '#d97a3a', light: '#ffb27a' },
@@ -308,12 +308,13 @@ const QUESTS = [
   { id: 'pick', text: '구리 곡괭이 만들기', need: 1, target: 'smithy', reward: 50 },
   { id: 'market', text: '시장 고치기', target: 'market' },
   { id: 'trade', text: '시장에서 팔기', target: 'market', reward: 50 },
+  { id: 'home', text: '집 고치기', need: 1, target: 'house', reward: 50 },
   { id: 'deep7', text: '깊이 7 도달', need: 7, target: 'mine', reward: 100 },
   { id: 'pick2', text: '철 곡괭이 만들기', need: 2, target: 'smithy', reward: 100 },
   { id: 'deep10', text: '깊이 10 도달', need: 10, target: 'mine', reward: 200 },
 ];
 const questNow = () => QUESTS[S.quest];
-const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : 0);
+const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
   let q = questNow(), flag = false;
@@ -331,7 +332,7 @@ function questEvent(type, n) {
 /* ===== 상태와 저장 ===== */
 let S;
 function freshState() {
-  return { v: 3, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0,
+  return { v: 3, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0,
     deep: { seed: (Math.random() * 1e6) | 0, L: 1, x: 0, y: 1, dug: {}, seen: {}, ups: {}, camps: [], lastCamp: null, steps: 0 } };
 }
 function load() {
@@ -386,7 +387,7 @@ function newDay(kind) {
   return smelted ? `<p>${ico('ic_hearth')}<span class="ore ${smelted.bar}"></span>${ORES[smelted.bar].name} +${smelted.n}</p>` : '';
 }
 function sleep(camp) {
-  const kind = phaseIndex() === 3 ? 'late' : 'normal';
+  const ph = phaseIndex(), kind = ph === 3 ? 'late' : ph <= 1 && !camp ? 'early' : 'normal';
   if (!camp) unpack();
   const sm = newDay(kind);
   if (camp) { S.energy = Math.min(S.max + 20, S.energy + accEff('rest')); S.minE = S.dayStart = S.energy; startDeep(camp[0], camp[1], camp[2]); }   // 야영지에서 잤으면 거기서 이어 감
@@ -828,14 +829,14 @@ function drawBuilding(c, o, night) {
   if (g < .02) return;
   const mid = (a, b) => (a + b) / 2;
   switch (o.kind) {
-    case 'house': {   // 나무 오두막: 빨간 박공지붕, 굴뚝, 꽃 상자
-      const h = 1.6 * g, i = .15;
+    case 'house': {   // 나무 오두막: 박공지붕, 굴뚝, 꽃 상자. 고칠수록 높아지고 지붕 색이 바뀜
+      const lv = (S && S.home) || 0, h = (1.6 + lv * .25) * g, i = .15;
       prism(c, x0 + i, y0 + i, o.w - 2 * i, o.d - 2 * i, z, h, '#e2c08f', '#d8b07f', '#b98f60');
       for (let k = 1; k < 5; k++) { faceL(c, x0 + i, x1 - i, y1 - i, z + h * k / 5 - .02, z + h * k / 5, 'rgba(90,55,25,.25)'); faceR(c, x1 - i, y0 + i, y1 - i, z + h * k / 5 - .02, z + h * k / 5, 'rgba(70,40,15,.25)'); }
       windowL(c, x0 + 1.2, y1 - i, z + h * .45, .45, .45 * g, night); windowR(c, x1 - i, y0 + .5, z + h * .45, .5, .45 * g, night);
       faceL(c, x0 + 1.15, x0 + 1.7, y1 - i + .01, z + h * .38, z + h * .45, '#7a4a2a'); for (let k = 0; k < 4; k++) { const p = iso(x0 + 1.2 + k * .14, y1 - i, z + h * .47); Cc(c, p[0], p[1], TW * .035, ['#f08aa0', '#f2d35b'][k % 2]); }
       doorOn(c, o, z, .42, 1.0 * g, '#6a4226');
-      if (g > .6) { prism(c, x0 + .55, y0 + .35, .3, .3, z + h, 1.3, '#9a5a44', '#8a4a3a', '#6e3a2c'); gable(c, x0 + i - .12, y0 + i - .12, x1 - i + .12, y1 - i + .12, z + h, 1.1 * g, '#b5473a', '#d9b48a'); smoke(c, x0 + .7, y0 + .5, z + h + 1.4, 1); }
+      if (g > .6) { prism(c, x0 + .55, y0 + .35, .3, .3, z + h, 1.3, '#9a5a44', '#8a4a3a', '#6e3a2c'); gable(c, x0 + i - .12, y0 + i - .12, x1 - i + .12, y1 - i + .12, z + h, 1.1 * g, ['#b5473a', '#3f7fb0', '#4f9a55'][lv], '#d9b48a'); smoke(c, x0 + .7, y0 + .5, z + h + 1.4, 1); }
       if (night) { const w = iso(x0 + 1.4, y1, z + h * .6); Cc(c, w[0], w[1], TW * .6, 'rgba(255,200,110,.16)'); }
       signBoard(c, o, z, 1.3 * g, 1);
       break;
@@ -2142,7 +2143,7 @@ function buzz(ms) { try { if (!S.mute && navigator.vibrate) navigator.vibrate(ms
 /* ===== 위쪽 정보 ===== */
 function hudH() { return document.getElementById('hud').getBoundingClientRect().bottom; }
 function renderHud() {
-  const p = PHASES[phaseIndex()], u = untilNext(), pct = S.energy / S.max * 100, low = S.energy <= S.max * .1;
+  const p = PHASES[phaseIndex()], u = untilNext(), pct = Math.min(100, S.energy / S.max * 100), low = S.energy <= S.max * .1;
   const marks = PHASES.slice(1).map(ph => (S.dayStart - S.max * ph.at / 100) / S.max * 100).filter(x => x > 0).map(x => `<span class="mark" style="left:${x}%"></span>`).join('');
   document.getElementById('hud').innerHTML = `<div class="pill plate">${S.day}일차 <span class="ph">${p.name}</span></div>
     <div class="energy plate ${low ? 'low' : ''}"><i class="fill" style="width:${pct}%"></i>${marks}<b>${PWR}${S.energy}</b><small>${u.name}까지 ${u.left}</small></div>
@@ -2196,8 +2197,7 @@ function showCard(o, msg) {
   }
   if (!o.done) { ruinCard(o); return; }
   if (o.id === 'house') {
-    const late = phaseIndex() === 3;
-    openSheet(ico('ic_village') + '낡은 집', `<p>${S.day + 1}일차 아침까지</p>` + (late ? `<p class="warn">새벽 취침은 내일 ${PWR}${Math.round(S.max * START_FRAC.late)}</p>` : ''), '<button class="btn primary" data-a="sleep">자기</button>');
+    showHouse();
   } else if (o.id === 'chief') {
     if (!S.introSeen) { showIntro(0); return; }
     let line;
@@ -2247,6 +2247,24 @@ function restoreObj(id) {
   S.restored.push(id); o.done = true; o.grow = 0; if (r.then) r.then();
   SFX.stairs(); questEvent(id); save(); renderHud();
   openSheet(r.who, `<p>${r.line}</p>`);
+}
+/* ===== 집 수리 (기획 4번 3단계): 고칠 때마다 최대 기력이 늘고, 저녁 전에 자면 다음 날 기력 덤 ===== */
+const HOMES = [
+  { name: '낡은 집' },
+  { name: '고친 집', need: { wood: 15, ironBar: 2 }, gold: 400, max: 20 },
+  { name: '아늑한 집', need: { wood: 25, silverBar: 2 }, gold: 1200, max: 20 },
+];
+function upgradeHome() {
+  const next = HOMES[(S.home || 0) + 1]; if (!next || !hasAll(next.need) || S.gold < next.gold) return;
+  Object.entries(next.need).forEach(([k, n]) => { S.inv[k] -= n; }); S.gold -= next.gold;
+  S.home = (S.home || 0) + 1; S.max += next.max; S.energy += next.max;
+  const o = OBJ.find(v => v.id === 'house'); o.name = next.name; o.grow = 0;
+  SFX.stairs(); toast(`${ico('ic_village')}${next.name} ${PWR}${S.max}`); questEvent('home'); save(); renderHud(); showHouse();
+}
+function showHouse() {
+  const ph = phaseIndex(), late = ph === 3, early = ph <= 1, next = HOMES[(S.home || 0) + 1];
+  const up = next ? `<p class="dim" style="margin-top:10px">고치기</p><div class="rows"><div class="rowi"><span class="nm">${next.name} ${PWR}+${next.max} ${needHtml(next.need, next.gold)}</span><button class="btn small" data-a="home" ${hasAll(next.need) && S.gold >= next.gold ? '' : 'disabled'}>고치기</button></div></div>` : '';
+  openSheet(ico('ic_village') + HOMES[S.home || 0].name, `<p>${S.day + 1}일차 아침 ${PWR}${Math.round(S.max * START_FRAC[late ? 'late' : early ? 'early' : 'normal'])}</p>` + (late ? '<p class="warn">새벽 취침</p>' : '') + up, '<button class="btn primary" data-a="sleep">자기</button>');
 }
 // 무너진 곳 창: 고치면 생기는 것, 차례가 왔으면 값과 고치기 단추
 function ruinCard(o) {
@@ -2354,6 +2372,7 @@ document.addEventListener('click', e => {
   else if (a === 'leave') { hideSheet(); goExit(); }
   else if (a === 'restore') restoreObj(b.dataset.o);
   else if (a === 'market') showMarket();
+  else if (a === 'home') upgradeHome();
   else if (a === 'trade') trade(b.dataset.o);
   else if (a === 'smelt') smelt(b.dataset.o);
   else if (a === 'forge') startHammer();
@@ -2377,7 +2396,7 @@ document.addEventListener('click', e => {
   else if (a === 'reset') { S = freshState(); applyRestored(); newDayReset(); save(); renderHud(); showHome(); }
 });
 function newDayReset() { scene = 'village'; FLAT = false; hero.x = HOME[0]; hero.y = HOME[1]; hero.path = []; selected = null; cam.to = null; cam.s = 1; follow = true; snapCam(); }
-function applyRestored() { OBJ.forEach(o => { o.done = o.stage === 0 || S.restored.includes(o.id); o.grow = o.done ? 1 : 0; }); }
+function applyRestored() { OBJ.forEach(o => { o.done = o.stage === 0 || S.restored.includes(o.id); o.grow = o.done ? 1 : 0; }); OBJ.find(o => o.id === 'house').name = HOMES[S.home || 0].name; }
 let toastT = 0;
 function toast(s) { const t = document.getElementById('toast'); t.innerHTML = s; t.hidden = false; t.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => { t.style.opacity = 0; setTimeout(() => { t.hidden = true; }, 300); }, 1500); }
 /* ===== 내 위치 말풍선 (광부가 화면 밖일 때) ===== */
