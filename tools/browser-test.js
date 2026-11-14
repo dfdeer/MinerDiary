@@ -425,6 +425,40 @@ const shot = process.argv[2];
   s = await st();
   ok(s.inv.crystalGem >= 1 && s.inv.crystal === 0 && s.cutN === 1 && (await quest()).includes('깊이 10'), `수정 원석을 깎아 수정 보석 ${s.inv.crystalGem}개, 다음 퀘스트 「깊이 10 도달」`);
   await page.click('#sheet [data-a="close"]');
+
+  // 13-0g. 성벽 문과 사냥: (깊이 10을 갔다 치고) 문을 고치고, 검을 만들고, 성 밖에서 몬스터 셋을 잡음
+  await page.evaluate(() => { S.deepest = 10; questEvent(); S.inv.ironBar = 5; S.inv.wood = 20; S.inv.copperBar = 3; S.gold += 2200; renderHud(); });
+  ok((await quest()).includes('성벽 문'), '깊이 10 다음 퀘스트 「성벽 문 고치기」');
+  await visit('gate', '#sheet [data-a="restore"][data-o="gate"]');
+  await page.click('#sheet [data-a="restore"][data-o="gate"]');
+  ok((await st()).restored.includes('gate') && (await quest()).includes('사냥'), '성벽 문을 고치면 퀘스트 「성 밖에서 사냥」');
+  await page.click('#sheet [data-a="close"]');
+  await visit('smithy', '#sheet [data-a="sword"]');
+  await page.click('#sheet [data-a="sword"]');
+  ok((await st()).sword === 1 && !(await st()).inv.copperBar, '대장간에서 구리 주괴로 구리 검');
+  await page.click('#sheet [data-a="close"]');
+  await visit('gate', '#sheet [data-a="hunt"]');
+  ok(await page.locator('#sheet [data-a="hunt"]').isDisabled() === (await page.evaluate(() => phaseIndex())) < 1, '성벽 문은 점심부터 열림');
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => { S.minE = S.dayStart - S.max * .35; renderHud(); });
+  await visit('gate', '#sheet [data-a="hunt"]:not([disabled])');
+  await page.click('#sheet [data-a="hunt"]');
+  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'hunt' && (await page.evaluate(() => window.MinerDiary.mons())).length >= 3, '성벽 문으로 나가면 몬스터가 있는 성 밖');
+  if (shot) await page.screenshot({ path: path.join(shot, 'hunt.png') });
+  await page.evaluate(() => { S.energy = S.max; S.minE = S.dayStart = S.max; renderHud(); });
+  const e0 = (await st()).energy;
+  for (let k = 0; k < 3; k++) {
+    const m = await page.evaluate(() => { const h = window.MinerDiary.hero(), m = window.MinerDiary.mons().find(o => o.hp > 0); window.MinerDiary.setMon(m.id, Math.round(h.x) + 2, Math.round(h.y) - 1); return window.MinerDiary.mons().find(o => o.id === m.id); });
+    const p = await page.evaluate(([x, y]) => window.MinerDiary.huntSpot(x, y), [m.x, m.y]);
+    await page.mouse.click(p.x, p.y);
+    await page.waitForFunction(id => window.MinerDiary.mons().find(o => o.id === id).hp <= 0, m.id, { timeout: 15000 });
+  }
+  s = await st();
+  ok(s.killN === 3 && (s.carry.meat || 0) + (s.carry.bone || 0) >= 1 && s.energy < e0 && (await quest()).includes('깊이 10') === false, `몬스터를 누르면 다가가 휘둘러 셋을 잡고 고기를 얻고 기력이 듦 (${e0}→${s.energy})`);
+  await page.click('#minebar [data-a="leave"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 15000 });
+  s = await st();
+  ok(s.inv.meat >= 1 && !Object.keys(s.carry).length, '나가기 단추로 마을에 돌아오면 잡은 것이 창고로');
   await visit('smithy', '#sheet [data-a="close"]');
 
   // 13-1. 장신구: 만들기, 합치기, 끼기

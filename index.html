@@ -112,6 +112,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ore.herb{background:#4fae55}.ore.mush{background:#d9483a}.ore.wood{background:#a8703a}.ore.fiber{background:#d8c46a}.ore.leather{background:#8a5a32;transform:none;border-radius:4px}
 .ore.copper{background:#d97a3a}.ore.coal{background:#3a3a40}.ore.silver{background:#e6ecf2}.ore.gold{background:#f2c230}.ore.amethyst{background:#a46be0}.ore.ruby{background:#e0405a}
 .ore.silverBar,.ore.goldBar{transform:none;width:15px;height:9px;border-radius:2px}.ore.silverBar{background:#e8eef4}.ore.goldBar{background:#f5cf45}
+.ore.meat{background:#c8584a;transform:none;border-radius:50% 50% 40% 40%}.ore.bone{background:#efe6d2;transform:none;width:15px;height:7px;border-radius:4px}.ore.manastone{background:#5a7ae0;box-shadow:0 0 6px #8aa4ff}.ore.moonshard{background:#e2dcff;box-shadow:0 0 6px #b9a8ff}
 .ore.iron{background:#c3cbd5}.ore.crystal{background:#7fdcef}.ore.moon{background:#efe9ff;box-shadow:0 0 6px #b9a8ff}
 
 .toast{position:fixed;left:50%;top:calc(var(--st) + 86px);transform:translateX(-50%);z-index:6;border-radius:999px;padding:7px 16px;font-size:14px;font-weight:700;white-space:nowrap;pointer-events:none;transition:opacity .3s}
@@ -271,8 +272,12 @@ const ORES = {
   berry:     { name: '딸기',     price: 120, color: '#e0405a', light: '#ffb0bc' },
   silverBar: { name: '은 주괴',   price: 280, color: '#e8eef4', light: '#ffffff' },
   goldBar:   { name: '금 주괴',   price: 560, color: '#f5cf45', light: '#fff4b8' },
+  meat:      { name: '고기',     price: 30,  color: '#c8584a', light: '#f0a090' },
+  bone:      { name: '뼈',       price: 25,  color: '#efe6d2', light: '#ffffff' },
+  manastone: { name: '마석',     price: 120, color: '#5a7ae0', light: '#b8c8ff' },
+  moonshard: { name: '월광 조각', price: 200, color: '#e2dcff', light: '#ffffff' },
 };
-const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'crystalGem', 'amethystGem', 'rubyGem', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry'];
+const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'crystalGem', 'amethystGem', 'rubyGem', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry', 'meat', 'bone', 'manastone', 'moonshard'];
 /* ===== 대장간 (3단계): 용광로에 광석 5개와 석탄 1개를 넣고 자면 아침에 주괴. 주괴와 돈으로 곡괭이 강화 (망치질 박자로 품질) ===== */
 const SMELT = { copper: 'copperBar', iron: 'ironBar', silver: 'silverBar', gold: 'goldBar' }, SMELT_N = 5, FURNACE_MAX = 10;
 // 곡괭이: 구리는 7층까지, 철(가운데 단계)부터 단단한 바위와 10층, 은은 캐는 기력 1, 금은 단단한 바위도 쉽게. 높은 단계일수록 망치질이 빠르고 칸이 좁음
@@ -337,9 +342,11 @@ const QUESTS = [
   { id: 'jewel', text: '세공소 고치기', target: 'jewel' },
   { id: 'cut', text: '보석 깎기', need: 1, target: 'jewel', reward: 100 },
   { id: 'deep10', text: '깊이 10 도달', need: 10, target: 'mine', reward: 200 },
+  { id: 'gate', text: '성벽 문 고치기', target: 'gate' },
+  { id: 'hunt', text: '성 밖에서 사냥', need: 3, target: 'gate', reward: 150 },
 ];
 const questNow = () => QUESTS[S.quest];
-const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : q.id === 'cut' ? S.cutN || 0 : 0);
+const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : q.id === 'cut' ? S.cutN || 0 : q.id === 'hunt' ? S.killN || 0 : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
   let q = questNow(), flag = false;
@@ -437,6 +444,7 @@ function gearPath() {
 const ICONS = {
   ic_gold: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#f2c230'], ['M12 6.2a5.8 5.8 0 1 0 .01 0Z', '#e0a81e', 0], ['M10.8 8.5h2.4v7h-2.4Z', '#fff2b0', 0]],
   ic_check: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#4fb35a'], ['M7 12.5l3.2 3.2L17.2 8.6', 'none', 2.6, '#fff']],
+  ic_sword: [['M16.8 3.2h4v4L10.5 17.5l-4-4Z', '#dfe6ee'], ['M5 12.5l6.5 6.5-1.6 1.6-6.5-6.5Z', '#8a5a32'], ['M4.2 17.8l2 2-2.6 2.6-2-2Z', '#e9b04f']],
   ic_warn: [['M12 2.8 22 20.5H2Z', '#f2c230'], ['M10.9 8.5h2.2l-.4 6.3h-1.4Z', '#2b1a12', 0], ['M12 16.4a1.3 1.3 0 1 0 .01 0Z', '#2b1a12', 0]],
   ic_bag: [['M8.5 6.5a3.5 3.5 0 0 1 7 0', 'none', 1.8], ['M4.5 7.5h15l-1.4 13H5.9Z', '#a8723f'], ['M4.5 7.5h15v3.5H4.5Z', '#8a5a2e'], ['M10.5 12h3v2.5h-3Z', '#f2c230']],
   ic_settings: [[gearPath(), '#b9c0c8'], ['M12 8.6a3.4 3.4 0 1 0 .01 0Z', '#5a6068']],
@@ -771,7 +779,7 @@ function chibi(c, X, Y, s, o) {
 // 예전 호출 모양을 그대로 받음: helmet이면 광부, beard면 촌장, 나머지는 상인
 function person(c, a, b, s, shirt, helmet, bob, pick, beard) {
   if (helmet) {
-    chibi(c, a, b, s, { who: 'miner', fx: hero.fx, back: hero.back, phase: hero.walk * .55, moving: hero.path.length > 0, swing: scene === 'mine' ? mswing : 0 });
+    chibi(c, a, b, s, { who: 'miner', fx: hero.fx, back: hero.back, phase: hero.walk * .55, moving: hero.path.length > 0, swing: scene === 'mine' || scene === 'hunt' ? mswing : 0 });
   } else chibi(c, a, b, s * 1.05, { who: beard ? 'chief' : 'merchant', fx: -1, back: false });
 }
 // 면 하나 (왼쪽 앞면: y 고정, 오른쪽 앞면: x 고정)
@@ -1329,7 +1337,7 @@ function heroZ() {
 
 /* ===== 걷기 ===== */
 function bfs(sx, sy, goal) {
-  const mine = scene === 'mine', forest = scene === 'forest';
+  const mine = scene === 'mine', forest = scene === 'forest', hunt = scene === 'hunt';
   const key = (x, y) => x + ',' + y, prev = new Map([[key(sx, sy), null]]), q = [[sx, sy]];
   // 땅속은 끝이 없으므로 찾는 범위를 묶음 (못 본 곳을 지나갈 수 있다고 보기 때문)
   const lim = mine ? 9000 : 1e9, far = mine ? 70 : 1e9;
@@ -1339,7 +1347,7 @@ function bfs(sx, sy, goal) {
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = x + dx, ny = y + dy, k = key(nx, ny);
       if (prev.has(k) || Math.abs(nx - sx) > far || Math.abs(ny - sy) > far) continue;
-      if (mine ? mBlocked(nx, ny) : forest ? fBlocked(nx, ny) : blocked(nx, ny) || Math.abs(hgt(nx, ny) - hgt(x, y)) > 1) continue;
+      if (mine ? mBlocked(nx, ny) : forest ? fBlocked(nx, ny) : hunt ? hBlocked(nx, ny) : blocked(nx, ny) || Math.abs(hgt(nx, ny) - hgt(x, y)) > 1) continue;
       prev.set(k, key(x, y)); q.push([nx, ny]);
     }
   }
@@ -1366,6 +1374,7 @@ function walkStep(dt) {
     hero.x = tx; hero.y = ty; hero.path.shift();
     if (scene === 'mine') { mineStep(); if (!hero.path.length) mineArrive(); }
     else if (scene === 'forest') { forestStep(); if (scene === 'forest' && !hero.path.length) forestArrive(); }
+    else if (scene === 'hunt') { huntStep(); if (scene === 'hunt' && !hero.path.length) huntArrive(); }
     else if (!hero.path.length && hero.target) { const o = hero.target; hero.target = null; arrive(o); }
     else if (!hero.path.length && hero.fishAt) { hero.fishAt = null; startFish(); }
     else if (!hero.path.length && hero.plotAt) { const p2 = hero.plotAt; hero.plotAt = null; showPlot(p2[0], p2[1]); }
@@ -1384,6 +1393,7 @@ function screenToWorld(px, py) { return [(px - W / 2) / cam.s + cam.fx, (py - H 
 function tap(px, py) {
   if (scene === 'mine') { mineTap(px, py); return; }
   if (scene === 'forest') { if (!cam.to) forestTap(px, py); return; }
+  if (scene === 'hunt') { if (!cam.to) huntTap(px, py); return; }
   if (bubble && Math.hypot(px - bubble.x, py - bubble.y) < 32) { recenter(); return; }
   if (cam.to) return;
   const [x, y] = screenToWorld(px, py);
@@ -1567,6 +1577,7 @@ function rareNear() {
 // 아래 막대의 나가기 단추: 위로 가는 곳까지 걸어가서 올라감. 깊으면 마을까지 이어서
 function goExit() {
   if (scene === 'forest') { const f = S.forest; walkTo(f.ex, f.ey, leaveForest); return; }
+  if (scene === 'hunt') { const h2 = S.hunt; walkTo(h2.ex, h2.ey, leaveHunt); return; }
   if (scene !== 'mine') return;
   const up = nearest(upsHere()); if (!up) { toast('길 모름'); return; }
   S.exiting = true; walkTo(up[0], up[1], () => ascendAt(up[0], up[1]));
@@ -2061,6 +2072,162 @@ function forestTap(px, py) {
   }
 }
 
+/* ===== 성 밖 사냥터 (기획 4번 9단계): 성벽 문을 고치면 점심부터 나갈 수 있음 =====
+   점심엔 멧돼지, 저녁부터 그림자 늑대, 새벽엔 달빛 정령. 몬스터를 누르면 다가가 저절로 휘두름(한 번에 기력 1).
+   몬스터가 옆에 붙으면 때려서 기력이 깎임. 검을 만들면 세게 침 (곡괭이로도 약하게 칠 수 있음) */
+const HW = 30, HH = 30;
+const MONS = {
+  boar:   { n: '멧돼지', hp: 4, hit: 2, speed: 1.6, drop: [['meat', 1], ['leather', .6]] },
+  wolf:   { n: '그림자 늑대', hp: 8, hit: 4, speed: 2.2, drop: [['bone', 1], ['manastone', .35]] },
+  spirit: { n: '달빛 정령', hp: 12, hit: 5, speed: 1.4, drop: [['moonshard', 1], ['manastone', .5]] },
+};
+const SWORDS = [{ name: '곡괭이', power: 1 }, { name: '구리 검', power: 2, need: { copperBar: 3 }, gold: 150 }, { name: '철 검', power: 4, need: { ironBar: 4 }, gold: 500 }, { name: '은 검', power: 6, need: { silverBar: 4 }, gold: 1200 }];
+const power = () => SWORDS[S.sword || 0].power;
+function genHunt() {
+  const I = (x, y) => y * HW + x, t = Array(HW * HH).fill('g'), R0 = (Math.random() * 1e5) | 0;
+  for (let y = 0; y < HH; y++) for (let x = 0; x < HW; x++) { const v = H32(x * 7919 + y * 104729 + R0); t[I(x, y)] = v < .1 ? 't' : v < .13 ? 'k' : 'g'; if (!x || !y || x === HW - 1 || y === HH - 1) t[I(x, y)] = 't'; }
+  const ex = HW / 2, ey = HH - 2; for (let y = ey - 3; y <= ey; y++) for (let x = ex - 2; x <= ex + 2; x++) t[I(x, y)] = 'g'; t[I(ex, ey)] = 'x';
+  const ph = phaseIndex(), kinds = ph <= 1 ? ['boar'] : ph === 2 ? ['boar', 'wolf'] : ['wolf', 'spirit'], mons = [];
+  for (let k = 0, n = 0; k < 7 && n < 500; n++) { const x = 2 + rnd(HW - 4), y = 2 + rnd(HH - 10); if (t[I(x, y)] !== 'g') continue; const kind = kinds[k % kinds.length]; mons.push({ id: k, kind, x, y, hp: MONS[kind].hp, cd: 0, hurt: 0, wx: x, wy: y }); k++; }
+  return { t, mons, ex, ey, steps: 0 };
+}
+const hT = (x, y) => (x >= 0 && y >= 0 && x < HW && y < HH ? S.hunt.t[y * HW + x] : 't');
+const hBlocked = (x, y) => { const t = hT(x, y); return t === 't' || t === 'k'; };
+function enterHunt() {
+  hideSheet(); selected = null;
+  S.hunt = genHunt(); scene = 'hunt'; S.screen = 'hunt'; FLAT = true;
+  hero.x = S.hunt.ex; hero.y = S.hunt.ey - 1; hero.path = []; hero.target = null; hero.goal = null; hero.atk = null; hero.fx = 1; hero.back = true;
+  cam.s = 1; cam.to = null; follow = true; snapCam(); fade = 1; hunts = [];
+  save(); renderHud(); renderDock();
+}
+function leaveHunt() {
+  unpack(); S.screen = 'village'; scene = 'village'; FLAT = false; fade = .8; S.hunt = null;
+  hero.x = GATE[0]; hero.y = 0; hero.path = []; hero.goal = null; hero.atk = null;
+  follow = true; snapCam(); save(); renderHud(); renderDock();
+}
+let hunts = [];   // 맞을 때 뜨는 숫자
+function huntTap(px, py) {
+  if (!sheet.hidden) hideSheet();
+  const [x, y] = screenToWorld(px, py);
+  // 몬스터 먼저 (그림 둘레를 누르면)
+  const m = S.hunt.mons.filter(o => o.hp > 0).map(o => { const q = iso(o.x + .5, o.y + .5, 0); return [Math.hypot(q[0] - x, (q[1] - TW * .3) - y), o]; }).sort((a, b) => a[0] - b[0])[0];
+  if (m && m[0] < TW * .55) { hero.atk = m[1].id; hero.goal = null; chaseStep(); mark(Math.round(m[1].x), Math.round(m[1].y), '235,95,80'); return; }
+  const vr = viewTiles();
+  for (let s = Math.min(HW + HH - 2, vr.x1 + vr.y1 + 2); s >= 0; s--) for (let tx = Math.max(0, s - HH + 1); tx <= Math.min(HW - 1, s); tx++) {
+    const ty = s - tx;
+    if (!inPoly(x, y, [iso(tx, ty, 0), iso(tx + 1, ty, 0), iso(tx + 1, ty + 1, 0), iso(tx, ty + 1, 0)])) continue;
+    hero.atk = null;
+    if (hBlocked(tx, ty)) { mark(tx, ty, '235,95,80'); return; }
+    mark(tx, ty, '255,255,255');
+    const path = bfs(Math.round(hero.x), Math.round(hero.y), (a, b) => a === tx && b === ty);
+    if (path) { hero.path = path; hero.goal = [tx, ty]; follow = true; if (!path.length) huntArrive(); }
+    return;
+  }
+}
+// 쫓아갈 몬스터 옆까지 길을 다시 짬
+function chaseStep() {
+  const m = S.hunt.mons.find(o => o.id === hero.atk && o.hp > 0); if (!m) { hero.atk = null; return; }
+  const mx = Math.round(m.x), my = Math.round(m.y);
+  if (Math.hypot(m.x - hero.x, m.y - hero.y) < 1.3) { hero.path = []; return; }
+  const path = bfs(Math.round(hero.x), Math.round(hero.y), (a, b) => Math.abs(a - mx) + Math.abs(b - my) === 1);
+  hero.path = path ? path.slice(0, 3) : [];
+}
+function huntStep() {
+  if (++S.hunt.steps % 8 === 0) { if (!spend(1)) return; renderHud(); }
+  if (hero.atk !== null && hero.atk !== undefined) chaseStep();
+}
+function huntArrive() {
+  const x = Math.round(hero.x), y = Math.round(hero.y);
+  if (hero.goal && hero.goal[0] === x && hero.goal[1] === y && hT(x, y) === 'x') { hero.goal = null; leaveHunt(); return; }
+  hero.goal = null;
+}
+// 매 장면: 몬스터 움직임과 공격, 광부의 휘두르기
+let swingCd = 0;
+function huntTick(dt) {
+  const H = S.hunt; if (!H) return;
+  swingCd = Math.max(0, swingCd - dt);
+  for (const m of H.mons) {
+    if (m.hp <= 0) continue;
+    m.hurt = Math.max(0, m.hurt - dt); m.cd = Math.max(0, m.cd - dt);
+    const M = MONS[m.kind], d = Math.hypot(m.x - hero.x, m.y - hero.y);
+    let tx = m.wx, ty = m.wy;
+    if (d < 5.5) { tx = hero.x; ty = hero.y; } else if (Math.hypot(m.x - m.wx, m.y - m.wy) < .2) { m.wx = Math.max(1, Math.min(HW - 2, m.x + (Math.random() - .5) * 6)); m.wy = Math.max(1, Math.min(HH - 2, m.y + (Math.random() - .5) * 6)); }
+    if (d > 1.05) {
+      const dx = tx - m.x, dy = ty - m.y, l = Math.hypot(dx, dy) || 1, st = Math.min(l, M.speed * dt * (d < 5.5 ? 1 : .4));
+      const nx = m.x + dx / l * st, ny = m.y + dy / l * st;
+      if (!hBlocked(Math.round(nx), Math.round(ny))) { m.x = nx; m.y = ny; } else { m.wx = m.x; m.wy = m.y; }
+    } else if (m.cd <= 0) {   // 옆에 붙으면 때림
+      m.cd = 1.4; SFX.deny(); buzz(30); cam.shake = 4;
+      if (!spend(M.hit)) return; renderHud();
+    }
+  }
+  // 쫓던 몬스터 옆이면 휘두름
+  const tgt = H.mons.find(o => o.id === hero.atk && o.hp > 0);
+  if (tgt && !hero.path.length && Math.hypot(tgt.x - hero.x, tgt.y - hero.y) >= 1.35) chaseStep();
+  if (tgt && Math.hypot(tgt.x - hero.x, tgt.y - hero.y) < 1.35 && swingCd <= 0 && !hero.path.length) {
+    swingCd = .55; mswing = 1;
+    if (tgt.x > hero.x) { hero.back = false; hero.fx = 1; } else { hero.back = true; hero.fx = -1; }
+    tgt.hp -= power(); tgt.hurt = .2; SFX.dig();
+    hunts.push({ x: tgt.x, y: tgt.y, text: `${power()}`, col: '#fff', life: 1 });
+    if (tgt.hp <= 0) {
+      const got = MONS[tgt.kind].drop.filter(([, p2]) => Math.random() < p2).map(([k]) => k), room = got.filter((k, i) => carryN() + i < bagCap());
+      room.forEach(k => addItem(k, 1));
+      toast(room.length ? room.map(k => `<span class="ore ${k}"></span>${ORES[k].name}`).join(' ') : `${ico('ic_bag')}가득`);
+      S.killN = (S.killN || 0) + 1; hero.atk = null; SFX.ore(2); questEvent('hunt'); save(); renderDock();
+    }
+    if (!spend(1)) return; renderHud();
+  }
+}
+function monsterAt(c, m) {
+  const p = iso(m.x + .5, m.y + .5, 0), u = TW / 72, ink = Math.max(1.4, TW * .022), bob = Math.sin(tnow * 6 + m.id) * u * 2;
+  c.save(); c.translate(p[0], p[1]);
+  E(c, 0, u * 2, u * 22, u * 8, 'rgba(0,0,0,.25)');
+  if (m.hurt > 0) c.globalAlpha = .6;
+  if (m.kind === 'boar') {
+    blobs(c, [[0, -u * 16 + bob, u * 18], [u * 14, -u * 14 + bob, u * 11]], '#8a5a3a', ink);
+    Cc(c, u * 19, -u * 17 + bob, u * 2.2, '#2b1a12'); inkPoly(c, [[u * 22, -u * 10 + bob], [u * 28, -u * 14 + bob], [u * 23, -u * 8 + bob]], '#f4ead6', ink * .6);
+  } else if (m.kind === 'wolf') {
+    blobs(c, [[0, -u * 18 + bob, u * 17], [u * 13, -u * 24 + bob, u * 11]], '#4a3a6a', ink);
+    inkPoly(c, [[u * 8, -u * 32 + bob], [u * 11, -u * 42 + bob], [u * 15, -u * 32 + bob]], '#4a3a6a', ink * .8);
+    Cc(c, u * 17, -u * 25 + bob, u * 2.6, '#ff6a5a');
+  } else {
+    const g = c.createRadialGradient(0, -u * 24 + bob, 1, 0, -u * 24 + bob, u * 30); g.addColorStop(0, 'rgba(230,220,255,.8)'); g.addColorStop(1, 'rgba(200,190,255,0)'); Cc(c, 0, -u * 24 + bob, u * 30, g);
+    blobs(c, [[0, -u * 24 + bob, u * 13], [-u * 8, -u * 12 + bob, u * 6], [u * 8, -u * 12 + bob, u * 6]], '#e8e2ff', ink * .8);
+    Cc(c, -u * 4, -u * 26 + bob, u * 2.2, '#5a4a9a'); Cc(c, u * 4, -u * 26 + bob, u * 2.2, '#5a4a9a');
+  }
+  c.globalAlpha = 1;
+  const f = Math.max(0, m.hp / MONS[m.kind].hp); c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(-u * 16, -u * 48, u * 32, u * 5); c.fillStyle = '#e04a3a'; c.fillRect(-u * 16, -u * 48, u * 32 * f, u * 5);
+  c.restore();
+}
+function drawHunt(c, dt) {
+  const H = S.hunt, vr = viewTiles();
+  // 사냥터 밖은 끝없는 숲 (들어갈 수 없음)
+  const outT = (x, y) => (x >= 0 && y >= 0 && x < HW && y < HH ? null : H32(x * 3571 + y * 7919 + 5) < .55 ? 't' : 'g');
+  for (let s = vr.x0 + vr.y0; s <= vr.x1 + vr.y1; s++) for (let x = Math.max(vr.x0, s - vr.y1); x <= Math.min(vr.x1, s - vr.y0); x++) {
+    const y = s - x, n = H32(x * 92821 + y * 68917), out = outT(x, y);
+    tileTop(c, x, y, 0, out ? ['#7fa04c', '#86a652', '#789a46'][n * 3 | 0] : hT(x, y) === 'x' ? '#d2b98e' : ['#9ab85a', '#a2be60', '#92b054'][n * 3 | 0]);
+    if (out) continue;
+    if (n > .9) { const q = iso(x + .5, y + .5, 0); Cc(c, q[0], q[1], TW * .03, ['#f2d35b', '#f6f0e0'][(n * 20 | 0) % 2]); }
+  }
+  const list = [];
+  for (let s = vr.x0 + vr.y0; s <= vr.x1 + vr.y1; s++) for (let x = Math.max(vr.x0, s - vr.y1); x <= Math.min(vr.x1, s - vr.y0); x++) {
+    const y = s - x, t = outT(x, y) || hT(x, y); if (t === 't') list.push([x + y + 1, () => treeAt(c, x, y)]); else if (t === 'k') list.push([x + y + 1, () => rockAt(c, x, y)]);
+  }
+  H.mons.forEach(m => { if (m.hp > 0) list.push([m.x + m.y + 1.01, () => monsterAt(c, m)]); });
+  list.push([hero.x + hero.y + 1.02, () => { const p = iso(hero.x + .5, hero.y + .5, 0); person(c, p[0], p[1], TW / 44, '#3d6fa8', true, 0, false); }]);
+  list.sort((a, b) => a[0] - b[0]).forEach(([, f]) => f());
+  { const p = iso(H.ex + .5, H.ey + .5, 0); label(c, '마을', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); }
+  hunts = hunts.filter(h2 => (h2.life -= dt) > 0);
+  hunts.forEach(h2 => { const p = iso(h2.x + .5, h2.y + .5, 1.6 + (1 - h2.life)); c.globalAlpha = Math.min(1, h2.life * 2); c.font = `${Math.round(TW * .28)}px ${FONT}`; c.textAlign = 'center'; c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.7)'; c.strokeText(h2.text, p[0], p[1]); c.fillStyle = h2.col; c.fillText(h2.text, p[0], p[1]); }); c.globalAlpha = 1;
+  marks = marks.filter(k => (k.life -= 1 / 40) > 0);
+  marks.forEach(k => { const sz = .5 + (1 - k.life) * .5, cx = k.x + .5, cy = k.y + .5; const pts = [iso(cx - sz / 2, cy - sz / 2, 0), iso(cx + sz / 2, cy - sz / 2, 0), iso(cx + sz / 2, cy + sz / 2, 0), iso(cx - sz / 2, cy + sz / 2, 0)]; c.beginPath(); pts.forEach(([a, b], j) => j ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.strokeStyle = `rgba(${k.col},${k.life})`; c.lineWidth = TW * .05; c.stroke(); });
+}
+function makeSword() {
+  const next = SWORDS[(S.sword || 0) + 1]; if (!next || !hasAll(next.need) || S.gold < next.gold) return;
+  Object.entries(next.need).forEach(([k, n]) => { S.inv[k] -= n; }); S.gold -= next.gold; S.sword = (S.sword || 0) + 1;
+  SFX.stairs(); toast(`${ico('ic_sword')}${next.name}`); save(); renderHud(); showSmithy();
+}
+
 /* ===== 장신구 (기획 25번): 끼워야 효과가 있고, 두 개를 합치면 효과가 합쳐진 새 장신구 =====
    효과 이름: home 입구 화살표, hole 구멍 화살표, camp 야영지 화살표, dowse 광맥 추, light 등불 칸, glint2 반짝임 두 칸,
    glowFar 귀한 광맥이 더 멀리서 빛남, map2 작은 지도 두 배, walk 땅속 걷기 기력 절반, forestFree 숲 걷기 기력 0,
@@ -2100,7 +2267,7 @@ const COMBINE_GOLD = 100;
 const ITEMS = {
   soup: { n: '버섯 수프', ic: 'ic_rest', eat: 25 }, grill: { n: '생선 구이', ic: 'ic_fish', eat: 30 }, fry: { n: '감자 볶음', ic: 'ic_rest', eat: 35 },
   stew: { n: '무 조림', ic: 'ic_rest', eat: 30 }, jam: { n: '딸기 잼', ic: 'ic_rest', eat: 20 }, eelbowl: { n: '장어 덮밥', ic: 'ic_fish', eat: 60 },
-  moonsoup: { n: '달빛 국', ic: 'ic_rest', eat: 80 }, mush2: { n: '이상한 죽', ic: 'ic_rest', eat: 5 },
+  moonsoup: { n: '달빛 국', ic: 'ic_rest', eat: 80 }, steak: { n: '고기 구이', ic: 'ic_rest', eat: 45 }, mush2: { n: '이상한 죽', ic: 'ic_rest', eat: 5 },
   radishSeed: { n: '무 씨앗', ic: 'ic_seed', seed: 'radish' }, potatoSeed: { n: '감자 씨앗', ic: 'ic_seed', seed: 'potato' }, berrySeed: { n: '딸기 씨앗', ic: 'ic_seed', seed: 'berry' }, recall: { n: '귀환서', ic: 'ic_scroll' }, campRecall: { n: '야영 귀환서', ic: 'ic_scroll' }, tent: { n: '야영 천막', ic: 'ic_tent' } };
 // 대장간에서 만드는 것 (장신구, 쓸 것, 장신구 고리)
 const CRAFTS = [
@@ -2205,12 +2372,13 @@ const sheet = document.getElementById('sheet'), dock = document.getElementById('
 const bagCount = () => ORE_ORDER.reduce((a, o) => a + (S.inv[o] || 0), 0);
 const oreRow = src => ORE_ORDER.filter(o => src[o]).map(o => `<span><span class="ore ${o}"></span>${src[o]}</span>`).join('');
 function renderDock() {
-  const mine = scene === 'mine' || scene === 'forest';
+  const mine = scene === 'mine' || scene === 'forest' || scene === 'hunt';
   minebar.hidden = !mine;
   dock.hidden = mine || !sheet.hidden;
   if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate" data-a="bag" aria-label="가방">${ico('ic_bag')}${bagCount()}</button>`;
   const bagBtn = `<button class="btn small" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
-  if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_tree')}숲</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_sword')}성 밖</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  else if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_tree')}숲</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (mine && S.mine) minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button><b>${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small></b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
 }
 function openSheet(title, body, btns, closable = true) {
@@ -2238,6 +2406,7 @@ function showCard(o, msg) {
     return;
   }
   if (!o.done) { ruinCard(o); return; }
+  if (o.id === 'gate') { const am = phaseIndex() === 0; openSheet(`${ico('ic_sword')}성 밖`, `<p>${ico('ic_sword')}${SWORDS[S.sword || 0].name}</p>` + (am ? '<p class="dim">점심부터</p>' : ''), `<button class="btn primary" data-a="hunt" ${am ? 'disabled' : ''}>나가기</button>`); return; }
   if (o.id === 'house') {
     showHouse();
   } else if (o.id === 'chief') {
@@ -2285,6 +2454,7 @@ const RESTORE = {
   field: { gold: 300, need: { wood: 8 }, who: '촌장', line: '밭이 다시 일궈졌네요. 씨앗은 떠돌이 상인이 팔아요. 아침이나 점심에 물을 주면 그날 밤 한 뼘씩 자라요.' },
   kitchen: { gold: 1000, need: { wood: 15, ironBar: 2 }, who: '식당 주인', line: '식당을 다시 열게 됐어요. 재료 두 가지를 골라 요리해 봐요. 처음 찾은 맛은 적어 둘게요. 점심이랑 저녁엔 마을 사람들이 부탁도 하러 와요.' },
   jewel: { gold: 1500, need: { silverBar: 3, crystal: 2 }, who: '세공사', line: '세공소를 고쳐 줘서 고마워요. 원석을 가져오면 같이 깎아요. 결을 따라 정확히 두드릴수록 보석이 더 나와요. 귀한 원석일수록 까다롭고요.' },
+  gate: { gold: 2000, need: { ironBar: 5, wood: 20 }, who: '촌장', line: '성벽 문이 다시 열렸어요. 성 밖 들판엔 짐승이 다녀요. 낮엔 멧돼지 정도지만 저녁부터는 그림자 늑대가, 새벽엔 달빛 정령이 나와요. 대장간에서 검을 만들어 가면 훨씬 수월할 거예요.' },
   market: { gold: 800, need: { wood: 10 }, who: '시장 상인', line: '시장이 다시 열렸어요. 값은 날마다 바뀌어요. 많이 팔면 값이 떨어지니 나눠서 파는 게 좋아요. 내일 무엇이 오를지도 알려 줄게요.', then: () => rollMarket(true) },
 };
 const canRestore = id => { const i = QUESTS.findIndex(q => q.id === id); return i >= 0 && S.quest >= i; };
@@ -2333,6 +2503,8 @@ function showSmithy() {
     const ok = Object.entries(next.need).every(([k, n]) => (S.inv[k] || 0) >= n) && S.gold >= next.gold;
     pick += `<div class="rowi"><span class="nm">${next.name} ${Object.entries(next.need).map(([k, n]) => `<span class="ore ${k}"></span>${Math.min(S.inv[k] || 0, n)}/${n}`).join(' ')} ${GOLD}${next.gold}</span><button class="btn small ${ok ? 'primary' : ''}" data-a="forge" ${ok ? '' : 'disabled'}>강화</button></div>`;
   }
+  const sw = SWORDS[(S.sword || 0) + 1];
+  pick += `<div class="rowi"><span class="nm">${ico('ic_sword')}${SWORDS[S.sword || 0].name}</span></div>` + (sw ? `<div class="rowi"><span class="nm">${sw.name} ${needHtml(sw.need, sw.gold)}</span><button class="btn small" data-a="sword" ${hasAll(sw.need) && S.gold >= sw.gold ? '' : 'disabled'}>만들기</button></div>` : '');
   const crafts = CRAFTS.filter(r => r.kind !== 'slot' || S.acc.slots < 2).map(r => `<div class="rowi"><span class="nm">${r.kind === 'slot' ? ico('ic_ring') + '장신구 고리' : accIco(r.id) + (ACC[r.id] || ITEMS[r.id]).n} ${needHtml(r.need, r.gold)}</span><button class="btn small" data-a="craft" data-o="${r.id}" ${hasAll(r.need) && S.gold >= r.gold ? '' : 'disabled'}>만들기</button></div>`).join('');
   const recs = RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b)).map(([[a, b, o], i]) => `<div class="rowi"><span class="nm">${accIco(a)}<span class="${owned(a) ? '' : 'lack'}">${ACC[a].n}</span> + ${accIco(b)}<span class="${owned(b) ? '' : 'lack'}">${ACC[b].n}</span> → ${owned(a) && owned(b) ? ACC[o].n : '?'}</span><button class="btn small" data-a="combine" data-n="${i}" ${owned(a) && owned(b) && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`).join('');
   openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div><p class="dim" style="margin-top:10px">만들기</p><div class="rows">${crafts}</div>` + (recs ? `<p class="dim" style="margin-top:10px">합치기</p><div class="rows">${recs}</div>` : ''));
@@ -2485,11 +2657,11 @@ function drawCrops(c, o) {
 }
 /* ===== 식당 (기획 4번 7단계): 재료 둘을 골라 요리. 맞는 짝이면 요리법을 알게 되고, 먹으면 기력이 참 (시간은 안 돌아감) =====
    점심과 저녁엔 그날의 주민 의뢰: 정해진 것을 가져다주면 돈 */
-const COOKABLE = ['herb', 'mush', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry'];
+const COOKABLE = ['meat', 'herb', 'mush', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry'];
 const RECIPES_K = [
   { out: 'soup', a: 'mush', b: 'herb' }, { out: 'grill', a: 'carp', b: 'herb' }, { out: 'grill', a: 'trout', b: 'herb' },
   { out: 'fry', a: 'potato', b: 'mush' }, { out: 'stew', a: 'radish', b: 'catfish' }, { out: 'jam', a: 'berry', b: 'berry' },
-  { out: 'eelbowl', a: 'eel', b: 'potato' }, { out: 'moonsoup', a: 'moonkoi', b: 'radish' },
+  { out: 'eelbowl', a: 'eel', b: 'potato' }, { out: 'moonsoup', a: 'moonkoi', b: 'radish' }, { out: 'steak', a: 'meat', b: 'herb' },
 ];
 const REQS = [['radish', 2, 120], ['carp', 3, 90], ['mush', 4, 70], ['iron', 6, 220], ['potato', 2, 180], ['trout', 2, 110], ['copperBar', 2, 200], ['herb', 5, 90], ['berry', 1, 200], ['silver', 3, 200]];
 let kitSel = [];
@@ -2595,6 +2767,8 @@ document.addEventListener('click', e => {
   else if (a === 'forge') startHammer();
   else if (a === 'strike') strike();
   else if (a === 'forest') enterForest();
+  else if (a === 'hunt') enterHunt();
+  else if (a === 'sword') makeSword();
   else if (a === 'digForce') { hideSheet(); const [x, y] = b.dataset.n.split(',').map(Number); dig(x, y, true); }
   else if (a === 'campSleep') { hideSheet(); sleep(S.deep.lastCamp); }
   else if (a === 'use') useItem(b.dataset.o);
@@ -2664,6 +2838,16 @@ function frame(ms) {
     ctx.setTransform(DPR * cam.s, 0, 0, DPR * cam.s, DPR * (W / 2 - cam.fx * cam.s + sh[0]), DPR * (H / 2 - cam.fy * cam.s + sh[1]));
     drawMine(ctx, dt);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0); mineLight(ctx); drawArrows(ctx); drawMiniMap(ctx); if (accEff('dowse')) drawPendulum(ctx);
+  } else if (scene === 'hunt' && S.hunt) {
+    huntTick(dt); mswing = Math.max(0, mswing - dt * 4);
+    if (scene === 'hunt') {
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0); R(ctx, 0, 0, W, H, '#2f4a24');
+      const sk = (cam.shake || 0) > .2 ? [(Math.random() - .5) * cam.shake, (Math.random() - .5) * cam.shake] : [0, 0]; cam.shake = Math.max(0, (cam.shake || 0) - dt * 30);
+      ctx.setTransform(DPR * cam.s, 0, 0, DPR * cam.s, DPR * (W / 2 - cam.fx * cam.s + sk[0]), DPR * (H / 2 - cam.fy * cam.s + sk[1]));
+      drawHunt(ctx, dt);
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0); if (SKY[phase].tint) R(ctx, 0, 0, W, H, SKY[phase].tint);
+      const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,20,8,.35)'); R(ctx, 0, 0, W, H, v);
+    }
   } else if (scene === 'forest' && S.forest) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0); R(ctx, 0, 0, W, H, '#1a2b1a');
     ctx.setTransform(DPR * cam.s, 0, 0, DPR * cam.s, DPR * (W / 2 - cam.fx * cam.s), DPR * (H / 2 - cam.fy * cam.s));
@@ -2728,7 +2912,7 @@ function startGame() {
   resize();
   if (S.screen === 'mine' && S.deep) { scene = 'mine'; FLAT = true; S.mine = { L: S.deep.L }; hero.x = S.deep.x; hero.y = S.deep.y; mineSee(); }
   else if (S.screen === 'forest' && S.forest && S.forest.day === S.day && S.forest.it) { scene = 'forest'; FLAT = true; hero.x = S.forest.hx; hero.y = S.forest.hy; forestSee(); }
-  else { S.screen = 'village'; S.mine = null; }
+  else { S.screen = 'village'; S.mine = null; S.hunt = null; unpack(); }
   snapCam(); renderHud(); renderDock(); showHome();
   fade = 1;
   requestAnimationFrame(frame);
@@ -2760,6 +2944,9 @@ window.MinerDiary = {
     return { x: W / 2, y: H / 2 };
   },
   speed: k => { hero.speed = 5.2 * k; },
+  huntSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, 0); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
+  mons: () => (S.hunt ? S.hunt.mons.map(m => ({ id: m.id, kind: m.kind, x: m.x, y: m.y, hp: m.hp })) : []),
+  setMon: (id, x, y) => { const m = S.hunt.mons.find(o => o.id === id); m.x = m.wx = x; m.y = m.wy = y; },
   fishState: () => fishState(),
   // 마을 칸을 화면 가운데로 옮기고 그 위치를 돌려줌
   tileSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, isWater(x, y) ? -.12 : hgt(x, y)); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
