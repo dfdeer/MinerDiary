@@ -263,6 +263,30 @@ const shot = process.argv[2];
   { const p = await page.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), bz); await page.mouse.click(p.x, p.y); await page.waitForTimeout(80); await page.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 20000 }); await page.waitForTimeout(100); }
   ok(await page.evaluate(([x, y]) => window.MinerDiary.fcell(x, y), bz) === 'g' && (await st()).forestOpen[1] === 1, '파워 30이 되면 큰 바위를 깨고 깊은 숲이 열림 (다음 날에도 열려 있음)');
   await page.evaluate(() => { S.sharp = 0; });
+  // 10-2c. 곁가지 숲: 버섯 골짜기(가시덤불은 낫으로), 호숫가 숲(낚시)
+  ok(await page.evaluate(() => [window.MinerDiary.fcell(40, 2), window.MinerDiary.fcell(40, 3), window.MinerDiary.fcell(24, FH - 3)].join('')) === 'oqo', '깊은 숲 위에 버섯 골짜기 입구(가시덤불), 오래된 숲 아래에 호숫가 숲 입구');
+  await page.evaluate(() => { for (let y = 1; y <= S.forest.ey; y++) for (let x = 39; x <= 41; x++) S.forest.seen[fI(x, y)] = 1; });
+  const ftap = async (x, y) => { const p = await page.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), [x, y]); await page.mouse.click(p.x, p.y); await page.waitForTimeout(80); await page.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 20000 }); await page.waitForTimeout(100); };
+  await ftap(40, 3);
+  ok(await page.evaluate(() => window.MinerDiary.fcell(40, 3)) === 'q' && (await page.textContent('#toast')).includes('낫 필요'), '낫이 없으면 가시덤불을 못 침');
+  await page.evaluate(() => { S.sickle = 1; });
+  await ftap(40, 3);
+  ok(await page.evaluate(() => window.MinerDiary.fcell(40, 3)) === 'g', '낫이 있으면 가시덤불을 쳐서 길을 냄');
+  await ftap(40, 2);
+  await page.waitForFunction(() => S.forest.grove === 'mush', null, { timeout: 10000 });
+  ok(await page.evaluate(() => Object.values(S.forest.it).filter(k => k === 'glowcap' || k === 'truffle' || k === 'mush').length) > 10, '버섯 골짜기엔 버섯과 빛버섯, 송로버섯이 잔뜩');
+  await page.click('[data-a="leave"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'forest' && !S.forest.grove, null, { timeout: 20000 });
+  ok(true, '곁가지 숲에서 나가면 본 숲으로');
+  await page.evaluate(() => { S.rod = 1; enterGrove('lake'); for (let i = 0; i < S.forest.seen.length; i++) S.forest.seen[i] = 1; });
+  const wt = await page.evaluate(() => { const f = S.forest; for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) if (f.t[fI(x, y)] === 'w' && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => f.t[fI(x + dx, y + dy)] === 'g')) return [x, y]; return null; });
+  await ftap(wt[0], wt[1]);
+  await page.waitForSelector('#sheet [data-a="pull"]', { timeout: 10000 });
+  await page.evaluate(() => window.MinerDiary.fishBite());
+  await page.click('#sheet [data-a="pull"]');
+  ok(await page.evaluate(() => ['perch', 'carp', 'goldfin'].some(k => S.carry[k] > 0)), '호숫가 숲 물가를 누르면 낚시, 호수 물고기(쏘가리, 붕어, 금빛 송사리)');
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => { leaveGrove(); S.rod = 0; S.sickle = 0; });
   await page.click('[data-a="leave"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 });
   s = await st();
   ok(!Object.keys(s.carry).length && ['herb', 'mush', 'wood', 'fiber', 'leather', 'copper'].some(k => s.inv[k] > 0), '숲에서 마을 길까지 걸어가서 마을로, 주운 것은 창고로');
@@ -382,6 +406,7 @@ const shot = process.argv[2];
   // 13-0x. 날 세우기: 곡괭이 파워 +4
   const pw0 = await page.evaluate(() => { S.inv.copperBar = 3; S.gold += 100; showSmithy(); return window.MinerDiary.power(); });
   await page.click('#sheet [data-a="sharp"]');
+  ok(await page.locator('#sheet [data-a="craft"][data-o="sickle"]').count() === 1, '대장간에서 낫을 만들 수 있음');
   ok((await st()).sharp === 1 && await page.evaluate(() => window.MinerDiary.power()) === pw0 + 4 && (await page.textContent('#sheet')).includes('곡괭이 파워'), `대장간 날 세우기로 곡괭이 파워 +4 (${pw0} 다음 ${pw0 + 4})`);
   await page.click('#sheet [data-a="close"]');
 
@@ -422,14 +447,14 @@ const shot = process.argv[2];
   await page.mouse.click(wp.x, wp.y);
   await page.waitForSelector('#sheet [data-a="pull"]', { timeout: 15000 });
   if (shot) await page.screenshot({ path: path.join(shot, 'fishing.png') });
-  const eFi = (await st()).energy;
+  const eFi = (await st()).energy, fN0 = (await st()).fishN || 0;
   for (let k = 0; k < 3; k++) {
     if (k) await page.click('#sheet [data-a="cast"]');
     await page.waitForFunction(() => window.MinerDiary.fishState() === 'bite', null, { timeout: 8000, polling: 20 });
     await page.evaluate(() => document.querySelector('#sheet [data-a="pull"]').click());
   }
   s = await st();
-  ok(s.fishN === 3 && Object.keys(s.inv).some(k => ['carp', 'trout', 'catfish', 'eel', 'moonkoi'].includes(k) && s.inv[k] > 0) && s.energy === eFi - 4, '강을 누르면 물가로 걸어가 낚시, 찌가 잠길 때 당기면 물고기 (던질 때 기력 2)');
+  ok(s.fishN === fN0 + 3 && Object.keys(s.inv).some(k => ['carp', 'trout', 'catfish', 'eel', 'moonkoi'].includes(k) && s.inv[k] > 0) && s.energy === eFi - 4, '강을 누르면 물가로 걸어가 낚시, 찌가 잠길 때 당기면 물고기 (던질 때 기력 2)');
   ok((await quest()).includes('밭'), '물고기 셋을 낚으면 다음 퀘스트 「밭 일구기」');
   await page.click('#sheet [data-a="close"]');
 
