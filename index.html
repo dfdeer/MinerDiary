@@ -106,6 +106,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .nd{display:inline-flex;align-items:center;gap:3px;font-size:12px;margin-left:6px}.nd.lack,.lack{color:#e68a7a}
 .ore.carp,.ore.trout,.ore.catfish,.ore.eel,.ore.moonkoi{transform:none;border-radius:50% 40% 40% 50%;width:15px;height:10px}.ore.carp{background:#b8a070}.ore.trout{background:#e08a8a}.ore.catfish{background:#6a6a5a}.ore.eel{background:#4a5a3a}.ore.moonkoi{background:#cfc4ff;box-shadow:0 0 6px #b9a8ff}
 .fishing{height:110px;border-radius:14px;background:linear-gradient(#4f9fd8,#3f7fb0);position:relative;overflow:hidden;margin-bottom:6px}.fishing .bob{position:absolute;left:50%;top:44px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#fff 0 30%,#e04a3a 31%);border:2px solid #2b1a12;transition:transform .1s}.fishing .bob.bite{transform:translateY(10px) scale(.9)}.fishing .say{position:absolute;left:0;right:0;top:8px;text-align:center;font-size:22px;color:#fff;text-shadow:0 2px 0 #2b1a12}
+.ore.radish{background:#f4f0e6;border-radius:50%}.ore.potato{background:#b08850;border-radius:45%}.ore.berry{background:#e0405a;border-radius:50% 50% 50% 0}
 .ore.herb{background:#4fae55}.ore.mush{background:#d9483a}.ore.wood{background:#a8703a}.ore.fiber{background:#d8c46a}.ore.leather{background:#8a5a32;transform:none;border-radius:4px}
 .ore.copper{background:#d97a3a}.ore.coal{background:#3a3a40}.ore.silver{background:#e6ecf2}.ore.gold{background:#f2c230}.ore.amethyst{background:#a46be0}.ore.ruby{background:#e0405a}
 .ore.silverBar,.ore.goldBar{transform:none;width:15px;height:9px;border-radius:2px}.ore.silverBar{background:#e8eef4}.ore.goldBar{background:#f5cf45}
@@ -260,10 +261,13 @@ const ORES = {
   catfish:   { name: '메기',     price: 40,  color: '#6a6a5a', light: '#b0b0a0' },
   eel:       { name: '뱀장어',   price: 65,  color: '#4a5a3a', light: '#9aaa80' },
   moonkoi:   { name: '달빛 잉어', price: 160, color: '#cfc4ff', light: '#ffffff' },
+  radish:    { name: '무',       price: 35,  color: '#f4f0e6', light: '#ffffff' },
+  potato:    { name: '감자',     price: 60,  color: '#b08850', light: '#e0c090' },
+  berry:     { name: '딸기',     price: 120, color: '#e0405a', light: '#ffb0bc' },
   silverBar: { name: '은 주괴',   price: 280, color: '#e8eef4', light: '#ffffff' },
   goldBar:   { name: '금 주괴',   price: 560, color: '#f5cf45', light: '#fff4b8' },
 };
-const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi'];
+const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry'];
 /* ===== 대장간 (3단계): 용광로에 광석 5개와 석탄 1개를 넣고 자면 아침에 주괴. 주괴와 돈으로 곡괭이 강화 (망치질 박자로 품질) ===== */
 const SMELT = { copper: 'copperBar', iron: 'ironBar', silver: 'silverBar', gold: 'goldBar' }, SMELT_N = 5, FURNACE_MAX = 10;
 // 곡괭이: 구리는 7층까지, 철(가운데 단계)부터 단단한 바위와 10층, 은은 캐는 기력 1, 금은 단단한 바위도 쉽게. 높은 단계일수록 망치질이 빠르고 칸이 좁음
@@ -318,12 +322,14 @@ const QUESTS = [
   { id: 'home', text: '집 고치기', need: 1, target: 'house', reward: 50 },
   { id: 'bridge', text: '강가 다리 고치기', target: 'bridge' },
   { id: 'fish', text: '물고기 낚기', need: 3, target: 'bridge', reward: 60 },
+  { id: 'field', text: '밭 일구기', target: 'field' },
+  { id: 'harvest', text: '작물 거두기', need: 3, target: 'field', reward: 80 },
   { id: 'deep7', text: '깊이 7 도달', need: 7, target: 'mine', reward: 100 },
   { id: 'pick2', text: '철 곡괭이 만들기', need: 2, target: 'smithy', reward: 100 },
   { id: 'deep10', text: '깊이 10 도달', need: 10, target: 'mine', reward: 200 },
 ];
 const questNow = () => QUESTS[S.quest];
-const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : 0);
+const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
   let q = questNow(), flag = false;
@@ -341,7 +347,7 @@ function questEvent(type, n) {
 /* ===== 상태와 저장 ===== */
 let S;
 function freshState() {
-  return { v: 3, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0,
+  return { v: 3, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], farm: {}, home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0,
     deep: { seed: (Math.random() * 1e6) | 0, L: 1, x: 0, y: 1, dug: {}, seen: {}, ups: {}, camps: [], lastCamp: null, steps: 0 } };
 }
 function load() {
@@ -388,6 +394,7 @@ function addItem(o, n) { const to = scene === 'village' ? S.inv : S.carry; to[o]
 function newDay(kind) {
   let smelted = null;
   if (S.market) rollMarket(false);
+  growFarm();
   if (S.furnace) { smelted = S.furnace; S.inv[smelted.bar] = (S.inv[smelted.bar] || 0) + smelted.n; S.furnace = null; }
   S.day += 1; S.energy = Math.round(S.max * START_FRAC[kind]); S.minE = S.dayStart = S.energy;
   S.today = {}; S.mine = null; S.screen = 'village'; scene = 'village'; FLAT = false;
@@ -451,6 +458,8 @@ const ICONS = {
   ic_ring: [['M12 7.5a6.5 6.5 0 1 0 .01 0Z', 'none', 3, '#e9b04f'], ['M12 2.5l2.4 3.2H9.6Z', '#7fdcef']],
   ic_rod: [['M5 21 19 3', 'none', 2.2, '#8a5a32'], ['M19 3v11', 'none', 1, '#e8e0d0'], ['M19 14.5a2 2 0 1 0 .01 0Z', '#e04a3a']],
   ic_fish: [['M3 12c3-5 9-6 13-2l5-3-1 5 1 5-5-3c-4 4-10 3-13-2Z', '#7fb6e0'], ['M8 11a1 1 0 1 0 .01 0Z', '#2b1a12', 0]],
+  ic_seed: [['M6 7h12l-1 13H7Z', '#d8c46a'], ['M6 7l2-3h8l2 3Z', '#b8a04a'], ['M12 11c2 1 2 4 0 6-2-2-2-5 0-6Z', '#6fae54']],
+  ic_water: [['M5 9h10v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2Z', '#7fb6e0'], ['M15 11l5-3', 'none', 2.2, '#5a8ab0'], ['M7 6h6v3H7Z', '#5a8ab0']],
   ic_lock: [['M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10', 'none', 2.2], ['M5 10h14v10.5H5Z', '#f2c230'], ['M12 13.5a1.5 1.5 0 1 0 .01 0Zm-.7 2h1.4v2.5h-1.4Z', '#2b1a12', 0]],
   ic_hearth: [['M3 8.5h15.5c0 2.4-2.4 3.6-4.8 3.6V15h2.6v2.6H7.2V15h2.6v-2.9C5.6 12.1 3 10.8 3 8.5Z', '#6a6f78'], ['M6 18.8h11v2H6Z', '#4a4e55'], ['M20 4.5l1.6 1.6-3 3-1.6-1.6Z', '#f2a33a']],
   ic_rest: [['M3 11.5h18a9 7.5 0 0 1-18 0Z', '#f4efe6'], ['M7.5 9C7 7.5 8.5 6.5 8 5M12 9c-.5-1.5 1-2.5.5-4M16.5 9c-.5-1.5 1-2.5.5-4', 'none', 1.6, '#c9bfae'], ['M6 13h12', 'none', 1.4, '#e04a3a']],
@@ -1018,10 +1027,11 @@ function drawObj(c, o, night) {
     }
     case 'field': {
       for (let gx = o.gx; gx < o.gx + o.w; gx++) for (let gy = o.gy; gy < o.gy + o.d; gy++) {
-        if (o.grow > .05) { for (let k = 0; k < 3; k++) { const a = iso(gx + .15, gy + .2 + k * .28, 0), b = iso(gx + .85, gy + .2 + k * .28, 0); L(c, a[0], a[1], b[0], b[1], '#6b4a2c', TW * .1); for (let j = 0; j < 3; j++) { const p = iso(gx + .25 + j * .25, gy + .2 + k * .28, 0); Cc(c, p[0], p[1] - ZU * .35 * o.grow, TW * .07 * o.grow, '#6fb04f'); } } }
+        if (o.grow > .05) { for (let k = 0; k < 3; k++) { const a = iso(gx + .15, gy + .2 + k * .28, 0), b = iso(gx + .85, gy + .2 + k * .28, 0); L(c, a[0], a[1], b[0], b[1], '#6b4a2c', TW * .1); } }
         else for (let k = 0; k < 4; k++) { const p = iso(gx + .2 + H32(gx * 5 + k + gy) * .6, gy + .2 + H32(k * 7 + gx * gy) * .6, 0); P(c, [[p[0] - TW * .05, p[1]], [p[0], p[1] - ZU * .6], [p[0] + TW * .05, p[1]]], '#5d7a3a'); }
       }
       // 낮은 울타리 (뒤쪽 두 변)
+      if (o.done) drawCrops(c, o);
       for (let k = 0; k <= o.w; k++) { const q = iso(o.gx + k, o.gy, 0); L(c, q[0], q[1], q[0], q[1] - ZU * .4, '#8a6a44', TW * .04); }
       for (let k = 1; k <= o.d; k++) { const q = iso(o.gx, o.gy + k, 0); L(c, q[0], q[1], q[0], q[1] - ZU * .4, '#8a6a44', TW * .04); }
       { const a = iso(o.gx + o.w, o.gy, .3), b = iso(o.gx, o.gy, .3), d = iso(o.gx, o.gy + o.d, .3); L(c, a[0], a[1], b[0], b[1], '#9c7a50', TW * .03); L(c, b[0], b[1], d[0], d[1], '#9c7a50', TW * .03); }
@@ -1348,6 +1358,7 @@ function walkStep(dt) {
     else if (scene === 'forest') { forestStep(); if (scene === 'forest' && !hero.path.length) forestArrive(); }
     else if (!hero.path.length && hero.target) { const o = hero.target; hero.target = null; arrive(o); }
     else if (!hero.path.length && hero.fishAt) { hero.fishAt = null; startFish(); }
+    else if (!hero.path.length && hero.plotAt) { const p2 = hero.plotAt; hero.plotAt = null; showPlot(p2[0], p2[1]); }
   }
   else { hero.x += dx / d * st; hero.y += dy / d * st; }
 }
@@ -1377,6 +1388,10 @@ function tap(px, py) {
     const small = o => (o.kind === 'npc' || o.kind === 'wagon' ? 1 : 0);
     return small(q) - small(p) || (q.gx + q.w + q.gy + q.d) - (p.gx + p.w + p.gy + p.d);
   });
+  if (hits.length && hits[0].kind === 'field' && hits[0].done) {   // 고친 밭: 누른 칸으로
+    const o = hits[0];
+    for (let gx = o.gx; gx < o.gx + o.w; gx++) for (let gy = o.gy; gy < o.gy + o.d; gy++) if (inPoly(x, y, [iso(gx, gy, 0), iso(gx + 1, gy, 0), iso(gx + 1, gy + 1, 0), iso(gx, gy + 1, 0)])) { goPlot(gx, gy); return; }
+  }
   if (hits.length) { const h0 = hits[0]; mark(h0.gx, h0.gy, '233,176,79', h0.w, h0.d); goTo(h0); return; }
   // 땅: 앞쪽 타일부터
   const vr = viewTiles();
@@ -2072,7 +2087,7 @@ const RECIPES = [['compass', 'plumb', 'guide'], ['compass', 'flag', 'twin'], ['g
   ['boots', 'insole', 'trailboots'], ['gloves', 'magnet', 'minergloves'], ['clover', 'pouch', 'luckpouch'], ['charm', 'honey', 'sleepcharm'], ['explorer', 'glowdowse', 'star']];
 const COMBINE_GOLD = 100;
 // 쓰고 없어지는 것
-const ITEMS = { recall: { n: '귀환서', ic: 'ic_scroll' }, campRecall: { n: '야영 귀환서', ic: 'ic_scroll' }, tent: { n: '야영 천막', ic: 'ic_tent' } };
+const ITEMS = { radishSeed: { n: '무 씨앗', ic: 'ic_seed', seed: 'radish' }, potatoSeed: { n: '감자 씨앗', ic: 'ic_seed', seed: 'potato' }, berrySeed: { n: '딸기 씨앗', ic: 'ic_seed', seed: 'berry' }, recall: { n: '귀환서', ic: 'ic_scroll' }, campRecall: { n: '야영 귀환서', ic: 'ic_scroll' }, tent: { n: '야영 천막', ic: 'ic_tent' } };
 // 대장간에서 만드는 것 (장신구, 쓸 것, 장신구 고리)
 const CRAFTS = [
   { id: 'tent', kind: 'item', need: { fiber: 6, wood: 4 }, gold: 0 },
@@ -2084,7 +2099,7 @@ const CRAFTS = [
   { id: 'ring', kind: 'slot', need: { copperBar: 3 }, gold: 300 },
 ];
 // 떠돌이 상인이 파는 것
-const SHOP = [{ id: 'recall', kind: 'item', gold: 80 }, { id: 'tent', kind: 'item', gold: 100 }, { id: 'campRecall', kind: 'item', gold: 150 }, { id: 'compass', kind: 'acc', gold: 150 }, { id: 'pouch', kind: 'acc', gold: 120 }];
+const SHOP = [{ id: 'radishSeed', kind: 'item', gold: 10, farm: 1 }, { id: 'potatoSeed', kind: 'item', gold: 20, farm: 1 }, { id: 'berrySeed', kind: 'item', gold: 40, farm: 1 }, { id: 'recall', kind: 'item', gold: 80 }, { id: 'tent', kind: 'item', gold: 100 }, { id: 'campRecall', kind: 'item', gold: 150 }, { id: 'compass', kind: 'acc', gold: 150 }, { id: 'pouch', kind: 'acc', gold: 120 }];
 function accEff(k) { if (!S || !S.acc) return 0; return S.acc.eq.reduce((a, id) => a + ((ACC[id] && ACC[id].eff[k]) || 0), 0); }
 const accIco = id => ico((ACC[id] || ITEMS[id]).ic);
 const owned = id => (S.acc.have[id] || 0);
@@ -2228,14 +2243,14 @@ function showCard(o, msg) {
 function showMerchant() {
   const rows = ORE_ORDER.filter(o => S.inv[o]).map(o => { const n = S.inv[o], p = ORES[o].price; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${n}</small></span><button class="btn small" data-a="sell" data-o="${o}">${GOLD}${p * n}</button></div>`; }).join('');
   const total = ORE_ORDER.reduce((a, o) => a + (S.inv[o] || 0) * ORES[o].price, 0);
-  const shop = SHOP.map((it, i) => `<div class="rowi"><span class="nm">${accIco(it.id)}${(ACC[it.id] || ITEMS[it.id]).n}${it.kind === 'acc' && owned(it.id) ? ' <small>있음</small>' : ''}</span><button class="btn small" data-a="buy" data-n="${i}" ${S.gold >= it.gold ? '' : 'disabled'}>${GOLD}${it.gold}</button></div>`).join('');
+  const shop = SHOP.map((it, i) => [it, i]).filter(([it]) => !it.farm || S.restored.includes('field')).map(([it, i]) => `<div class="rowi"><span class="nm">${accIco(it.id)}${(ACC[it.id] || ITEMS[it.id]).n}${it.kind === 'acc' && owned(it.id) ? ' <small>있음</small>' : ''}</span><button class="btn small" data-a="buy" data-n="${i}" ${S.gold >= it.gold ? '' : 'disabled'}>${GOLD}${it.gold}</button></div>`).join('');
   openSheet(ico('ic_shop') + '떠돌이 상인', (rows ? `<p class="dim">팔기</p><div class="rows">${rows}</div>` : '<p>광석이라면 뭐든 사 갈게요.</p>') + `<p class="dim" style="margin-top:10px">사기</p><div class="rows">${shop}</div>`, total ? `<button class="btn primary" data-a="sellAll">전부 ${GOLD}${total}</button>` : '');
 }
 function showBag() {
   const out = scene !== 'village', src = out ? S.carry : S.inv;
   const rows = ORE_ORDER.filter(o => src[o]).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name}</span><span>×${src[o]}</span><small>${GOLD}${ORES[o].price * src[o]}</small></div>`).join('');
   const usable = id => (id === 'tent' ? scene === 'mine' : id === 'recall' ? out : !!S.deep.lastCamp);
-  const items = Object.keys(ITEMS).filter(id => S.items[id] > 0).map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small>×${S.items[id]}</small></span><button class="btn small" data-a="use" data-o="${id}" ${usable(id) ? '' : 'disabled'}>쓰기</button></div>`).join('');
+  const items = Object.keys(ITEMS).filter(id => S.items[id] > 0).map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small>×${S.items[id]}</small></span>${ITEMS[id].seed ? '' : `<button class="btn small" data-a="use" data-o="${id}" ${usable(id) ? '' : 'disabled'}>쓰기</button>`}</div>`).join('');
   const slots = []; for (let i = 0; i < S.acc.slots; i++) { const id = S.acc.eq[i]; slots.push(id ? `<button class="slot on" data-a="unequip" data-o="${id}" aria-label="빼기">${accIco(id)}<small>${ACC[id].n}</small></button>` : '<span class="slot"></span>'); }
   const accs = Object.keys(ACC).filter(id => freeOwned(id) > 0).map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ACC[id].n}${owned(id) > 1 ? ` <small>×${freeOwned(id)}</small>` : ''}</span><button class="btn small" data-a="equip" data-o="${id}" ${S.acc.eq.length < S.acc.slots ? '' : 'disabled'}>끼기</button></div>`).join('');
   openSheet(ico('ic_bag') + (out ? `가방 <small>${carryN()}/${bagCap()}</small>` : '창고'),
@@ -2250,6 +2265,7 @@ const RESTORE = {
   forest: { gold: 100, who: '촌장', line: '숲길이 열렸네요. 숲에선 약초랑 나뭇가지 같은 걸 주울 수 있어요. 그리고 이 추를 가져가요. 끼고 광산에 들어가면 귀한 광맥 가까이에서 크게 흔들려요.', then: () => gainAcc('dowse') },
   smithy: { gold: 500, who: '대장장이', line: '대장간을 고쳐 줘서 고마워요. 광석을 용광로에 넣고 자면 아침엔 주괴가 돼 있을 거예요. 주괴를 모아 오면 곡괭이도 새로 두드려 줄게요.' },
   bridge: { gold: 300, need: { wood: 20, ironBar: 2 }, who: '촌장', line: '다리가 이어졌네요. 이 낚싯대도 가져가요. 강에선 아침이랑 저녁에 잘 잡히고, 새벽엔 그때만 나오는 물고기가 있대요.', then: () => { S.rod = 1; } },
+  field: { gold: 300, need: { wood: 8 }, who: '촌장', line: '밭이 다시 일궈졌네요. 씨앗은 떠돌이 상인이 팔아요. 아침이나 점심에 물을 주면 그날 밤 한 뼘씩 자라요.' },
   market: { gold: 800, need: { wood: 10 }, who: '시장 상인', line: '시장이 다시 열렸어요. 값은 날마다 바뀌어요. 많이 팔면 값이 떨어지니 나눠서 파는 게 좋아요. 내일 무엇이 오를지도 알려 줄게요.', then: () => rollMarket(true) },
 };
 const canRestore = id => { const i = QUESTS.findIndex(q => q.id === id); return i >= 0 && S.quest >= i; };
@@ -2388,6 +2404,62 @@ function pull() {
   }
   if (btns) btns.innerHTML = '<button class="btn primary" data-a="cast">다시</button>';
 }
+/* ===== 밭 (기획 4번 5단계): 칸마다 심고, 아침이나 점심에 물을 주면 그날 밤 하루치 자람. 다 자라면 거둠 =====
+   심기 기력 1, 물 주기 기력 1, 거두기는 기력 없음 */
+const CROPS = { radish: { days: 3 }, potato: { days: 4 }, berry: { days: 5 } };
+function goPlot(x, y) {
+  mark(x, y, '255,220,150');
+  const path = bfs(Math.round(hero.x), Math.round(hero.y), (a, b) => a === x && b === y);
+  if (!path) return;
+  hero.target = null; selected = null; follow = true; showHome();
+  if (!path.length) { showPlot(x, y); return; }
+  hero.path = path; hero.plotAt = [x, y];
+}
+function showPlot(x, y) {
+  const k = x + ',' + y, p2 = S.farm[k];
+  if (!p2) {
+    const seeds = Object.keys(ITEMS).filter(id => ITEMS[id].seed && S.items[id] > 0);
+    openSheet(ico('ic_seed') + '빈 밭', seeds.length ? `<div class="rows">${seeds.map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small>×${S.items[id]}</small> <small>${CROPS[ITEMS[id].seed].days}일</small></span><button class="btn small" data-a="plant" data-o="${id}" data-n="${x * 1000 + y}">심기</button></div>`).join('')}</div>` : '<p class="dim">씨앗 없음</p>');
+    return;
+  }
+  const C = CROPS[p2.crop], ready = p2.days >= C.days, ph = phaseIndex();
+  if (ready) { openSheet(`<span class="ore ${p2.crop}"></span>${ORES[p2.crop].name}`, '', `<button class="btn primary" data-a="harvest" data-n="${x * 1000 + y}">거두기</button>`); return; }
+  openSheet(`<span class="ore ${p2.crop}"></span>${ORES[p2.crop].name} <small>${p2.days}/${C.days}일</small>`, p2.watered ? `<p>${ico('ic_water')}오늘 물 줌</p>` : ph >= 2 ? '<p class="warn">저녁엔 물 못 줌</p>' : '', p2.watered || ph >= 2 ? '' : `<button class="btn primary" data-a="water" data-n="${x * 1000 + y}">${ico('ic_water')}물 주기</button>`);
+}
+const plotXY = n => [Math.floor(n / 1000), n % 1000];
+function plant(id, n) {
+  const [x, y] = plotXY(n), k = x + ',' + y;
+  if (S.farm[k] || !(S.items[id] > 0) || !spend(1)) return;
+  S.items[id]--; S.farm[k] = { crop: ITEMS[id].seed, days: 0, watered: false };
+  SFX.dig(); save(); renderHud(); showPlot(x, y);
+}
+function water(n) {
+  const [x, y] = plotXY(n), p2 = S.farm[x + ',' + y];
+  if (!p2 || p2.watered || phaseIndex() >= 2 || !spend(1)) return;
+  p2.watered = true; SFX.open(3); save(); renderHud(); showPlot(x, y);
+}
+function harvest(n) {
+  const [x, y] = plotXY(n), k = x + ',' + y, p2 = S.farm[k];
+  if (!p2 || p2.days < CROPS[p2.crop].days) return;
+  delete S.farm[k]; addItem(p2.crop, 1 + (Math.random() < .3 ? 1 : 0)); S.harvestN = (S.harvestN || 0) + 1;
+  SFX.ore(2); questEvent('harvest'); save(); renderHud(); closeSheet();
+}
+// 밤사이: 물 준 칸만 하루 자람
+function growFarm() { Object.values(S.farm || {}).forEach(p2 => { if (p2.watered) p2.days++; p2.watered = false; }); }
+// 밭 칸 그림: 물 준 칸은 흙이 짙고, 자란 만큼 싹, 잎, 열매
+function drawCrops(c, o) {
+  const u = TW / 100, ink = Math.max(1.2, TW * .018);
+  for (let gx = o.gx; gx < o.gx + o.w; gx++) for (let gy = o.gy; gy < o.gy + o.d; gy++) {
+    const p2 = S.farm[gx + ',' + gy]; if (!p2) continue;
+    if (p2.watered) P(c, [iso(gx + .08, gy + .08, 0), iso(gx + .92, gy + .08, 0), iso(gx + .92, gy + .92, 0), iso(gx + .08, gy + .92, 0)], 'rgba(60,35,15,.35)');
+    const C = CROPS[p2.crop], f = Math.min(1, p2.days / C.days), q = iso(gx + .5, gy + .55, 0);
+    c.save(); c.translate(q[0], q[1]);
+    const sz = .65 + f * .6;
+    blobs(c, [[-u * 8 * sz, -u * 8 * sz, u * 7 * sz], [u * 8 * sz, -u * 8 * sz, u * 7 * sz], [0, -u * 14 * sz, u * 8 * sz]], '#5fae4f', ink * .8);
+    if (f >= 1) { const col = ORES[p2.crop].color; [[-u * 7, -u * 6], [u * 7, -u * 7], [0, -u * 13]].forEach(([a, b2]) => { c.beginPath(); c.arc(a, b2, u * 4.5, 0, 7); c.fillStyle = col; c.fill(); c.lineWidth = ink * .8; c.strokeStyle = OUT; c.stroke(); }); }
+    c.restore();
+  }
+}
 /* ===== 시장 (기획 5번): 매일 바뀌는 시세. 많이 팔면 값이 떨어졌다가 며칠에 걸쳐 회복. 내일 오를 것 하나를 미리 알려 줌 ===== */
 const TRADE = ORE_ORDER;
 const clampM = v => Math.max(.5, Math.min(1.8, v));
@@ -2433,6 +2505,9 @@ document.addEventListener('click', e => {
   else if (a === 'market') showMarket();
   else if (a === 'home') upgradeHome();
   else if (a === 'pull') pull();
+  else if (a === 'plant') plant(b.dataset.o, n);
+  else if (a === 'water') water(n);
+  else if (a === 'harvest') harvest(n);
   else if (a === 'cast') startFish();
   else if (a === 'trade') trade(b.dataset.o);
   else if (a === 'smelt') smelt(b.dataset.o);
