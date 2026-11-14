@@ -14,6 +14,11 @@ scripts.forEach((code, i) => {
 html.split('\n').forEach((line, n) => {
   if (/[—•·]/.test(line)) { fail++; console.error(`금지 문자 ${n + 1}행: ${line.trim()}`); }
 });
+// 이모지와 기기마다 달리 보일 수 있는 기호는 쓰지 않음 (코드 아이콘 ico()를 씀). 한글, 기본 영문, ×만 허용
+{
+  const body = html.replace(/<style id="font">[\s\S]*?<\/style><!--font-->/, '');
+  body.split('\n').forEach((line, n) => { const bad = line.match(/[^\x00-\x7f\uac00-\ud7a3\u3131-\u318e×]/g); if (bad) { fail++; console.error(`이모지나 특수 기호 ${n + 1}행: ${[...new Set(bad)].join(' ')}`); } });
+}
 // 둥근 글꼴(tools/build-font.py)은 흔한 한글 2350자와 덤 글자만 담음. 그 밖의 한글을 쓰면 글꼴을 다시 만들어야 함
 {
   const ks = new Set(), dec = new TextDecoder('euc-kr');
