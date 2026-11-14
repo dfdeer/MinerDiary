@@ -607,15 +607,15 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="tsell"][data-o="coal"]');
   ok((await st()).gold === gTs + 10 * Math.round(6 * 2) && !(await st()).carry.coal, '산마을 시장은 석탄을 마을보다 두 배 비싸게 삼 (🪙12)');
   await page.click('#sheet [data-a="close"]');
-  await tclick(9, 12, '#sheet [data-a="mtnmine"]');
-  await page.click('#sheet [data-a="mtnmine"]');
+  await tclick(9, 12, '#sheet [data-a="townmine"]');
+  await page.click('#sheet [data-a="townmine"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
   s = await st();
-  ok(s.deep.mtn && s.deepMain && !s.deepMain.mtn && (await page.textContent('#minebar')).includes('산 '), '산 광산은 마을 광산과 따로 (한 구역 깊게 시작)');
+  ok(s.deep.town === 'mtn' && s.deepMain && !s.deepMain.town && (await page.textContent('#minebar')).includes('산 '), '산 광산은 마을 광산과 따로 (한 구역 깊게 시작)');
   ok(await page.evaluate(() => { const L = S.deep.L; let ores = {}; for (let y = -20; y <= 20; y++) for (let x = -20; x <= 20; x++) { const o = dOre(L, x, y); if (o) ores[o] = 1; } return ores.silver || ores.crystal; }), '산 광산엔 은과 수정이 많음');
   await page.click('[data-a="leave"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'town', null, { timeout: 20000 });
-  ok(!(await st()).deep.mtn && !(await st()).deepMain, '산 광산에서 나오면 산마을로, 광산 기록도 원래대로');
+  ok(!(await st()).deep.town && !(await st()).deepMain, '산 광산에서 나오면 산마을로, 광산 기록도 원래대로');
   const dIn = (await st()).day, gIn = (await st()).gold;
   await tclick(5, 5, '#sheet [data-a="inn"]');
   await page.click('#sheet [data-a="inn"]');
@@ -630,12 +630,28 @@ const shot = process.argv[2];
   await page.evaluate(() => { S.inv.wood = (S.inv.wood || 0) + 20; S.inv.ironBar = (S.inv.ironBar || 0) + 3; S.gold += 500; renderHud(); });
   await visit('smithy', '#sheet [data-a="craft"][data-o="cart"]');
   await page.click('#sheet [data-a="craft"][data-o="cart"]');
-  ok((await st()).cart === 1 && await page.evaluate(() => travelCost() === 15 && bagCap() === 30), '대장간에서 손수레를 만들면 길 기력 15, 가방 30칸');
+  ok((await st()).cart === 1 && await page.evaluate(() => travelCost('mtn') === 15 && bagCap() === 30), '대장간에서 손수레를 만들면 길 기력 15, 가방 30칸');
   await page.click('#sheet [data-a="close"]');
-  await page.evaluate(() => { S.gold += 3000; S.loc = 'mtn'; enterTown('road'); showTownObj(TOWN_OBJ[1]); });
+  await page.evaluate(() => { S.gold += 3000; enterTown('mtn', 'road'); showTownObj(TOWN_OBJ[1]); });
   await page.click('#sheet [data-a="donkey"]');
-  ok((await st()).donkey === 1 && await page.evaluate(() => travelCost() === 5 && bagCap() === 40), '산마을 시장에서 당나귀 수레를 사면 길 기력 5, 가방 40칸');
+  ok((await st()).donkey === 1 && await page.evaluate(() => travelCost('mtn') === 5 && bagCap() === 40), '산마을 시장에서 당나귀 수레를 사면 길 기력 5, 가방 40칸');
   await page.evaluate(() => { closeSheet(); homeFromTown(); });
+  // 다른 마을: 항구(박물관 뒤)와 화산 기슭(깊이 12 뒤), 세 마을을 다 가 보면 광차 철길
+  await page.evaluate(() => { S.restored.push('museum'); S.deepest = Math.max(S.deepest, 12); S.energy = S.max; showWorld(); });
+  ok(await page.locator('#sheet [data-a="travel"][data-o="port"]').count() === 1 && await page.locator('#sheet [data-a="travel"][data-o="volcano"]').count() === 1, '박물관을 고치면 항구 마을, 깊이 12면 화산 기슭 마을이 지도에 생김');
+  await page.evaluate(() => { S.carry = { crystalGem: 2 }; });
+  await page.click('#sheet [data-a="travel"][data-o="port"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'town' && S.loc === 'port', null, { timeout: 5000 });
+  const gPt = (await st()).gold;
+  await page.evaluate(() => showTownObj(TOWN_OBJ[1]));
+  await page.click('#sheet [data-a="tsell"][data-o="crystalGem"]');
+  ok((await st()).gold === gPt + 2 * Math.round(180 * 1.6), '항구 마을은 보석을 1.6배에 삼');
+  await page.evaluate(() => { closeSheet(); enterTownMine(); });
+  ok(await page.evaluate(() => S.deep.town === 'port' && TOWNS.port.ores.flat().some(([k]) => k === 'pearl')), '바닷가 광산엔 진주');
+  await page.evaluate(() => { leaveTownMine(); homeFromTown(); enterTown('volcano', 'road'); homeFromTown(); S.inv.ironBar = 20; S.inv.oldwood = 20; S.gold += 5000; showWorld(); });
+  await page.click('#sheet [data-a="rail"]');
+  ok((await st()).rail === 1 && await page.evaluate(() => travelCost('volcano') === 0), '세 마을을 다 가 본 뒤 광차 철길을 놓으면 길 기력 0');
+  await page.evaluate(() => { S.rail = 0; S.donkey = 0; S.cart = 0; S.visited = { mtn: 1 }; S.restored = S.restored.filter(o => o !== 'museum'); applyRestored(); closeSheet(); });   // 뒤 시험을 위해 되돌림
 
   // 13-0h. 야시장: 아침엔 닫혀 있고, 저녁에 시장에서 수상한 상인의 의뢰를 들어줌
   ok((await quest()).includes('야시장'), '사냥 다음 퀘스트 「저녁 야시장 거래」');
@@ -666,7 +682,9 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="close"]');
 
   // 13-0j. 옛 광부의 갱도: 깊이 5에 처음 가면 가까이에 옛 갱도 방이 생기고, 일지를 읽으면 이야기와 보상
-  ok((await quest()).includes('은 곡괭이'), '박물관 다음 퀘스트 「은 곡괭이 만들기」');
+  ok((await quest()).includes('항구 마을'), '박물관 다음 퀘스트 「항구 마을 가기」');
+  await page.evaluate(() => { enterTown('port', 'road'); homeFromTown(); });
+  ok((await quest()).includes('은 곡괭이'), '항구 마을에 다녀오면 다음 퀘스트 「은 곡괭이 만들기」');
   const lr = await page.evaluate(() => { S.energy = S.max; S.minE = S.dayStart = S.max; startDeep(5, 0, 1); const r = S.deep.lore[5]; startDeep(5, r[0], r[1] + 1); for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) seenSet(r[0] + dx, r[1] + dy); return r; });
   ok((await cell(lr[0] - 1, lr[1])).t === 'J' && (await cell(lr[0] + 1, lr[1])).t === 'T', '깊이 5에 처음 가면 옛 갱도 방(일지와 상자)이 생김');
   const gL = (await st()).gold;

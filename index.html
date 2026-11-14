@@ -273,6 +273,7 @@ const ORES = {
   truffle:   { name: '송로버섯', price: 150, color: '#5a4030', light: '#a88a6a' },
   perch:     { name: '쏘가리',   price: 55,  color: '#c8a050', light: '#f0d890' },
   goldfin:   { name: '금빛 송사리', price: 130, color: '#f2c230', light: '#fff2a8' },
+  pearl:     { name: '진주',     price: 260, color: '#f4eef0', light: '#ffffff' },
   oldwood:   { name: '고목',     price: 30,  color: '#7a5530', light: '#b8885a' },
   bloom:     { name: '달빛 꽃',   price: 90,  color: '#c8b8ff', light: '#f0ecff' },
   fairy:     { name: '요정 이끼', price: 160, color: '#7fe0c8', light: '#e0fff4' },
@@ -281,7 +282,7 @@ const ORES = {
   manastone: { name: '마석',     price: 120, color: '#5a7ae0', light: '#b8c8ff' },
   moonshard: { name: '월광 조각', price: 200, color: '#e2dcff', light: '#ffffff' },
 };
-const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'crystalGem', 'amethystGem', 'rubyGem', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry', 'meat', 'bone', 'manastone', 'moonshard', 'herb2', 'oldwood', 'bloom', 'fairy', 'glowcap', 'truffle', 'perch', 'goldfin'];
+const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'crystalGem', 'amethystGem', 'rubyGem', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry', 'meat', 'bone', 'manastone', 'moonshard', 'herb2', 'oldwood', 'bloom', 'fairy', 'glowcap', 'truffle', 'perch', 'goldfin', 'pearl'];
 /* ===== 대장간 (3단계): 용광로에 광석 5개와 석탄 1개를 넣고 자면 아침에 주괴. 주괴와 돈으로 곡괭이 강화 (망치질 박자로 품질) ===== */
 const SMELT = { copper: 'copperBar', iron: 'ironBar', silver: 'silverBar', gold: 'goldBar' }, SMELT_N = 5, FURNACE_MAX = 10;
 // 곡괭이: 구리는 7층까지, 철(가운데 단계)부터 단단한 바위와 10층, 은은 캐는 기력 1, 금은 단단한 바위도 쉽게. 높은 단계일수록 망치질이 빠르고 칸이 좁음
@@ -358,19 +359,22 @@ const QUESTS = [
   { id: 'deep10', text: '깊이 10 도달', need: 10, target: 'mine', reward: 200 },
   { id: 'gate', text: '성벽 문 고치기', target: 'gate' },
   { id: 'hunt', text: '성 밖에서 사냥', need: 3, target: 'gate', reward: 150 },
-  { id: 'mtn', text: '눈 덮인 산마을 가기', target: 'gate', reward: 200 },
+  { id: 'mtn', text: '눈 덮인 산마을 가기', need: 1, target: 'gate', reward: 200 },
   { id: 'night', text: '저녁 야시장 거래', target: 'market', reward: 100 },
   { id: 'museum', text: '박물관 고치기', target: 'museum' },
   { id: 'donate', text: '박물관에 기증', need: 10, target: 'museum', reward: 300 },
+  { id: 'port', text: '항구 마을 가기', need: 1, target: 'gate', reward: 300 },
   { id: 'pick3', text: '은 곡괭이 만들기', need: 3, target: 'smithy', reward: 300 },
   { id: 'deep15', text: '깊이 15 도달', need: 15, target: 'mine', reward: 800 },
+  { id: 'volcano', text: '화산 기슭 마을 가기', need: 1, target: 'gate', reward: 500 },
+  { id: 'rail', text: '광차 철길 놓기', need: 1, target: 'gate', reward: 1000 },
   { id: 'lore', text: '옛 광부 일지 셋 모으기', need: 3, target: 'mine', reward: 1000 },
   { id: 'pick4', text: '금 곡괭이 만들기', need: 4, target: 'smithy', reward: 1000 },
   { id: 'deep20', text: '깊이 20 도달', need: 20, target: 'mine', reward: 2000 },
   { id: 'deep30', text: '깊이 30 도달', need: 30, target: 'mine', reward: 5000 },
 ];
 const questNow = () => QUESTS[S.quest];
-const questProg = q => (q.id === 'ore' ? S.qn : q.id.startsWith('deep') ? S.deepest : q.id === 'gold' ? S.gold : q.id.startsWith('pick') ? S.pick : q.id === 'lore' ? S.loreN || 0 : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : q.id === 'cut' ? S.cutN || 0 : q.id === 'hunt' ? S.killN || 0 : q.id === 'chest' ? S.chestN || 0 : q.id === 'board' ? S.boardN || 0 : q.id === 'donate' ? (S.museum || []).length : 0);
+const questProg = q => (q.id === 'ore' ? S.qn : q.id.startsWith('deep') ? S.deepest : q.id === 'gold' ? S.gold : q.id.startsWith('pick') ? S.pick : q.id === 'lore' ? S.loreN || 0 : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : q.id === 'cut' ? S.cutN || 0 : q.id === 'hunt' ? S.killN || 0 : q.id === 'chest' ? S.chestN || 0 : q.id === 'board' ? S.boardN || 0 : TOWNS[q.id] ? ((S.visited || {})[q.id] ? 1 : 0) : q.id === 'rail' ? S.rail || 0 : q.id === 'donate' ? (S.museum || []).length : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
   let q = questNow(), flag = false;
@@ -467,7 +471,7 @@ function sleep(camp) {
   if (sum.val) countUp(sum.val);
 }
 function faint() {
-  if (S.deepMain) { S.mtnDeep = S.deep; S.deep = S.deepMain; S.deepMain = null; }   // 산마을에서 쓰러지면 집에서 깸
+  restoreHomeDeep();   // 다른 마을에서 쓰러지면 집에서 깸
   S.loc = 'home';
   const lost = {};   // 가방에 든 것 일부를 잃고 나머지는 집으로
   Object.keys(S.carry || {}).forEach(o => { const n = Math.floor(S.carry[o] * FAINT_LOSS); if (n > 0) { S.carry[o] -= n; lost[o] = n; } });
@@ -489,6 +493,7 @@ const ICONS = {
   ic_sickle: [['M5 20.5 9.6 14', 'none', 3.4, '#2b1a12'], ['M5 20.5 9.6 14', 'none', 2, '#8a5a32'], ['M9 14.6C6.6 9.6 9 3.6 15 3c4.6-.4 6.6 3 5.4 5.6-1.4-2.6-4.6-3.6-7.4-2.2-2.6 1.4-3.6 4.6-2.4 8.2Z', '#cdd6e0'], ['M11.4 13.4c-.8-3 .6-6 3.6-7', 'none', .9, '#ffffff']],
   ic_cart: [['M3 9h14l-1.6 7H4.6Z', '#a8703a'], ['M3 9h14', 'none', 1.6, '#2b1a12'], ['M17 9l3.6-3', 'none', 2, '#6b4424'], ['M6.6 18.6a1.9 1.9 0 1 0 .01 0Z', '#6b6f78'], ['M13.6 18.6a1.9 1.9 0 1 0 .01 0Z', '#6b6f78'], ['M5.6 12h9.4', 'none', 1, '#7a5530']],
   ic_donkey: [['M5 12.6c0-2.4 2.2-3.6 5-3.6h4.6l2.4-3 1.6.4-.4 2.6c1.6.6 2.4 1.8 2.4 3.2l-1.6 1-2.4-.6v5.4h-1.8l-.4-4H8.6l-.4 4H6.4l-.2-4.6C5.4 14 5 13.4 5 12.6Z', '#9a8e80'], ['M16.4 5.4 15.6 2.4l1.6.4.6 2.8Z', '#9a8e80'], ['M16.9 9.2a.7 .7 0 1 0 1.4 0a.7 .7 0 1 0-1.4 0Z', '#2b1a12', 0], ['M5 11.6 3.2 13', 'none', 1.4, '#2b1a12'], ['M8 9.4h6.6v2.4H8Z', '#d4473a', .9]],
+  ic_rail: [['M7 3 4.6 21M17 3l2.4 18', 'none', 2, '#5a5f68'], ['M5.6 7h12.8M5.2 11h13.6M4.8 15h14.4M4.4 19h15.2', 'none', 2.2, '#8a5a32']],
   ic_map: [['M3 6.5 8.6 4l6.8 2.6L21 4v13.5l-5.6 2.5-6.8-2.6L3 20Z', '#e8dcc0'], ['M8.6 4v13.4M15.4 6.6V20', 'none', 1.2, '#2b1a12'], ['M5.6 14c2-1 3.6-.6 5 .4s3.2 1.4 5.2.2', 'none', 1.3, '#d4473a'], ['M17.6 9.4l1.4 1.4M19 9.4l-1.4 1.4', 'none', 1.3, '#d4473a']],
   ic_stat: [['M3.5 20.5h17', 'none', 1.8, '#2b1a12'], ['M5 13h3.4v7.5H5Z', '#5fc9e0'], ['M10.3 8.5h3.4v12H10.3Z', '#e9b04f'], ['M15.6 4h3.4v16.5h-3.4Z', '#8fe08a']],
   ic_note: [['M9 17.5V5.5l10-2v12', 'none', 1.8, '#2b1a12'], ['M3.8 17.6a2.8 2.2 0 1 0 5.6 0a2.8 2.2 0 1 0-5.6 0Z', '#e9b04f'], ['M13.8 15.6a2.8 2.2 0 1 0 5.6 0a2.8 2.2 0 1 0-5.6 0Z', '#e9b04f'], ['M9 5.5l10-2v3l-10 2Z', '#e9b04f', 1.2]],
@@ -578,6 +583,7 @@ const ITEM_ART = {
   berry: [['M12 21.4C7.4 18 4.6 14.4 4.8 10.8c.2-2.6 2.6-3.6 7.2-3.6s7 1 7.2 3.6c.2 3.6-2.6 7.2-7.2 10.6Z', '#e0405a'], ['M7 7.4 9.4 9 12 6.6 14.6 9 17 7.4 15.6 5.8 12 5 8.4 5.8Z', '#5cb85a'], ['M12 5V2.8', 'none', 1.4, '#3a7a30'], [cP(8.8, 12, .5), '#fff2a8', 0], [cP(12, 11.4, .5), '#fff2a8', 0], [cP(15.2, 12, .5), '#fff2a8', 0], [cP(10.2, 15, .5), '#fff2a8', 0], [cP(13.8, 15, .5), '#fff2a8', 0], [cP(12, 18, .5), '#fff2a8', 0]],
   meat: [['M14.6 13.2 19.4 18', 'none', 4.6, '#2b1a12'], ['M14.6 13.2 19.4 18', 'none', 2.8, '#f4ead6'], [cP(20, 17.2, 1.6), '#f4ead6', 1], [cP(18.8, 19.4, 1.6), '#f4ead6', 1], ['M5.4 6.6c2.6-3 7.4-3 9.6 0 2.2 3 1.6 6.6-1 8.4-2.8 1.8-7 1.4-9-1.2-1.8-2.4-1.6-5 .4-7.2Z', '#c8584a'], ['M7 7.6c1.6-1.6 4.2-2 6-.6', 'none', 1.2, '#f0a090'], [eP(10.6, 10.8, 2.4, 1.6), '#e07a68', 0]],
   bone: [['M7 9.6 17 14.4', 'none', 5, '#2b1a12'], ['M7 9.6 17 14.4', 'none', 3.2, '#efe6d2'], [cP(5.6, 7.6, 2.2), '#efe6d2', 1.2], [cP(4.4, 10.8, 2.2), '#efe6d2', 1.2], [cP(18.4, 12.6, 2.2), '#efe6d2', 1.2], [cP(19.6, 15.8, 2.2), '#efe6d2', 1.2], ['M7.6 9 16.6 13.4', 'none', .9, '#ffffff']],
+  pearl: [['M3.4 15.4c1-4.6 4.6-7.6 8.6-7.6s7.6 3 8.6 7.6c-2.6 2.6-14.6 2.6-17.2 0Z', '#c8b8c0'], ['M5.4 14.6c1.6-2.6 4-4 6.6-4s5 1.4 6.6 4', 'none', .9, '#8a7880'], [cP(12, 13, 3.6), '#f8f4f6'], [cP(10.8, 11.8, 1.1), '#ffffff', 0], glint(18.4, 6.6, .8)],
   glowcap: [['M9.6 13.4h4.8l.6 7a1.2 1.2 0 0 1-1.2 1.2h-3.6a1.2 1.2 0 0 1-1.2-1.2Z', '#e0f4f0'], ['M3.4 13.4C3.4 8 7.2 4.2 12 4.2s8.6 3.8 8.6 9.2Z', '#7fe0e0'], [cP(8.4, 9.6, 1.3), '#e0ffff', 0], [cP(14, 7.4, 1.1), '#e0ffff', 0], [cP(16.6, 10.6, 1.2), '#e0ffff', 0], glint(19.6, 4.6, .8), glint(4.4, 5.6, .6)],
   truffle: [['M4.4 14.6c-.6-4.4 3.4-8.4 8-8.2 4.2.2 7.6 3.4 7.2 7.6-.4 4.2-4 6.6-7.8 6.6-3.6 0-7-2-7.4-6Z', '#5a4030'], [cP(8.6, 11.4, .9), '#8a6a4a', 0], [cP(13.4, 9.6, .8), '#8a6a4a', 0], [cP(15.6, 14, .9), '#8a6a4a', 0], [cP(10.4, 16, .8), '#8a6a4a', 0], ['M6.6 10.4c.8-1.6 2.4-2.8 4.4-3.2', 'none', 1, 'rgba(255,255,255,.3)']],
   perch: fish('#c8a050', '#f4e6c0', '#9a7a3a', [['M8 8.6v6.8M11 8v8M14 8.4v7.2', 'none', 1.2, '#6a5a2a']]),
@@ -1621,7 +1627,7 @@ const ZONES = [
   { n: '뜨거운 굴', kind: 'hot', rock: [134, 74, 62], ores: [['gold', .35], ['amethyst', .2], ['ruby', .2], ['silver', .15], ['coal', .1]] },
 ];
 const GLOW_ORES = { crystal: 1, gold: 1, amethyst: 1, ruby: 1, moon: 1 };
-const zoneAt = (L, x, y) => (L < 1 ? 0 : Math.min(4, Math.floor(Math.hypot(x, y) / 26 + (L - 1) * .9) + (S.deep && S.deep.mtn ? 1 : 0)));   // 산 광산은 한 구역 깊게 시작
+const zoneAt = (L, x, y) => (L < 1 ? 0 : Math.min(4, Math.floor(Math.hypot(x, y) / 26 + (L - 1) * .9) + (S.deep && S.deep.town ? TOWNS[S.deep.town].off : 0)));   // 산 광산은 한 구역 깊게 시작
 const hh = (x, y, s) => H32(Math.imul(x, 73856093) ^ Math.imul(y, 19349663) ^ Math.imul(s, 83492791));
 const smooth = t => t * t * (3 - 2 * t);
 function vnoise(x, y, s) { const x0 = Math.floor(x), y0 = Math.floor(y), fx = smooth(x - x0), fy = smooth(y - y0); const a = hh(x0, y0, s), b = hh(x0 + 1, y0, s), d = hh(x0, y0 + 1, s), e = hh(x0 + 1, y0 + 1, s); return (a + (b - a) * fx) * (1 - fy) + (d + (e - d) * fx) * fy; }
@@ -1668,7 +1674,7 @@ function dOre(L, x, y) {
   // 광맥 줄기: 굵은 무늬를 따라 같은 광석이 줄줄이 박힘 (하나를 찾으면 이어서 캘 수 있게). 가끔 외톨이 광석
   const vein = vnoise(x / 2.3, y / 2.3, s + 31) > .8;
   if (!vein && hh(x, y, s + 11) > .02) return '';
-  return pickFrom(S.deep.mtn ? MTN_ORES[zoneAt(L, x, y)] : ZONES[zoneAt(L, x, y)].ores, vein ? hh(Math.floor(x / 4), Math.floor(y / 4), s + 19) : hh(x, y, s + 19));
+  return pickFrom(S.deep.town ? TOWNS[S.deep.town].ores[zoneAt(L, x, y)] : ZONES[zoneAt(L, x, y)].ores, vein ? hh(Math.floor(x / 4), Math.floor(y / 4), s + 19) : hh(x, y, s + 19));
 }
 const dKey = (L, x, y) => L + ',' + x + ',' + y;
 const mT = (x, y) => { const d = S.deep.dug[dKey(S.deep.L, x, y)]; return d || dBase(S.deep.L, x, y); };
@@ -1715,7 +1721,7 @@ const LORE = {
   12: { n: 3, acc: 'charm', gold: 1200, text: '우리가 깨운 건 광맥이 아니었어요. 그 빛은 아래에서 우리를 부르고 있었어요. 마을을 떠나기로 했어요. 누군가 이걸 읽는다면 더 깊이 내려가 그 빛의 정체를 확인해 줘요.' },
 };
 function placeLore(L, x, y) {
-  const D = S.deep; if (D.mtn) return; D.lore = D.lore || {};
+  const D = S.deep; if (D.town) return; D.lore = D.lore || {};
   if (!LORE[L] || D.lore[L]) return;
   const a = H32(D.seed + L * 7) * Math.PI * 2, cx = Math.round(x + Math.cos(a) * 9), cy = Math.round(y + Math.sin(a) * 9);
   for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const m = Math.max(Math.abs(dx), Math.abs(dy)); D.dug[dKey(L, cx + dx, cy + dy)] = m === 3 ? 'r' : 'f'; }
@@ -1757,7 +1763,7 @@ function enterMine() {
 }
 // 마을로 (입구 사다리, 귀환서, 쓰러짐)
 function toVillage(at) {
-  if (S.deepMain) { S.mtnDeep = S.deep; S.deep = S.deepMain; S.deepMain = null; }
+  restoreHomeDeep();
   S.loc = 'home';
   unpack(); S.mine = null; S.screen = 'village'; scene = 'village'; FLAT = false; fade = .8; S.exiting = false;
   hero.path = []; hero.dig = null; hero.goal = null;
@@ -1781,7 +1787,7 @@ function descendAt(x, y) {
 }
 function ascendAt(x, y) {
   if (S.deep.L === 0) { leaveCave(); return; }
-  if (S.deep.L === 1) { if (S.deep.mtn) leaveMtnMine(); else toVillage('mine'); return; }
+  if (S.deep.L === 1) { if (S.deep.town) leaveTownMine(); else toVillage('mine'); return; }
   const L = S.deep.L - 1; fade = .8; SFX.stairs(); startDeep(L, x, y); toast(`깊이 ${L}`);
   if (S.exiting) setTimeout(goExit, 400);
 }
@@ -1895,7 +1901,7 @@ function showStats() {
     row(ico('ic_plumb'), '내려갈 수 있는 깊이', maxFloor() > 900 ? '끝없음' : maxFloor(), ''),
     row(ico('ic_jar'), '등불', `${lightR().toFixed(1)}칸`, ''),
     row(ico('ic_bag'), '가방', `${bagCap()}칸`, rideBag() ? `${S.donkey ? '당나귀 수레' : '손수레'} +${rideBag()}` : ''),
-    travelOpen() ? row(ico('ic_map'), '길 기력', travelCost(), S.donkey ? '당나귀 수레' : S.cart ? '손수레' : '걸어서') : '',
+    travelOpen() ? row(ico('ic_map'), '길 기력', S.rail ? '0' : `${Math.round((S.donkey ? .2 : S.cart ? .6 : 1) * 100)}%`, S.rail ? '광차 철길' : S.donkey ? '당나귀 수레' : S.cart ? '손수레' : '걸어서') : '',
     row(PWR, '최대 기력', S.max, ''),
     row(ico('ic_boot'), '걸음 기력', `${stepsPerEnergy()}칸마다 1`, accEff('forestFree') ? '숲은 0' : '숲은 5칸마다 1'),
     row(ico('ic_sword'), '무기', `${SWORDS[S.sword || 0].name} 공격 ${power()}`, ''),
@@ -2808,59 +2814,72 @@ function donate(o) {
   SFX.stairs(); questEvent('donate'); save(); renderHud(); showMuseum();
 }
 
-/* ===== 세계 지도와 눈 덮인 산마을 (기획 47번) =====
-   성벽 문을 고친 뒤 문 앞에서 길을 떠남. 길은 기력이 듦. 짐(가방)을 꾸려 가서 산마을 시장에 팔고, 산마을 광산(은과 수정이 많은 굴)을 캐고, 여관에서 자며 며칠 머묾.
-   산마을에 있는 동안 S.loc = 'mtn'. 산마을 광산에 들어가면 마을 광산 기록(S.deep)을 S.deepMain에 두고 산 광산 기록(S.mtnDeep)으로 바꿔 씀 */
-const TRAVEL = 25;   // 길 기력
+/* ===== 세계 지도와 다른 마을 (기획 47번, 49번) =====
+   성벽 문을 고친 뒤 문 앞에서 길을 떠남. 길은 기력이 듦. 짐(가방)을 꾸려 가서 그 마을 시장에 팔고, 그 마을 광산을 캐고, 여관에서 자며 며칠 머묾.
+   다른 마을에 있는 동안 S.loc = 마을 이름. 그 마을 광산에 들어가면 마을 광산 기록(S.deep)을 S.deepMain에 두고 그 마을 광산 기록(S.townDeep[이름])으로 바꿔 씀 */
 const TWW = 22, TWH = 18;
 const TOWN_OBJ = [
   { id: 'inn', n: '여관', gx: 4, gy: 4, w: 3, d: 3 },
-  { id: 'tmarket', n: '산마을 시장', gx: 12, gy: 4, w: 3, d: 2 },
-  { id: 'tmine', n: '산 광산', gx: 8, gy: 11, w: 3, d: 3 },
+  { id: 'tmarket', n: '시장', gx: 12, gy: 4, w: 3, d: 2 },
+  { id: 'tmine', n: '광산', gx: 8, gy: 11, w: 3, d: 3 },
 ];
 const townDoor = o => [o.gx + 1, o.gy + o.d];
-// 산마을 시세: 쇠붙이와 먹을 것은 비싸게 사고, 산에서 흔한 은과 수정은 싸게
-const MTN_PRICE = { copper: 1.5, coal: 2, iron: 1.7, copperBar: 1.4, ironBar: 1.4, carp: 1.6, trout: 1.6, catfish: 1.6, eel: 1.5, perch: 1.6, radish: 1.6, potato: 1.6, berry: 1.4, meat: 1.6, herb: 1.4, mush: 1.4, silver: .6, crystal: .6, amethyst: .8 };
-const mtnPrice = o => Math.round(ORES[o].price * (MTN_PRICE[o] || 1));
-const MTN_ORES = [
-  [['silver', .35], ['crystal', .3], ['iron', .2], ['coal', .15]],
-  [['silver', .35], ['crystal', .3], ['iron', .2], ['amethyst', .15]],
-  [['silver', .3], ['crystal', .25], ['amethyst', .25], ['gold', .2]],
-  [['crystal', .3], ['amethyst', .3], ['gold', .25], ['silver', .15]],
-  [['amethyst', .3], ['gold', .3], ['ruby', .25], ['crystal', .15]],
-];
-const travelOpen = () => S.restored.includes('gate');
-const tT = (x, y) => {
-  if (x < 0 || y < 0 || x >= TWW || y >= TWH) return H32(x * 131 + y * 977 + 5) < .45 ? 't' : 'o';   // 바깥: 듬성듬성한 솔숲
-  if (TOWN_OBJ.some(o => x >= o.gx && x < o.gx + o.w && y >= o.gy && y < o.gy + o.d)) return 'b';
-  if (x === TWW - 2 && y === 9) return 'x';
-  const e = Math.min(x, y, TWW - 1 - x, TWH - 1 - y), n = H32(x * 3571 + y * 7919 + 77);
-  if (e < 1 + n * 1.6 && !(y === 9 && x > 14)) return n < .7 ? 't' : 'r';
-  if (y === 9 || (x === 10 && y >= 7 && y <= 10) || (x === 5 && y >= 7 && y <= 9) || (x === 13 && y >= 6 && y <= 9)) return 'p';
-  if (n > .96) return 't';
-  return 's';
+const TOWNS = {
+  mtn: {
+    n: '눈 덮인 산마을', short: '산마을', mine: '산', cost: 25, off: 1, at: [245, 38], music: 'night', sky: '#c8d4de', fx: 'snow',
+    ground: ['#eef3f8', '#e6edf4', '#f4f8fb'], path: ['#cfc4b0', '#d6ccb8'], roof: ['#f6faff', '#8a5a32', '#6d4626'], wall: ['#d8b07f', '#c8a06a', '#a8804a'], cap: 'rgba(250,252,255,.9)',
+    open: () => S.restored.includes('gate'), greet: '어서 와요. 눈길에 오느라 고생했어요. 하룻밤 묵고 가요.',
+    price: { copper: 1.5, coal: 2, iron: 1.7, copperBar: 1.4, ironBar: 1.4, carp: 1.6, trout: 1.6, catfish: 1.6, eel: 1.5, perch: 1.6, radish: 1.6, potato: 1.6, berry: 1.4, meat: 1.6, herb: 1.4, mush: 1.4, silver: .6, crystal: .6, amethyst: .8 },
+    ores: [[['silver', .35], ['crystal', .3], ['iron', .2], ['coal', .15]], [['silver', .35], ['crystal', .3], ['iron', .2], ['amethyst', .15]], [['silver', .3], ['crystal', .25], ['amethyst', .25], ['gold', .2]], [['crystal', .3], ['amethyst', .3], ['gold', .25], ['silver', .15]], [['amethyst', .3], ['gold', .3], ['ruby', .25], ['crystal', .15]]],
+  },
+  volcano: {
+    n: '화산 기슭 마을', short: '화산 마을', mine: '화산', cost: 35, off: 2, at: [262, 100], music: 'hunt', sky: '#6a4a42', fx: 'ember',
+    ground: ['#8a7f78', '#938780', '#80766f'], path: ['#5e5550', '#665c56'], roof: ['#4a3a36', '#a8402a', '#7a2e20'], wall: ['#9a8e86', '#857a72', '#6d635c'], cap: 'rgba(60,50,46,.6)',
+    open: () => S.deepest >= 12, greet: '어서 와요. 땅이 뜨거워서 늘 김이 올라와요. 푹 쉬고 가요.',
+    price: { carp: 1.8, trout: 1.8, catfish: 1.8, eel: 1.7, perch: 1.8, goldfin: 1.5, radish: 1.9, potato: 1.9, berry: 1.7, meat: 1.6, herb: 1.6, herb2: 1.5, mush: 1.6, wood: 2, oldwood: 1.8, ironBar: 1.3, gold: .7, ruby: .7, goldBar: .8 },
+    ores: [[['gold', .3], ['iron', .3], ['amethyst', .2], ['coal', .2]], [['gold', .35], ['amethyst', .25], ['ruby', .2], ['iron', .2]], [['gold', .35], ['ruby', .3], ['amethyst', .25], ['silver', .1]], [['ruby', .4], ['gold', .35], ['amethyst', .25]], [['ruby', .45], ['gold', .35], ['amethyst', .2]]],
+  },
+  port: {
+    n: '항구 마을', short: '항구', mine: '바닷가', cost: 30, off: 1, at: [150, 22], music: 'day', sky: '#a8d4ec', fx: 'gull',
+    ground: ['#ecdcae', '#e6d4a4', '#f2e4b8'], path: ['#cbb88c', '#d2c094'], roof: ['#f4f0e6', '#3f7fb0', '#2f6690'], wall: ['#f0e6d0', '#ddd0b6', '#bfb090'], cap: null,
+    open: () => S.restored.includes('museum'), greet: '바다 냄새 좋죠. 먼 데서 온 배들이 귀한 걸 비싸게 사 가요. 쉬고 가요.',
+    price: { crystalGem: 1.6, amethystGem: 1.6, rubyGem: 1.6, silverBar: 1.4, goldBar: 1.4, moonshard: 1.5, manastone: 1.5, bloom: 1.5, fairy: 1.5, truffle: 1.6, carp: .6, trout: .6, catfish: .6, eel: .7, perch: .6, pearl: .7 },
+    ores: [[['silver', .3], ['iron', .25], ['pearl', .25], ['coal', .2]], [['silver', .3], ['pearl', .3], ['crystal', .25], ['iron', .15]], [['pearl', .35], ['crystal', .3], ['amethyst', .2], ['silver', .15]], [['pearl', .4], ['amethyst', .3], ['gold', .3]], [['pearl', .4], ['ruby', .3], ['gold', .3]]],
+  },
 };
-const townBlocked = (x, y) => { const t = tT(x, y); return t === 't' || t === 'r' || t === 'b' || t === 'o'; };
-// 세계 지도: 갈 수 있는 곳과 짐 꾸리기
-function showWorld() {
-  const here = S.loc === 'mtn' ? 'mtn' : 'home';
-  const svg = `<svg viewBox="0 0 300 120" class="wmap"><rect width="300" height="120" rx="12" fill="#e8dcc0"/><path d="M60 88 C 110 70, 140 90, 180 60 S 230 30, 245 34" fill="none" stroke="#8a6a3a" stroke-width="4" stroke-dasharray="8 7" stroke-linecap="round"/>
-    <path d="M200 40l22-26 22 26Z M226 42l16-18 16 18Z" fill="#b8c4d0" stroke="#2b1a12" stroke-width="2" stroke-linejoin="round"/><path d="M214 24l8-10 8 10Z M236 30l6-6 6 6Z" fill="#fff"/>
-    <circle cx="60" cy="88" r="11" fill="${here === 'home' ? '#ffd27a' : '#c8a070'}" stroke="#2b1a12" stroke-width="2"/><circle cx="245" cy="38" r="11" fill="${here === 'mtn' ? '#ffd27a' : '#c8d4e0'}" stroke="#2b1a12" stroke-width="2"/>
-    <text x="60" y="114" text-anchor="middle" font-size="14" fill="#5a3a22">마을</text><text x="245" y="66" text-anchor="middle" font-size="14" fill="#5a3a22">산마을</text></svg>`;
-  const dest = here === 'home' ? 'mtn' : 'home', name = dest === 'mtn' ? '눈 덮인 산마을' : '마을';
-  const room = bagCap() - carryN();
-  const pack = here === 'home' ? ORE_ORDER.filter(o => S.inv[o]).map(o => `<button class="chip" data-a="pack" data-o="${o}" ${room > 0 ? '' : 'disabled'}><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o]}</small></button>`).join('') : '';
-  const bag = ORE_ORDER.filter(o => (S.carry || {})[o]).map(o => `<button class="chip on" data-a="unpack1" data-o="${o}" ${here === 'home' ? '' : 'disabled'}><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.carry[o]}</small></button>`).join('');
-  openSheet(ico('ic_map') + '지도', svg + (here === 'home' ? `<p class="dim" style="margin-top:8px">짐 꾸리기</p><div class="chips">${pack || '<span class="dim">창고 빔</span>'}</div>` : '')
-    + `<p class="dim" style="margin-top:8px">${ico('ic_bag')}가방 ${carryN()}/${bagCap()}</p><div class="chips">${bag}</div>`,
-    `<button class="btn primary" data-a="travel" data-o="${dest}" ${S.energy > travelCost() ? '' : 'disabled'}>${name} ${PWR}${travelCost()}</button>`);
-}
-const travelCost = () => (S.donkey ? 5 : S.cart ? 15 : TRAVEL);   // 걸어서 25, 손수레 15, 당나귀 수레 5
+const travelOpen = () => TOWNS.mtn.open();
+const townHere = () => TOWNS[S.loc] || null;
+const townPrice = o => Math.round(ORES[o].price * ((((townHere() || {}).price) || {})[o] || 1));
+const travelCost = dest => { if (S.rail) return 0; const base = dest === 'home' ? TOWNS[S.loc].cost : TOWNS[dest].cost; return Math.round(base * (S.donkey ? .2 : S.cart ? .6 : 1)); };   // 걸어서 그대로, 손수레 6할, 당나귀 수레 2할, 철길이면 0
 const DONKEY_GOLD = 3000;
+const RAIL = { need: { ironBar: 20, oldwood: 20 }, gold: 5000 };
 function buyDonkey() {
   if (S.donkey || S.gold < DONKEY_GOLD) return;
   S.gold -= DONKEY_GOLD; S.donkey = 1; SFX.fanfare(); toast(`${ico('ic_donkey')}당나귀 수레`); save(); renderHud(); renderDock(); showTownObj(TOWN_OBJ[1]);
+}
+// 광차 철길: 세 마을을 다 가 본 뒤 마을에서 놓음. 놓으면 길 기력 0
+function buildRail() {
+  const vis = S.visited || {};
+  if (S.rail || !Object.keys(TOWNS).every(k => vis[k]) || !hasAll(RAIL.need) || S.gold < RAIL.gold) return;
+  Object.entries(RAIL.need).forEach(([k, n]) => { S.inv[k] -= n; }); S.gold -= RAIL.gold; S.rail = 1;
+  SFX.fanfare(); toast(`${ico('ic_rail')}광차 철길`); questEvent('rail'); save(); renderHud(); showWorld();
+}
+// 세계 지도: 갈 수 있는 곳과 짐 꾸리기
+function showWorld() {
+  const here = townHere() ? S.loc : 'home', vis = S.visited || {};
+  const node = (id, [x, y], col) => `<circle cx="${x}" cy="${y}" r="10" fill="${here === id ? '#ffd27a' : col}" stroke="#2b1a12" stroke-width="2"/>`;
+  const home = [60, 88], ok = Object.keys(TOWNS).filter(k => TOWNS[k].open());
+  const roads = ok.map(k => { const [x, y] = TOWNS[k].at; return `<path d="M${home[0]} ${home[1]} Q ${(home[0] + x) / 2} ${(home[1] + y) / 2 - 24} ${x} ${y}" fill="none" stroke="${S.rail ? '#5a5f68' : '#8a6a3a'}" stroke-width="${S.rail ? 5 : 4}" stroke-dasharray="${S.rail ? '2 4' : '8 7'}" stroke-linecap="round"/>`; }).join('');
+  const svg = `<svg viewBox="0 0 300 120" class="wmap"><rect width="300" height="120" rx="12" fill="#e8dcc0"/><path d="M0 120 C 60 110, 110 116, 130 120Z" fill="#9fd3ff" opacity=".6"/>${roads}
+    ${node('home', home, '#c8a070')}${ok.map(k => node(k, TOWNS[k].at, k === 'mtn' ? '#c8d4e0' : k === 'volcano' ? '#d4705a' : '#7fc6e8')).join('')}
+    <text x="${home[0]}" y="${home[1] + 26}" text-anchor="middle" font-size="13" fill="#5a3a22">마을</text>${ok.map(k => `<text x="${Math.min(268, TOWNS[k].at[0])}" y="${TOWNS[k].at[1] > 80 ? TOWNS[k].at[1] - 16 : TOWNS[k].at[1] + 24}" text-anchor="middle" font-size="13" fill="#5a3a22">${TOWNS[k].short}</text>`).join('')}</svg>`;
+  const room = bagCap() - carryN();
+  const pack = here === 'home' ? ORE_ORDER.filter(o => S.inv[o]).map(o => `<button class="chip" data-a="pack" data-o="${o}" ${room > 0 ? '' : 'disabled'}><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o]}</small></button>`).join('') : '';
+  const bag = ORE_ORDER.filter(o => (S.carry || {})[o]).map(o => `<button class="chip on" data-a="unpack1" data-o="${o}" ${here === 'home' ? '' : 'disabled'}><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.carry[o]}</small></button>`).join('');
+  const dests = (here === 'home' ? ok : ['home']).map(k => { const c2 = travelCost(k); return `<button class="btn ${k === 'home' || here === 'home' ? 'primary' : ''}" data-a="travel" data-o="${k}" ${S.energy > c2 ? '' : 'disabled'}>${k === 'home' ? '마을' : TOWNS[k].short} ${PWR}${c2}</button>`; }).join('');
+  const railRow = !S.rail && here === 'home' && Object.keys(TOWNS).every(k => vis[k]) ? `<p class="dim" style="margin-top:8px">${ico('ic_rail')}광차 철길 <small class="eff">길 기력 0</small></p><div class="rows"><div class="rowi"><span class="nm">${needHtml(RAIL.need, RAIL.gold)}</span><button class="btn small" data-a="rail" ${hasAll(RAIL.need) && S.gold >= RAIL.gold ? '' : 'disabled'}>놓기</button></div></div>` : '';
+  openSheet(ico('ic_map') + '지도', svg + (here === 'home' ? `<p class="dim" style="margin-top:8px">짐 꾸리기</p><div class="chips">${pack || '<span class="dim">창고 빔</span>'}</div>` : '')
+    + `<p class="dim" style="margin-top:8px">${ico('ic_bag')}가방 ${carryN()}/${bagCap()}</p><div class="chips">${bag}</div>` + railRow, dests);
 }
 function packItem(o) {
   const n = Math.min(S.inv[o] || 0, bagCap() - carryN()); if (n <= 0) return;
@@ -2871,64 +2890,80 @@ function unpackItem(o) {
   S.inv[o] = (S.inv[o] || 0) + n; delete S.carry[o]; SFX.tap(); save(); showWorld();
 }
 function travel(dest) {
-  if (S.energy <= travelCost()) return;
-  if (!spend(travelCost())) return;
+  const c2 = travelCost(dest);
+  if (S.energy <= c2) return;
+  if (c2 && !spend(c2)) return;
   hideSheet(); fade = 1.2; SFX.stairs();
-  if (dest === 'mtn') enterTown('road'); else homeFromTown();
+  if (dest === 'home') homeFromTown(); else enterTown(dest, 'road');
 }
-function enterTown(at) {
-  S.loc = 'mtn'; scene = 'town'; S.screen = 'town'; FLAT = true; selected = null; hero.target = null; hero.goal = null; hero.path = [];
-  const inn = TOWN_OBJ[0], d = at === 'inn' ? townDoor(inn) : at === 'mine' ? townDoor(TOWN_OBJ[2]) : [TWW - 5, 9];
-  hero.x = d[0]; hero.y = d[1]; hero.fx = -1; hero.back = true;
+function enterTown(id, at) {
+  S.loc = id; S.visited = S.visited || {}; S.visited[id] = 1;
+  scene = 'town'; S.screen = 'town'; FLAT = true; selected = null; hero.target = null; hero.goal = null; hero.path = [];
+  const d = at === 'inn' ? townDoor(TOWN_OBJ[0]) : at === 'mine' ? townDoor(TOWN_OBJ[2]) : [TWW - 5, 9];
+  hero.x = d[0]; hero.y = d[1]; hero.fx = -1; hero.back = true; parts2 = [];
   cam.s = 1; cam.to = null; follow = true; snapCam();
-  questEvent('mtn'); save(); renderHud(); renderDock();
+  questEvent(id); save(); renderHud(); renderDock();
 }
 function homeFromTown() {
   S.loc = 'home'; unpack(); scene = 'village'; S.screen = 'village'; FLAT = false;
   hero.x = GATE[0]; hero.y = 0; hero.path = []; hero.goal = null; follow = true; snapCam();
   toast(`${ico('ic_village')}마을`); save(); renderHud(); renderDock();
 }
-// 산마을 광산 드나들기 (마을 광산 기록과 바꿔 씀)
-function enterMtnMine() {
-  hideSheet();
-  if (!S.mtnDeep) S.mtnDeep = { seed: (Math.random() * 1e6) | 0, L: 1, x: 0, y: 1, dug: {}, seen: {}, ups: {}, camps: [], lastCamp: null, steps: 0, mtn: true };
-  if (!S.deep.mtn) { S.deepMain = S.deep; S.deep = S.mtnDeep; }
+// 마을 광산 기록으로 되돌림 (다른 마을 광산에서 나올 때, 귀환서, 쓰러짐)
+function restoreHomeDeep() { if (S.deepMain) { S.townDeep = S.townDeep || {}; S.townDeep[S.deep.town] = S.deep; S.deep = S.deepMain; S.deepMain = null; } }
+function enterTownMine() {
+  hideSheet(); const id = S.loc; S.townDeep = S.townDeep || {};
+  if (!S.townDeep[id]) S.townDeep[id] = { seed: (Math.random() * 1e6) | 0, L: 1, x: 0, y: 1, dug: {}, seen: {}, ups: {}, camps: [], lastCamp: null, steps: 0, town: id };
+  if (!S.deep.town) { S.deepMain = S.deep; S.deep = S.townDeep[id]; }
   fade = 1; SFX.stairs(); startDeep(1, 0, 1);
 }
-function leaveMtnMine() {
-  if (S.deep.mtn) { S.mtnDeep = S.deep; S.deep = S.deepMain; S.deepMain = null; }
-  S.mine = null; S.exiting = false; fade = .8; SFX.stairs(); enterTown('mine');
-}
-// 산마을 창
+function leaveTownMine() { const id = S.deep.town; restoreHomeDeep(); S.mine = null; S.exiting = false; fade = .8; SFX.stairs(); enterTown(id, 'mine'); }
+// 마을 창
 function showTownObj(o) {
+  const T = townHere();
   if (o.id === 'inn') {
     const late = phaseIndex() === 3;
-    openSheet(ico('ic_village') + '여관', `<p>어서 와요. 눈길에 오느라 고생했어요. 하룻밤 묵고 가요.</p>` + (late ? '<p class="warn">새벽 취침</p>' : ''), `<button class="btn primary" data-a="inn" ${S.gold >= 50 ? '' : 'disabled'}>${GOLD}50</button>`);
+    openSheet(ico('ic_village') + '여관', `<p>${T.greet}</p>` + (late ? '<p class="warn">새벽 취침</p>' : ''), `<button class="btn primary" data-a="inn" ${S.gold >= 50 ? '' : 'disabled'}>${GOLD}50</button>`);
   } else if (o.id === 'tmarket') {
-    const rows = ORE_ORDER.filter(k => (S.carry || {})[k]).map(k => { const m = MTN_PRICE[k] || 1, cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${k}"></span>${ORES[k].name} <small>×${S.carry[k]}</small> <small class="${cls}">${GOLD}${mtnPrice(k)}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="tsell" data-o="${k}">${GOLD}${mtnPrice(k) * S.carry[k]}</button></div>`; }).join('');
-    const buy = S.donkey ? '' : `<p class="dim" style="margin-top:10px">사기</p><div class="rows"><div class="rowi"><span class="nm">${ico('ic_donkey')}당나귀 수레 <small class="eff">길 기력 5, 가방 +20칸</small></span><button class="btn small" data-a="donkey" ${S.gold >= DONKEY_GOLD ? '' : 'disabled'}>${GOLD}${DONKEY_GOLD}</button></div></div>`;
-    openSheet(ico('ic_shop') + '산마을 시장', (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + buy);
+    const rows = ORE_ORDER.filter(k => (S.carry || {})[k]).map(k => { const m = T.price[k] || 1, cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${k}"></span>${ORES[k].name} <small>×${S.carry[k]}</small> <small class="${cls}">${GOLD}${townPrice(k)}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="tsell" data-o="${k}">${GOLD}${townPrice(k) * S.carry[k]}</button></div>`; }).join('');
+    const buy = S.donkey || S.loc !== 'mtn' ? '' : `<p class="dim" style="margin-top:10px">사기</p><div class="rows"><div class="rowi"><span class="nm">${ico('ic_donkey')}당나귀 수레 <small class="eff">길 기력 2할, 가방 +20칸</small></span><button class="btn small" data-a="donkey" ${S.gold >= DONKEY_GOLD ? '' : 'disabled'}>${GOLD}${DONKEY_GOLD}</button></div></div>`;
+    const want = Object.entries(T.price).filter(([, m]) => m > 1.05).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => `<span class="ore ${k}"></span>`).join('');
+    openSheet(ico('ic_shop') + `${T.short} 시장`, `<p class="dim">비싸게 삼 ${want}</p>` + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + buy);
   } else if (o.id === 'tmine') {
-    openSheet(ico('ic_pick') + '산 광산', `<p>${ico('ic_shard')}<span class="ore silver"></span><span class="ore crystal"></span><span class="ore amethyst"></span></p>`, '<button class="btn primary" data-a="mtnmine">들어가기</button>');
+    const kinds = [...new Set(T.ores.flat().map(([k]) => k))].slice(0, 6).map(k => `<span class="ore ${k}"></span>`).join('');
+    openSheet(ico('ic_pick') + `${T.mine} 광산`, `<p>${kinds}</p>`, '<button class="btn primary" data-a="townmine">들어가기</button>');
   }
 }
 function townSell(o) {
   const n = (S.carry || {})[o] || 0; if (!n) return;
-  const g = mtnPrice(o) * n; delete S.carry[o]; S.gold += g; S.mtnSold = (S.mtnSold || 0) + g;
+  const g = townPrice(o) * n; delete S.carry[o]; S.gold += g; S.townSold = (S.townSold || 0) + g;
   SFX.coin(); toast(`${GOLD}+${g}`); questEvent('trade'); save(); renderHud(); renderDock(); showTownObj(TOWN_OBJ[1]);
 }
 function innSleep() {
   if (S.gold < 50) return;
-  S.gold -= 50; const ph = phaseIndex(), kind = ph === 3 ? 'late' : 'normal', sum = daySummary();
-  const sm = newDay(kind); enterTown('inn');
+  S.gold -= 50; const id = S.loc, ph = phaseIndex(), kind = ph === 3 ? 'late' : 'normal', sum = daySummary();
+  const sm = newDay(kind); enterTown(id, 'inn');
   save(); renderHud();
   openSheet(`${S.day}일차 아침`, `<p>${PWR}${S.energy}/${S.max}</p>` + sm + sum.html);
   if (sum.val) countUp(sum.val);
 }
+// 바닥: 마을마다 다름 (눈, 재, 모래와 바다)
+const tT = (x, y) => {
+  const T = townHere(), port = S.loc === 'port';
+  if (port && y >= TWH - 3 + (H32(x * 17 + 3) < .5 ? 0 : 1)) return 'w';   // 항구: 남쪽은 바다
+  if (x < 0 || y < 0 || x >= TWW || y >= TWH) return H32(x * 131 + y * 977 + 5) < .45 ? (T && S.loc === 'volcano' ? 'r' : 't') : 'o';
+  if (TOWN_OBJ.some(o => x >= o.gx && x < o.gx + o.w && y >= o.gy && y < o.gy + o.d)) return 'b';
+  if (x === TWW - 2 && y === 9) return 'x';
+  const e = Math.min(x, y, TWW - 1 - x, TWH - 1 - y), n = H32(x * 3571 + y * 7919 + 77);
+  if (e < 1 + n * 1.6 && !(y === 9 && x > 14)) return S.loc === 'volcano' ? (n < .5 ? 'r' : 't') : n < .7 ? 't' : 'r';
+  if (y === 9 || (x === 10 && y >= 7 && y <= 10) || (x === 5 && y >= 7 && y <= 9) || (x === 13 && y >= 6 && y <= 9)) return 'p';
+  if (n > .96) return 't';
+  return 's';
+};
+const townBlocked = (x, y) => { const t = tT(x, y); return t === 't' || t === 'r' || t === 'b' || t === 'o' || t === 'w'; };
 function townTap(px, py) {
   if (!sheet.hidden) hideSheet();
   const [x, y] = screenToWorld(px, py);
-  // 건물: 바닥과 지붕까지 누른 곳
   const hit = TOWN_OBJ.find(o => { const a = iso(o.gx, o.gy, 0), b = iso(o.gx + o.w, o.gy, 0), cc = iso(o.gx + o.w, o.gy + o.d, 0), d = iso(o.gx, o.gy + o.d, 0), up = ZU * 3; return inPoly(x, y, [d, cc, b, [b[0], b[1] - up], [a[0], a[1] - up], [d[0], d[1] - up]]); });
   if (hit) {
     const dr = townDoor(hit), path = bfs(Math.round(hero.x), Math.round(hero.y), (a, b) => a === dr[0] && b === dr[1]);
@@ -2954,46 +2989,67 @@ function townArrive() {
   if (hero.goal && hero.goal[0] === x && hero.goal[1] === y && tT(x, y) === 'x') { hero.goal = null; showWorld(); return; }
   hero.goal = null;
 }
-// 산마을 그리기: 눈 덮인 땅, 눈 쌓인 지붕, 솔숲, 내리는 눈
-let snow = [];
-function townHouse(c, o, wall, roof, sign) {
+// 그리기
+let parts2 = [];
+function townHouse(c, o, T, sign) {
   const x = o.gx, y = o.gy, h = 1.5;
-  prism(c, x + .15, y + .15, o.w - .3, o.d - .3, 0, h, wall[0], wall[1], wall[2]);
-  prism(c, x + .02, y + .02, o.w - .04, o.d - .04, h, .35, '#f6faff', roof[0], roof[1]);
-  prism(c, x + o.w - .9, y + .3, .3, .3, h + .35, .6, '#f6faff', '#8a6a5a', '#6d4f42');
+  prism(c, x + .15, y + .15, o.w - .3, o.d - .3, 0, h, T.wall[0], T.wall[1], T.wall[2]);
+  prism(c, x + .02, y + .02, o.w - .04, o.d - .04, h, .35, T.roof[0], T.roof[1], T.roof[2]);
+  prism(c, x + o.w - .9, y + .3, .3, .3, h + .35, .6, T.roof[0], '#8a6a5a', '#6d4f42');
   const dr = iso(x + 1.5, y + o.d - .15, 0), u = TW / 100;
   c.fillStyle = '#5a3a22'; c.beginPath(); c.roundRect(dr[0] - u * 10, dr[1] - u * 34, u * 20, u * 32, u * 4); c.fill();
   const lt = iso(x + o.w - .5, y + o.d - .15, .9); Cc(c, lt[0], lt[1], u * 6, '#ffd27a');
   const p = iso(x + o.w / 2, y + o.d / 2, h + 1.2); label(c, sign, p[0], p[1], Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.75)');
 }
 function drawTown(c, dt) {
-  const vr = viewTiles();
+  const T = townHere(), vr = viewTiles();
   for (let s2 = vr.x0 + vr.y0; s2 <= vr.x1 + vr.y1; s2++) for (let x = Math.max(vr.x0, s2 - vr.y1); x <= Math.min(vr.x1, s2 - vr.y0); x++) {
     const y = s2 - x, t = tT(x, y), n = H32(x * 92821 + y * 68917);
-    tileTop(c, x, y, 0, t === 'p' || t === 'x' ? ['#cfc4b0', '#d6ccb8'][n * 2 | 0] : ['#eef3f8', '#e6edf4', '#f4f8fb'][n * 3 | 0]);
-    if (t === 's' && n > .9) { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1], TW * .08, TH * .05, 'rgba(160,180,200,.35)'); }
+    if (t === 'w') { tileTop(c, x, y, -.1, ['#4f9ed2', '#58a6d8', '#4a96c8'][n * 3 | 0]); if (n > .8) { const q = iso(x + .5, y + .5, -.1); E(c, q[0] + Math.sin(tnow * 2 + x) * TW * .05, q[1], TW * .14, TH * .05, 'rgba(255,255,255,.5)'); } continue; }
+    tileTop(c, x, y, 0, t === 'p' || t === 'x' ? T.path[n * 2 | 0] : T.ground[n * 3 | 0]);
+    if (S.loc === 'volcano' && t === 's' && n > .9) { const a = iso(x + .2, y + .4, 0), b = iso(x + .8, y + .6, 0); L(c, a[0], a[1], b[0], b[1], `rgba(255,${120 + 60 * Math.sin(tnow * 3 + x)},40,.8)`, TW * .03); }
+    else if (t === 's' && n > .9) { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1], TW * .08, TH * .05, 'rgba(120,110,100,.25)'); }
   }
   const list = [];
   for (let s2 = vr.x0 + vr.y0; s2 <= vr.x1 + vr.y1; s2++) for (let x = Math.max(vr.x0, s2 - vr.y1); x <= Math.min(vr.x1, s2 - vr.y0); x++) {
     const y = s2 - x, t = tT(x, y);
     const front = x + y > hero.x + hero.y + .5 && x + y <= hero.x + hero.y + 3 && Math.abs((x - y) - (hero.x - hero.y)) < 1.8;   // 광부를 가리는 나무는 반투명
-    if (t === 't') list.push([x + y + 1, () => { if (front) c.globalAlpha = .4; treeAt(c, x, y); c.globalAlpha = 1; const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .62, TW * .2, TH * .12, 'rgba(250,252,255,.9)'); }]);
-    else if (t === 'r') list.push([x + y + 1, () => { rockAt(c, x, y); const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .16, TW * .16, TH * .08, 'rgba(250,252,255,.9)'); }]);
+    if (t === 't') list.push([x + y + 1, () => { if (front) c.globalAlpha = .4; if (S.loc === 'volcano') deadTreeAt(c, x, y); else treeAt(c, x, y); c.globalAlpha = 1; if (S.loc === 'volcano') return; if (T.cap) { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .62, TW * .2, TH * .12, T.cap); } }]);
+    else if (t === 'r') list.push([x + y + 1, () => { rockAt(c, x, y); if (T.cap) { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .16, TW * .16, TH * .08, T.cap); } }]);
   }
-  list.push([4 + 4 + 3, () => townHouse(c, TOWN_OBJ[0], ['#d8b07f', '#c8a06a', '#a8804a'], ['#8a5a32', '#6d4626'], '여관')]);
-  list.push([12 + 4 + 2.5, () => { const o = TOWN_OBJ[1]; prism(c, o.gx + .2, o.gy + .2, o.w - .4, o.d - .4, 0, .7, '#b08655', '#8a6a44', '#6d5030'); prism(c, o.gx + .05, o.gy + .05, o.w - .1, o.d - .1, 1.5, .18, '#f6faff', '#d4473a', '#b03a30'); [[.15, .15], [o.w - .3, .15], [.15, o.d - .3], [o.w - .3, o.d - .3]].forEach(([a, b]) => prism(c, o.gx + a, o.gy + b, .12, .12, 0, 1.5, '#8a6a44', '#7a5a34', '#5a4024')); const p = iso(o.gx + o.w / 2, o.gy + o.d / 2, 2.6); label(c, '시장', p[0], p[1], Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.75)'); }]);
-  list.push([8 + 11 + 3, () => { const o = TOWN_OBJ[2]; prism(c, o.gx + .1, o.gy + .1, o.w - .2, o.d - .2, 0, 1.4, '#c4ccd6', '#9aa4b0', '#7d8794'); prism(c, o.gx + .1, o.gy + .1, o.w - .2, o.d - .2, 1.4, .25, '#f6faff', '#dfe6ee', '#c8d0da'); const q = iso(o.gx + 1.5, o.gy + o.d - .05, 0), u = TW / 100; c.beginPath(); c.moveTo(q[0] - u * 26, q[1]); c.lineTo(q[0] - u * 26, q[1] - u * 40); c.quadraticCurveTo(q[0], q[1] - u * 64, q[0] + u * 26, q[1] - u * 40); c.lineTo(q[0] + u * 26, q[1]); c.closePath(); c.fillStyle = '#140d08'; c.fill(); c.lineWidth = Math.max(1.4, TW * .02); c.strokeStyle = OUT; c.stroke(); L(c, q[0] - u * 32, q[1] - u * 46, q[0] + u * 32, q[1] - u * 46, '#8a5a32', u * 6); const p = iso(o.gx + o.w / 2, o.gy + o.d / 2, 2.6); label(c, '산 광산', p[0], p[1], Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.75)'); }]);
+  list.push([4 + 4 + 3, () => townHouse(c, TOWN_OBJ[0], T, '여관')]);
+  list.push([12 + 4 + 2.5, () => { const o = TOWN_OBJ[1]; prism(c, o.gx + .2, o.gy + .2, o.w - .4, o.d - .4, 0, .7, '#b08655', '#8a6a44', '#6d5030'); prism(c, o.gx + .05, o.gy + .05, o.w - .1, o.d - .1, 1.5, .18, T.roof[0], '#d4473a', '#b03a30'); [[.15, .15], [o.w - .3, .15], [.15, o.d - .3], [o.w - .3, o.d - .3]].forEach(([a, b]) => prism(c, o.gx + a, o.gy + b, .12, .12, 0, 1.5, '#8a6a44', '#7a5a34', '#5a4024')); const p = iso(o.gx + o.w / 2, o.gy + o.d / 2, 2.6); label(c, '시장', p[0], p[1], Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.75)'); }]);
+  list.push([8 + 11 + 3, () => { const o = TOWN_OBJ[2]; prism(c, o.gx + .1, o.gy + .1, o.w - .2, o.d - .2, 0, 1.4, T.wall[0], T.wall[1], T.wall[2]); prism(c, o.gx + .1, o.gy + .1, o.w - .2, o.d - .2, 1.4, .25, T.roof[0], T.roof[1], T.roof[2]); const q = iso(o.gx + 1.5, o.gy + o.d - .05, 0), u = TW / 100; c.beginPath(); c.moveTo(q[0] - u * 26, q[1]); c.lineTo(q[0] - u * 26, q[1] - u * 40); c.quadraticCurveTo(q[0], q[1] - u * 64, q[0] + u * 26, q[1] - u * 40); c.lineTo(q[0] + u * 26, q[1]); c.closePath(); c.fillStyle = '#140d08'; c.fill(); c.lineWidth = Math.max(1.4, TW * .02); c.strokeStyle = OUT; c.stroke(); L(c, q[0] - u * 32, q[1] - u * 46, q[0] + u * 32, q[1] - u * 46, '#8a5a32', u * 6); const p = iso(o.gx + o.w / 2, o.gy + o.d / 2, 2.6); label(c, `${T.mine} 광산`, p[0], p[1], Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.75)'); }]);
   list.push([hero.x + hero.y + 1.02, () => { const p = iso(hero.x + .5, hero.y + .5, 0); person(c, p[0], p[1], TW / 44, '#3d6fa8', true, 0, false); }]);
   list.sort((a, b) => a[0] - b[0]).forEach(([, f]) => f());
   { const p = iso(TWW - 2 + .5, 9.5, 0); label(c, '길', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); }
   marks = marks.filter(k => (k.life -= 1 / 40) > 0);
   marks.forEach(k => { const w = k.w || 1, d = k.d || 1, pts = [iso(k.x, k.y, 0), iso(k.x + w, k.y, 0), iso(k.x + w, k.y + d, 0), iso(k.x, k.y + d, 0)]; c.beginPath(); pts.forEach(([a, b], j) => j ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.strokeStyle = `rgba(${k.col},${k.life})`; c.lineWidth = TW * .05; c.stroke(); });
 }
-// 화면 위로 내리는 눈
+// 화산 마을의 불탄 나무
+function deadTreeAt(c, x, y) {
+  const q = iso(x + .5, y + .5, 0), u = TW / 100, n = H32(x * 31 + y * 17);
+  E(c, q[0], q[1] + u * 2, u * 18, u * 7, 'rgba(0,0,0,.2)');
+  L(c, q[0], q[1], q[0] + u * 2, q[1] - u * 70, OUT, u * 9); L(c, q[0], q[1], q[0] + u * 2, q[1] - u * 70, '#4a3a32', u * 6);
+  [[-1, 40, 18], [1, 52, 16], [-1, 62, 12], [1, 30, 14]].forEach(([d, h, l], k) => { if (k === 3 && n < .5) return; const a = q[0] + u, b = q[1] - u * h; L(c, a, b, a + d * u * l, b - u * l * .8, OUT, u * 5); L(c, a, b, a + d * u * l, b - u * l * .8, '#4a3a32', u * 3); });
+  if (n > .6) Cc(c, q[0] + u * 3, q[1] - u * 74, u * 3, `rgba(255,140,60,${.5 + .4 * Math.sin(tnow * 4 + n * 9)})`);
+}
+// 화면 위 날씨: 산마을 눈, 화산 마을 불티, 항구 갈매기
 function drawSnow(c, dt) {
-  while (snow.length < 70) snow.push({ x: Math.random() * W, y: Math.random() * H, v: 20 + Math.random() * 30, r: 1 + Math.random() * 2.2, w: Math.random() * 6 });
-  c.fillStyle = 'rgba(255,255,255,.85)';
-  snow.forEach(f => { f.y += f.v * dt; f.x += Math.sin(tnow + f.w) * 10 * dt; if (f.y > H) { f.y = -4; f.x = Math.random() * W; } c.beginPath(); c.arc(f.x, f.y, f.r, 0, 7); c.fill(); });
+  const fx = (townHere() || {}).fx;
+  if (fx === 'gull') {
+    while (parts2.length < 3) parts2.push({ x: Math.random() * W, y: H * (.15 + Math.random() * .3), v: 30 + Math.random() * 30, w: Math.random() * 6 });
+    parts2.forEach(g => { g.x += g.v * dt; if (g.x > W + 30) { g.x = -30; g.y = H * (.15 + Math.random() * .3); } const f = Math.sin(tnow * 8 + g.w) * 5; c.strokeStyle = '#f6f6f6'; c.lineWidth = 2.4; c.beginPath(); c.moveTo(g.x - 10, g.y - f); c.quadraticCurveTo(g.x - 5, g.y - 6, g.x, g.y); c.quadraticCurveTo(g.x + 5, g.y - 6, g.x + 10, g.y - f); c.stroke(); });
+    return;
+  }
+  const ember = fx === 'ember';
+  while (parts2.length < 70) parts2.push({ x: Math.random() * W, y: Math.random() * H, v: 20 + Math.random() * 30, r: 1 + Math.random() * 2.2, w: Math.random() * 6 });
+  parts2.forEach(f => {
+    f.y += (ember ? -f.v * .8 : f.v) * dt; f.x += Math.sin(tnow + f.w) * 10 * dt;
+    if (f.y > H) { f.y = -4; f.x = Math.random() * W; } if (f.y < -4) { f.y = H + 4; f.x = Math.random() * W; }
+    c.fillStyle = ember ? `rgba(255,${130 + (f.w * 20 | 0)},60,${.5 + .4 * Math.sin(tnow * 4 + f.w)})` : 'rgba(255,255,255,.85)';
+    c.beginPath(); c.arc(f.x, f.y, ember ? f.r * .7 : f.r, 0, 7); c.fill();
+  });
 }
 
 /* ===== 장신구 (기획 25번): 끼워야 효과가 있고, 두 개를 합치면 효과가 합쳐진 새 장신구 =====
@@ -3034,7 +3090,7 @@ const RECIPES = [['compass', 'plumb', 'guide'], ['compass', 'flag', 'twin'], ['g
   ['boots', 'insole', 'trailboots'], ['gloves', 'magnet', 'minergloves'], ['clover', 'pouch', 'luckpouch'], ['charm', 'honey', 'sleepcharm'], ['explorer', 'glowdowse', 'star']];
 const COMBINE_GOLD = 100;
 // 쓰고 없어지는 것
-const TOOLS = { sickle: { n: '낫', ic: 'ic_sickle' }, cart: { n: '손수레', ic: 'ic_cart', d: '길 기력 15, 가방 +10칸' } };
+const TOOLS = { sickle: { n: '낫', ic: 'ic_sickle' }, cart: { n: '손수레', ic: 'ic_cart', d: '길 기력 6할, 가방 +10칸' } };
 const ITEMS = {
   soup: { n: '버섯 수프', ic: 'ic_d_soup', eat: 25 }, grill: { n: '생선 구이', ic: 'ic_d_grill', eat: 30 }, fry: { n: '감자 볶음', ic: 'ic_d_fry', eat: 35 },
   stew: { n: '무 조림', ic: 'ic_d_stew', eat: 30 }, jam: { n: '딸기 잼', ic: 'ic_d_jam', eat: 20 }, eelbowl: { n: '장어 덮밥', ic: 'ic_d_eelbowl', eat: 60 },
@@ -3275,7 +3331,7 @@ function bgmMood() {
   if (scene === 'mine') return 'mine';
   if (scene === 'forest') return 'forest';
   if (scene === 'hunt') return 'hunt';
-  if (scene === 'town') return 'night';
+  if (scene === 'town') return (townHere() || {}).music || 'night';
   return phaseIndex() >= 2 ? 'night' : 'day';
 }
 let BGM_IN = null, VERB = null, VERB_G = null;
@@ -3339,7 +3395,7 @@ function questHtml() {
   const q = questNow();
   if (!q) return `<div class="quest plate done">${ico('ic_check')}다음 이야기 준비 중</div>`;
   const pr = q.need ? Math.min(questProg(q), q.need) : 0;
-  return `<button class="quest plate" data-a="quest">${q.text}${q.need && !q.id.startsWith('pick') ? `<span>${q.id === 'gold' ? GOLD : ''}${pr}/${q.need}</span><i style="width:${pr / q.need * 100}%"></i>` : ''}</button>`;
+  return `<button class="quest plate" data-a="quest">${q.text}${q.need > 1 && !q.id.startsWith('pick') ? `<span>${q.id === 'gold' ? GOLD : ''}${pr}/${q.need}</span><i style="width:${pr / q.need * 100}%"></i>` : ''}</button>`;
 }
 /* ===== 아래쪽 단추와 창 ===== */
 const sheet = document.getElementById('sheet'), dock = document.getElementById('dock'), minebar = document.getElementById('minebar');
@@ -3351,10 +3407,10 @@ function renderDock() {
   dock.hidden = mine || !sheet.hidden;
   if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate" data-a="bag" aria-label="가방">${ico('ic_bag')}${bagCount()}</button>`;
   const bagBtn = `<button class="btn small" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
-  if (scene === 'town') minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button><b>${ico('ic_village')}눈 덮인 산마을</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  if (scene === 'town') minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button><b>${ico('ic_village')}${(townHere() || TOWNS.mtn).n}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_sword')}성 밖</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_tree')}${fPlace(Math.round(hero.x))}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
-  else if (mine && S.mine) minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button><b>${S.deep.L ? `${S.deep.mtn ? '산 ' : ''}${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small>` : '숲 동굴'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  else if (mine && S.mine) minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button><b>${S.deep.L ? `${S.deep.town ? TOWNS[S.deep.town].mine + ' ' : ''}${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small>` : '숲 동굴'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
 }
 let sheetClosable = true;
 function openSheet(title, body, btns, closable = true) {
@@ -3808,7 +3864,8 @@ document.addEventListener('click', e => {
   else if (a === 'tsell') townSell(b.dataset.o);
   else if (a === 'inn') innSleep();
   else if (a === 'donkey') buyDonkey();
-  else if (a === 'mtnmine') enterMtnMine();
+  else if (a === 'townmine') enterTownMine();
+  else if (a === 'rail') buildRail();
   else if (a === 'digForce') { hideSheet(); const [x, y] = b.dataset.n.split(',').map(Number); dig(x, y, true); }
   else if (a === 'campSleep') { hideSheet(); sleep(S.deep.lastCamp); }
   else if (a === 'use') useItem(b.dataset.o);
@@ -3960,7 +4017,7 @@ function startGame() {
   applyRestored();
   resize();
   if (S.screen === 'mine' && S.deep) { scene = 'mine'; FLAT = true; S.mine = { L: S.deep.L }; hero.x = S.deep.x; hero.y = S.deep.y; mineSee(); }
-  else if (S.screen === 'town' && S.loc === 'mtn') { enterTown('road'); }
+  else if (S.screen === 'town' && TOWNS[S.loc]) { enterTown(S.loc, 'road'); }
   else if (S.screen === 'forest' && S.forest && S.forest.day === S.day && S.forest.it && S.forest.t.length === FW * FH) { scene = 'forest'; FLAT = true; hero.x = S.forest.hx; hero.y = S.forest.hy; forestSee(); }
   else { S.screen = 'village'; S.mine = null; S.hunt = null; unpack(); }
   snapCam(); renderHud(); renderDock(); showHome();
