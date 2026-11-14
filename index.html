@@ -268,6 +268,10 @@ const ORES = {
   silverBar: { name: '은 주괴',   price: 280, color: '#e8eef4', light: '#ffffff' },
   goldBar:   { name: '금 주괴',   price: 560, color: '#f5cf45', light: '#fff4b8' },
   herb2:     { name: '은빛 약초', price: 45,  color: '#9fd0c0', light: '#e0fff4' },
+  glowcap:   { name: '빛버섯',   price: 70,  color: '#7fe0e0', light: '#e0ffff' },
+  truffle:   { name: '송로버섯', price: 150, color: '#5a4030', light: '#a88a6a' },
+  perch:     { name: '쏘가리',   price: 55,  color: '#c8a050', light: '#f0d890' },
+  goldfin:   { name: '금빛 송사리', price: 130, color: '#f2c230', light: '#fff2a8' },
   oldwood:   { name: '고목',     price: 30,  color: '#7a5530', light: '#b8885a' },
   bloom:     { name: '달빛 꽃',   price: 90,  color: '#c8b8ff', light: '#f0ecff' },
   fairy:     { name: '요정 이끼', price: 160, color: '#7fe0c8', light: '#e0fff4' },
@@ -276,7 +280,7 @@ const ORES = {
   manastone: { name: '마석',     price: 120, color: '#5a7ae0', light: '#b8c8ff' },
   moonshard: { name: '월광 조각', price: 200, color: '#e2dcff', light: '#ffffff' },
 };
-const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'crystalGem', 'amethystGem', 'rubyGem', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry', 'meat', 'bone', 'manastone', 'moonshard', 'herb2', 'oldwood', 'bloom', 'fairy'];
+const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'crystalGem', 'amethystGem', 'rubyGem', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry', 'meat', 'bone', 'manastone', 'moonshard', 'herb2', 'oldwood', 'bloom', 'fairy', 'glowcap', 'truffle', 'perch', 'goldfin'];
 /* ===== 대장간 (3단계): 용광로에 광석 5개와 석탄 1개를 넣고 자면 아침에 주괴. 주괴와 돈으로 곡괭이 강화 (망치질 박자로 품질) ===== */
 const SMELT = { copper: 'copperBar', iron: 'ironBar', silver: 'silverBar', gold: 'goldBar' }, SMELT_N = 5, FURNACE_MAX = 10;
 // 곡괭이: 구리는 7층까지, 철(가운데 단계)부터 단단한 바위와 10층, 은은 캐는 기력 1, 금은 단단한 바위도 쉽게. 높은 단계일수록 망치질이 빠르고 칸이 좁음
@@ -478,6 +482,7 @@ const ICONS = {
   ic_gold: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#f2c230'], ['M12 6.2a5.8 5.8 0 1 0 .01 0Z', '#e0a81e', 0], ['M10.8 8.5h2.4v7h-2.4Z', '#fff2b0', 0]],
   ic_check: [['M12 2.5a9.5 9.5 0 1 0 .01 0Z', '#4fb35a'], ['M7 12.5l3.2 3.2L17.2 8.6', 'none', 2.6, '#fff']],
   ic_plenty: [['M12 8.6a6.6 6.6 0 1 0 .01 0Z', 'none', 3.8, '#2b1a12'], ['M12 8.6a6.6 6.6 0 1 0 .01 0Z', 'none', 2.4, '#f2c230'], ['M12 2.4 15.2 6 12 9.6 8.8 6Z', '#5cc86a'], ['M12 2.4v7.2M8.8 6h6.4', 'none', .6, '#2a7a3a'], ['M19.4 3.4l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6Z', '#fff6c2', 0], ['M4.6 6.6l.4 1 1 .4-1 .4-.4 1-.4-1-1-.4 1-.4Z', '#fff6c2', 0]],
+  ic_sickle: [['M5 20.5 9.6 14', 'none', 3.4, '#2b1a12'], ['M5 20.5 9.6 14', 'none', 2, '#8a5a32'], ['M9 14.6C6.6 9.6 9 3.6 15 3c4.6-.4 6.6 3 5.4 5.6-1.4-2.6-4.6-3.6-7.4-2.2-2.6 1.4-3.6 4.6-2.4 8.2Z', '#cdd6e0'], ['M11.4 13.4c-.8-3 .6-6 3.6-7', 'none', .9, '#ffffff']],
   ic_stat: [['M3.5 20.5h17', 'none', 1.8, '#2b1a12'], ['M5 13h3.4v7.5H5Z', '#5fc9e0'], ['M10.3 8.5h3.4v12H10.3Z', '#e9b04f'], ['M15.6 4h3.4v16.5h-3.4Z', '#8fe08a']],
   ic_note: [['M9 17.5V5.5l10-2v12', 'none', 1.8, '#2b1a12'], ['M3.8 17.6a2.8 2.2 0 1 0 5.6 0a2.8 2.2 0 1 0-5.6 0Z', '#e9b04f'], ['M13.8 15.6a2.8 2.2 0 1 0 5.6 0a2.8 2.2 0 1 0-5.6 0Z', '#e9b04f'], ['M9 5.5l10-2v3l-10 2Z', '#e9b04f', 1.2]],
   ic_close: [['M6 6l12 12M18 6 6 18', 'none', 2.6, '#f6ecdd']],
@@ -566,6 +571,10 @@ const ITEM_ART = {
   berry: [['M12 21.4C7.4 18 4.6 14.4 4.8 10.8c.2-2.6 2.6-3.6 7.2-3.6s7 1 7.2 3.6c.2 3.6-2.6 7.2-7.2 10.6Z', '#e0405a'], ['M7 7.4 9.4 9 12 6.6 14.6 9 17 7.4 15.6 5.8 12 5 8.4 5.8Z', '#5cb85a'], ['M12 5V2.8', 'none', 1.4, '#3a7a30'], [cP(8.8, 12, .5), '#fff2a8', 0], [cP(12, 11.4, .5), '#fff2a8', 0], [cP(15.2, 12, .5), '#fff2a8', 0], [cP(10.2, 15, .5), '#fff2a8', 0], [cP(13.8, 15, .5), '#fff2a8', 0], [cP(12, 18, .5), '#fff2a8', 0]],
   meat: [['M14.6 13.2 19.4 18', 'none', 4.6, '#2b1a12'], ['M14.6 13.2 19.4 18', 'none', 2.8, '#f4ead6'], [cP(20, 17.2, 1.6), '#f4ead6', 1], [cP(18.8, 19.4, 1.6), '#f4ead6', 1], ['M5.4 6.6c2.6-3 7.4-3 9.6 0 2.2 3 1.6 6.6-1 8.4-2.8 1.8-7 1.4-9-1.2-1.8-2.4-1.6-5 .4-7.2Z', '#c8584a'], ['M7 7.6c1.6-1.6 4.2-2 6-.6', 'none', 1.2, '#f0a090'], [eP(10.6, 10.8, 2.4, 1.6), '#e07a68', 0]],
   bone: [['M7 9.6 17 14.4', 'none', 5, '#2b1a12'], ['M7 9.6 17 14.4', 'none', 3.2, '#efe6d2'], [cP(5.6, 7.6, 2.2), '#efe6d2', 1.2], [cP(4.4, 10.8, 2.2), '#efe6d2', 1.2], [cP(18.4, 12.6, 2.2), '#efe6d2', 1.2], [cP(19.6, 15.8, 2.2), '#efe6d2', 1.2], ['M7.6 9 16.6 13.4', 'none', .9, '#ffffff']],
+  glowcap: [['M9.6 13.4h4.8l.6 7a1.2 1.2 0 0 1-1.2 1.2h-3.6a1.2 1.2 0 0 1-1.2-1.2Z', '#e0f4f0'], ['M3.4 13.4C3.4 8 7.2 4.2 12 4.2s8.6 3.8 8.6 9.2Z', '#7fe0e0'], [cP(8.4, 9.6, 1.3), '#e0ffff', 0], [cP(14, 7.4, 1.1), '#e0ffff', 0], [cP(16.6, 10.6, 1.2), '#e0ffff', 0], glint(19.6, 4.6, .8), glint(4.4, 5.6, .6)],
+  truffle: [['M4.4 14.6c-.6-4.4 3.4-8.4 8-8.2 4.2.2 7.6 3.4 7.2 7.6-.4 4.2-4 6.6-7.8 6.6-3.6 0-7-2-7.4-6Z', '#5a4030'], [cP(8.6, 11.4, .9), '#8a6a4a', 0], [cP(13.4, 9.6, .8), '#8a6a4a', 0], [cP(15.6, 14, .9), '#8a6a4a', 0], [cP(10.4, 16, .8), '#8a6a4a', 0], ['M6.6 10.4c.8-1.6 2.4-2.8 4.4-3.2', 'none', 1, 'rgba(255,255,255,.3)']],
+  perch: fish('#c8a050', '#f4e6c0', '#9a7a3a', [['M8 8.6v6.8M11 8v8M14 8.4v7.2', 'none', 1.2, '#6a5a2a']]),
+  goldfin: [...fish('#f2c230', '#fff2a8', '#e0a020'), glint(19.4, 5, .8)],
   herb2: [['M12 21v-8', 'none', 1.8, '#2b1a12'], ['M12 13c-4.4.6-7.6-2-8-6 4.2-.4 7.6 2 8 6Z', '#9fd0c0'], ['M12 13c4.4.6 7.6-2 8-6-4.2-.4-7.6 2-8 6Z', '#b4e0d2'], ['M12 11.4C9.8 9.4 9.6 6 12 3c2.4 3 2.2 6.4 0 8.4Z', '#c8eee2'], ['M5.6 7.4 11 12.4M18.4 7.4 13 12.4M12 4.6v6.4', 'none', .7, '#5a9a88'], glint(18.6, 15.6, .8), glint(5.4, 16.4, .6)],
   oldwood: [['M4 9.6h16v6.8H4Z', '#7a5530'], [eP(20, 13, 2.4, 3.4), '#c8a070', 1.2], [eP(20, 13, 1.2, 1.8), 'none', .8, '#8a6a3a'], ['M6 11.4h9M5.6 14.2h11', 'none', .8, '#5a3a1c'], ['M9 9.6c0-2 1-3 2.4-3.4M13 9.6c.2-1.4 1.2-2.2 2.4-2.4', 'none', 1.2, '#4f8a40'], [cP(11.6, 6.2, 1), '#6fae54', .7]],
   bloom: [['M12 21v-7', 'none', 1.8, '#2b1a12'], ['M12 21v-7', 'none', .9, '#4a8a3a'], ['M12 14c-3.2-1-4.4-4-3.4-7 2.4.6 3.6 3.6 3.4 7ZM12 14c3.2-1 4.4-4 3.4-7-2.4.6-3.6 3.6-3.4 7ZM12 14c-1.8-2.6-1.6-6.4 0-9.4 1.6 3 1.8 6.8 0 9.4Z', '#c8b8ff'], [cP(12, 11.4, 1.2), '#fff6c2', 0], glint(18.4, 5.4, .8), glint(5.6, 7.4, .6)],
@@ -1784,7 +1793,7 @@ function rareNear() {
 }
 // 아래 막대의 나가기 단추: 위로 가는 곳까지 걸어가서 올라감. 깊으면 마을까지 이어서
 function goExit() {
-  if (scene === 'forest') { const f = S.forest; walkTo(f.ex, f.ey, leaveForest); return; }
+  if (scene === 'forest') { const f = S.forest; walkTo(f.ex, f.ey, f.grove ? leaveGrove : leaveForest); return; }
   if (scene === 'hunt') { const h2 = S.hunt; walkTo(h2.ex, h2.ey, leaveHunt); return; }
   if (scene !== 'mine') return;
   const up = nearest(upsHere()); if (!up) { toast('길 모름'); return; }
@@ -2200,6 +2209,44 @@ const F_ZONES = [
   { n: '신비한 숲', x: 0, need: 90, ground: ['#5a7e7a', '#61847f', '#557874'], extra: { bloom: .015, fairy: .015 } },
 ];
 const fZone = x => F_ZONES.findIndex(z => x >= z.x);
+// 곁가지 숲 (기획 46번): 본 숲 길에서 옆으로 빠지는 작은 숲. 같은 크기 판의 가운데만 열려 있음
+const GROVES = {
+  mush: { n: '버섯 골짜기', ground: ['#5f8a4a', '#668f4e', '#588244'], items: { mush: .07, glowcap: .03, truffle: .006, herb: .02 } },
+  lake: { n: '호숫가 숲', ground: ['#6aa35a', '#71a85e', '#639a52'], items: { herb: .03, fiber: .05, herb2: .01 } },
+};
+const fGround = x => (S.forest && S.forest.grove ? GROVES[S.forest.grove].ground : F_ZONES[fZone(Math.max(0, Math.min(FW - 1, x)))].ground);
+const fPlace = x => (S.forest.grove ? GROVES[S.forest.grove].n : F_ZONES[fZone(x)].n);
+const LAKE_FISH = [['perch', .55], ['carp', .3], ['goldfin', .15]];
+function genGrove(kind, day) {
+  const I = (x, y) => y * FW + x, t = Array(FW * FH).fill('t'), it = {}, R0 = H32(day * 131 + (kind === 'mush' ? 7 : 19)) * 1e5 | 0;
+  const h = (x, y, k) => H32(x * 92821 + y * 68917 + R0 + k * 7), cx = 32, cy = 18;
+  for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) {
+    const r = Math.hypot((x - cx) / 1.35, y - cy), lim = 9 + vnoise(Math.atan2(y - cy, x - cx) * 2 + 5, 0, R0) * 4;
+    if (r > lim) continue;
+    const v = h(x, y, 1); t[I(x, y)] = v < .1 ? 't' : v < .15 ? 's' : 'g';
+  }
+  const ex = cx + 15, ey = cy; for (let x = cx; x <= ex; x++) t[I(x, ey)] = 'g'; for (let y = ey - 1; y <= ey + 1; y++) for (let x = ex - 2; x <= ex; x++) t[I(x, y)] = 'g'; t[I(ex, ey)] = 'x';
+  if (kind === 'lake') for (let y = cy - 4; y <= cy + 4; y++) for (let x = cx - 7; x <= cx + 3; x++) if (Math.hypot((x - cx + 2) / 1.6, y - cy) < 3.4 + vnoise(x / 3, y / 3, R0 + 4) * .9) t[I(x, y)] = 'w';
+  for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) {
+    if (t[I(x, y)] !== 'g' || Math.hypot(x - ex, y - ey) < 3) continue;
+    const r = h(x, y, 9); let acc = 0;
+    for (const [k, p2] of Object.entries(GROVES[kind].items)) { acc += p2; if (r < acc) { it[x + ',' + y] = k; break; } }
+    if (!it[x + ',' + y] && r > .985) it[x + ',' + y] = 'sparkle';
+  }
+  for (let n = 0; n < 300; n++) { const x = cx - 10 + (h(n, 3, 61) * 14 | 0), y = cy - 7 + (h(3, n, 62) * 14 | 0); if (t[I(x, y)] === 'g' && !it[x + ',' + y]) { it[x + ',' + y] = 'chest'; break; } }
+  return { day, t, it, seen: Array(FW * FH).fill(0), ex, ey, hx: ex - 1, hy: ey, steps: 0, grove: kind };
+}
+function enterGrove(kind) {
+  const f = S.forest; f.hx = Math.round(hero.x); f.hy = Math.round(hero.y);
+  S.forestMain = f; S.groves = S.groves || {};
+  const g = S.groves[kind] && S.groves[kind].day === S.day ? S.groves[kind] : genGrove(kind, S.day);
+  g.hx = g.ex - 1; g.hy = g.ey; S.groves[kind] = g; S.forest = g;
+  SFX.stairs(); toast(GROVES[kind].n); enterForest();
+}
+function leaveGrove() {
+  const g = S.forest; g.hx = g.ex - 1; g.hy = g.ey;
+  S.forest = S.forestMain; S.forestMain = null; SFX.stairs(); enterForest();
+}
 const SPARKLE = ['plumb', 'feather', 'insole', 'clover', 'firefly', 'honey'];   // 반짝이는 덤불에서
 const CHEST = ['plumb', 'charm', 'feather', 'insole', 'honey', 'leather', 'leather'];   // 낡은 상자에서
 function genForest(day) {
@@ -2245,6 +2292,10 @@ function genForest(day) {
     t[I(bx, ey)] = (S.forestOpen || {})[i + 1] ? 'g' : 'B'; t[I(bx - 1, ey)] = (S.forestOpen || {})[i + 1] ? 'g' : 'k'; t[I(bx - 2, ey)] = 'g'; t[I(bx + 1, ey)] = 'g';
     if (!(S.forestOpen || {})[i + 1]) t[I(bx - 1, ey)] = 'g';
   });
+  // 곁가지 숲 입구: 깊은 숲 위쪽에 버섯 골짜기(가시덤불로 막힘), 오래된 숲 아래쪽에 호숫가 숲
+  for (let y = 2; y <= ey; y++) t[I(40, y)] = 'g'; t[I(40, 2)] = 'o'; t[I(40, 3)] = 'q';
+  for (let y = ey; y <= FH - 3; y++) t[I(24, y)] = 'g'; t[I(24, FH - 3)] = 'o';
+  [[40, 2], [40, 3], [24, FH - 3]].forEach(([x, y]) => delete it[x + ',' + y]);
   // 깊은 구역마다 상자 하나
   for (let z = 1; z < F_ZONES.length; z++) for (let n = 0; n < 200; n++) { const x = F_ZONES[z].x + 2 + (h(n, z, 41) * 12 | 0), y = 2 + (h(z, n, 42) * (FH - 4) | 0); if (t[I(x, y)] === 'g' && !it[x + ',' + y] && y !== ey) { it[x + ',' + y] = 'chest'; break; } }
   // 낡은 상자 둘: 먼 곳에
@@ -2258,6 +2309,11 @@ const fI = (x, y) => y * FW + x;
 const fIn = (x, y) => x >= 0 && y >= 0 && x < FW && y < FH;
 const fT = (x, y) => (fIn(x, y) ? S.forest.t[fI(x, y)] : 't');
 // 숲 깊은 곳 큰 바위 깨기
+// 숲에서 옆 칸에 하는 일: 가시덤불 치기, 낚시
+function forestAct([x, y, t]) {
+  if (t === 'q') { if (!spend(2)) return; S.forest.t[fI(x, y)] = 'g'; SFX.dig(); mswing = 1; for (let i = 0; i < 10; i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .3, y: y + .5 + Math.sin(a) * .3, z: .3, life: .8, col: '#7aa04a' }); } save(); renderHud(); return; }
+  if (t === 'w') startFish(true);
+}
 function breakBoulder(x, y) {
   const z = fZone(x - 1), need = F_ZONES[z].need;
   if (pickPower() < need) { toast(`파워 ${need} 필요`); SFX.deny(); mark(x, y, '235,95,80'); return; }
@@ -2272,6 +2328,7 @@ function forestSee() {
 }
 function fBlocked(x, y) {
   if (!fIn(x, y)) return true;
+  if (S.forest.t[fI(x, y)] === 'w' || S.forest.t[fI(x, y)] === 'q') return true;   // 물과 가시덤불
   if (S.forest.t[fI(x, y)] === 'v') return false;
   if (S.forest.t[fI(x, y)] === 'B') return true;   // 큰 바위는 보이기 전에도 못 지나감
   const i = fI(x, y), t = S.forest.t[i];
@@ -2294,6 +2351,15 @@ function leaveForest() {
 function forestTapCell(x, y) {
   const f = S.forest, seen = f.seen[fI(x, y)];
   hero.goal = null; hero.dig = null; hero.breakAt = null;
+  const tt = f.t[fI(x, y)];
+  if (seen && (tt === 'q' || (tt === 'w' && S.rod))) {   // 가시덤불은 낫으로 침, 물가에선 낚시
+    if (tt === 'q' && !S.sickle) { toast('낫 필요'); SFX.deny(); mark(x, y, '235,95,80'); return; }
+    const hx = Math.round(hero.x), hy = Math.round(hero.y), act = [x, y, tt];
+    if (Math.abs(hx - x) + Math.abs(hy - y) === 1) { forestAct(act); return; }
+    const path = bfs(hx, hy, (a, b) => Math.abs(a - x) + Math.abs(b - y) === 1 && !fBlocked(a, b));
+    if (path) { hero.path = path; hero.actAt = act; follow = true; } else mark(x, y, '235,95,80');
+    return;
+  }
   if (seen && f.t[fI(x, y)] === 'B') {   // 큰 바위: 옆까지 걸어가서 깸
     const hx = Math.round(hero.x), hy = Math.round(hero.y);
     if (Math.abs(hx - x) + Math.abs(hy - y) === 1) { breakBoulder(x, y); return; }
@@ -2336,10 +2402,12 @@ function gather(x, y) {
 function forestArrive() {
   const f = S.forest, x = Math.round(hero.x), y = Math.round(hero.y), t = f.t[fI(x, y)];
   if (hero.breakAt) { const [bx, by] = hero.breakAt; hero.breakAt = null; if (Math.abs(bx - x) + Math.abs(by - y) === 1) breakBoulder(bx, by); return; }
-  if (f.zone !== fZone(x)) { if (f.zone !== undefined && fZone(x) > f.zone) toast(F_ZONES[fZone(x)].n); f.zone = fZone(x); renderDock(); }
+  if (hero.actAt) { const a = hero.actAt; hero.actAt = null; if (Math.abs(a[0] - x) + Math.abs(a[1] - y) === 1) forestAct(a); return; }
+  if (hero.goal && hero.goal[0] === x && hero.goal[1] === y && t === 'o') { hero.goal = null; enterGrove(y < FH / 2 ? 'mush' : 'lake'); return; }
+  if (!f.grove && f.zone !== fZone(x)) { if (f.zone !== undefined && fZone(x) > f.zone) toast(F_ZONES[fZone(x)].n); f.zone = fZone(x); renderDock(); }
   const goal = hero.goal && hero.goal[0] === x && hero.goal[1] === y; hero.goal = null;
   if (f.it[x + ',' + y]) gather(x, y);
-  if (goal && t === 'x') { leaveForest(); return; }
+  if (goal && t === 'x') { if (f.grove) leaveGrove(); else leaveForest(); return; }
   if (goal && t === 'v') { enterCave(); return; }
   save();
 }
@@ -2371,12 +2439,30 @@ function drawForestMap(c) {
     if (!f.seen[fI(x, y)]) continue; const t = f.t[fI(x, y)];
     const dx = x - hero.x, dy = y - hero.y, px = mx + mw / 2 + (dx - dy) * sc * .75, py = my + mh / 2 + (dx + dy) * sc * .375;
     if (px < mx - sc || px > mx + mw + sc || py < my - sc || py > my + mh + sc) continue;
-    c.fillStyle = t === 't' ? '#2f5a2a' : t === 'k' ? '#857d70' : t === 's' ? '#3f7a35' : t === 'B' ? '#e0d4bc' : t === 'v' ? '#140d08' : t === 'x' ? '#d2b98e' : F_ZONES[fZone(x)].ground[1];
+    c.fillStyle = t === 't' ? '#2f5a2a' : t === 'k' ? '#857d70' : t === 's' ? '#3f7a35' : t === 'B' ? '#e0d4bc' : t === 'v' ? '#140d08' : t === 'x' ? '#d2b98e' : t === 'w' ? '#5aa6d6' : t === 'o' ? '#f2c230' : t === 'q' ? '#7a3a2a' : fGround(x)[1];
     c.beginPath(); c.moveTo(px, py - sc * .375); c.lineTo(px + sc * .75, py); c.lineTo(px, py + sc * .375); c.lineTo(px - sc * .75, py); c.closePath(); c.fill();
     const it = f.it[x + ',' + y]; if (it === 'chest' || it === 'sparkle') { c.fillStyle = '#ffe27a'; c.fillRect(px - z, py - z, 2 * z, 2 * z); }
   }
   c.fillStyle = '#fff'; c.fillRect(mx + mw / 2 - 1.5 * z, my + mh / 2 - 1.5 * z, 3 * z, 3 * z);
   c.restore();
+}
+// 가시덤불 (낫으로 침)
+function thornAt(c, x, y) {
+  bushAt(c, x, y);
+  const q = iso(x + .5, y + .5, 0), u = TW / 100;
+  for (let k = 0; k < 7; k++) { const a = k * .9 + 1, r = u * (14 + (k % 3) * 5); L(c, q[0] + Math.cos(a) * r * .6, q[1] - u * 16 + Math.sin(a) * r * .4, q[0] + Math.cos(a) * r, q[1] - u * 16 + Math.sin(a) * r * .6, '#7a3a2a', u * 2.2); }
+  for (let k = 0; k < 4; k++) Cc(c, q[0] + (k - 1.5) * u * 9, q[1] - u * (20 + (k % 2) * 8), u * 2.4, '#d0405a');
+}
+// 곁가지 숲 입구: 나무 두 그루가 굽어 만든 문과 팻말
+function groveGate(c, x, y) {
+  const q = iso(x + .5, y + .5, 0), u = TW / 100, ink = Math.max(1.4, TW * .02), kind = y < FH / 2 ? 'mush' : 'lake';
+  c.save(); c.translate(q[0], q[1]);
+  L(c, -u * 26, 0, -u * 12, -u * 70, OUT, u * 9); L(c, -u * 26, 0, -u * 12, -u * 70, '#8a5a32', u * 6);
+  L(c, u * 26, 0, u * 12, -u * 70, OUT, u * 9); L(c, u * 26, 0, u * 12, -u * 70, '#8a5a32', u * 6);
+  blobs(c, [[-u * 16, -u * 76, u * 20], [u * 16, -u * 76, u * 20], [0, -u * 88, u * 18]], kind === 'mush' ? '#5f8a4a' : '#5aa05a', ink);
+  if (kind === 'mush') { mushAt(c, -u * 30, u * 2); mushAt(c, u * 32, u * 4); } else { Cc(c, u * 30, -u * 2, u * 7, '#5aa6d6'); }
+  c.restore();
+  label(c, GROVES[kind].n, q[0], q[1] + TH * .45, Math.max(11, TW * .15), '#f6ecdd', 'rgba(20,14,9,.75)');
 }
 // 숲 깊은 곳을 막는 큰 바위 (금 간 곳이 보이고, 위에 필요한 파워)
 function boulderAt(c, x, y) {
@@ -2402,7 +2488,7 @@ function caveMouth(c, x, y) {
 let wind = [];
 function forestGround(c, x, y, i) {
   const n = H32(i * 92821 + S.forest.day), n2 = H32(i * 7 + S.forest.day * 53);
-  tileTop(c, x, y, 0, F_ZONES[fZone(x)].ground[n * 3 | 0]);
+  tileTop(c, x, y, 0, fGround(x)[n * 3 | 0]);
   if (n2 < .4) for (let k = 0; k < 2; k++) { const q = iso(x + .2 + H32(i * 13 + k) * .6, y + .2 + H32(i * 3 + k) * .6, 0); P(c, [[q[0] - TW * .03, q[1]], [q[0] - TW * .01, q[1] - ZU * .22], [q[0] + TW * .01, q[1]], [q[0] + TW * .035, q[1] - ZU * .17], [q[0] + TW * .05, q[1]]], '#4f8a40'); }
   else if (n2 > .86) { const cols = ['#f6f0e0', '#f2d35b', '#b9a2e8']; const q = iso(x + .5, y + .5, 0); Cc(c, q[0], q[1], TW * .035, cols[n * 3 | 0]); Cc(c, q[0], q[1], TW * .012, '#fff8d0'); }
 }
@@ -2426,17 +2512,28 @@ function drawForest(c, dt) {
   for (let s = Math.max(0, vr.x0 + vr.y0); s <= Math.min(FW + FH - 2, vr.x1 + vr.y1); s++) {
     for (let x = Math.max(0, s - FH + 1); x <= Math.min(FW - 1, s); x++) {
       const y = s - x, i = fI(x, y);
-      if (!f.seen[i]) { tileTop(c, x, y, 0, F_ZONES[fZone(x)].ground[0]); continue; }
+      if (!f.seen[i]) { tileTop(c, x, y, 0, fGround(x)[0]); continue; }
       forestGround(c, x, y, i);
       if (f.t[i] === 'x') tileTop(c, x, y, 0, '#d2b98e');
       const what = f.it[x + ',' + y]; if (what) gatherAt(c, x, y, what);
     }
   }
+  // 호수: 칸마다 칠하지 않고 둥근 물방울을 겹쳐 매끄러운 물가로
+  const wcs = [];
+  for (let y = Math.max(0, vr.y0); y <= Math.min(FH - 1, vr.y1); y++) for (let x = Math.max(0, vr.x0); x <= Math.min(FW - 1, vr.x1); x++) if (f.t[fI(x, y)] === 'w') wcs.push(iso(x + .5, y + .5, 0));
+  if (wcs.length) {
+    const p0 = INK; INK = 0;
+    wcs.forEach(([a, b]) => E(c, a, b, TW * .78, TH * .78, '#c8b88a'));   // 모래 물가
+    wcs.forEach(([a, b]) => E(c, a, b, TW * .66, TH * .66, '#3f86b8'));
+    wcs.forEach(([a, b]) => E(c, a, b, TW * .56, TH * .56, '#5aa6d6'));
+    wcs.forEach(([a, b], k) => { if (H32(k * 7 + 3) < .25) { const w2 = .6 + .4 * Math.sin(tnow * 2 + k); E(c, a + TW * .1, b, TW * .14 * w2, TH * .05, 'rgba(255,255,255,.45)'); } });
+    INK = p0;
+  }
   // 숲 바깥: 끝없이 이어지는 빽빽한 숲 (지도 끝이 곧은 선으로 보이지 않게)
   const outs = [];
   for (let s2 = vr.x0 + vr.y0; s2 <= vr.x1 + vr.y1; s2++) for (let x = Math.max(vr.x0, s2 - vr.y1); x <= Math.min(vr.x1, s2 - vr.y0); x++) {
     const y = s2 - x; if (fIn(x, y)) continue;
-    tileTop(c, x, y, 0, F_ZONES[fZone(Math.max(0, Math.min(FW - 1, x)))].ground[2]);
+    tileTop(c, x, y, 0, fGround(x)[2]);
     if (H32(x * 3571 + y * 7919 + 11) < .7) outs.push([x, y]);
   }
   outs.forEach(([x, y]) => { if (x + y < hero.x + hero.y) treeAt(c, x, y); });   // 광부 뒤쪽 나무 먼저
@@ -2446,12 +2543,13 @@ function drawForest(c, dt) {
   for (let s = Math.max(0, vr.x0 + vr.y0); s <= Math.min(FW + FH - 2, vr.x1 + vr.y1); s++) {
     for (let x = Math.max(0, s - FH + 1); x <= Math.min(FW - 1, s); x++) {
       const y = s - x, i = fI(x, y), t = f.t[i];
-      if (!f.seen[i] || t === 'g' || t === 'x') continue;
+      if (!f.seen[i] || t === 'g' || t === 'x' || t === 'w') continue;
       if (t === 'v') { if ((x >= hero.x + .8 || y >= hero.y + .8) === (pass === 1)) caveMouth(c, x, y); continue; }
       if ((x >= hero.x + .8 || y >= hero.y + .8) !== (pass === 1)) continue;
       const front = s > hero.x + hero.y + .5 && s <= hero.x + hero.y + 3 && Math.abs((x - y) - (hero.x - hero.y)) < 1.8 && t === 't';
       if (front) c.globalAlpha = .4;
       if (t === 't') treeAt(c, x, y); else if (t === 'k') rockAt(c, x, y); else if (t === 's') bushAt(c, x, y); else if (t === 'B') boulderAt(c, x, y);
+      else if (t === 'q') thornAt(c, x, y); else if (t === 'o') groveGate(c, x, y);
       c.globalAlpha = 1;
     }
   }
@@ -2733,6 +2831,7 @@ const RECIPES = [['compass', 'plumb', 'guide'], ['compass', 'flag', 'twin'], ['g
   ['boots', 'insole', 'trailboots'], ['gloves', 'magnet', 'minergloves'], ['clover', 'pouch', 'luckpouch'], ['charm', 'honey', 'sleepcharm'], ['explorer', 'glowdowse', 'star']];
 const COMBINE_GOLD = 100;
 // 쓰고 없어지는 것
+const TOOLS = { sickle: { n: '낫', ic: 'ic_sickle' } };
 const ITEMS = {
   soup: { n: '버섯 수프', ic: 'ic_d_soup', eat: 25 }, grill: { n: '생선 구이', ic: 'ic_d_grill', eat: 30 }, fry: { n: '감자 볶음', ic: 'ic_d_fry', eat: 35 },
   stew: { n: '무 조림', ic: 'ic_d_stew', eat: 30 }, jam: { n: '딸기 잼', ic: 'ic_d_jam', eat: 20 }, eelbowl: { n: '장어 덮밥', ic: 'ic_d_eelbowl', eat: 60 },
@@ -2748,11 +2847,12 @@ const CRAFTS = [
   { id: 'gloves', kind: 'acc', need: { ironBar: 3, leather: 1 }, gold: 300 },
   { id: 'ring', kind: 'slot', need: { copperBar: 3 }, gold: 300 },
   { id: 'plenty', kind: 'acc', need: { goldBar: 3, rubyGem: 1 }, gold: 2000 },
+  { id: 'sickle', kind: 'tool', need: { ironBar: 2, wood: 5 }, gold: 300 },
 ];
 // 떠돌이 상인이 파는 것
 const SHOP = [{ id: 'radishSeed', kind: 'item', gold: 10, farm: 1 }, { id: 'potatoSeed', kind: 'item', gold: 20, farm: 1 }, { id: 'berrySeed', kind: 'item', gold: 40, farm: 1 }, { id: 'recall', kind: 'item', gold: 80 }, { id: 'tent', kind: 'item', gold: 100 }, { id: 'campRecall', kind: 'item', gold: 150 }, { id: 'compass', kind: 'acc', gold: 150 }, { id: 'pouch', kind: 'acc', gold: 120 }];
 function accEff(k) { if (!S || !S.acc) return 0; return S.acc.eq.reduce((a, id) => a + ((ACC[id] && ACC[id].eff[k]) || 0), 0); }
-const accIco = id => ico((ACC[id] || ITEMS[id]).ic);
+const accIco = id => ico((ACC[id] || ITEMS[id] || TOOLS[id]).ic);
 const owned = id => (S.acc.have[id] || 0);
 const freeOwned = id => owned(id) - S.acc.eq.filter(e => e === id).length;
 function gainAcc(id) { S.acc.have[id] = owned(id) + 1; if (S.acc.eq.length < S.acc.slots && !S.acc.eq.includes(id)) S.acc.eq.push(id); }
@@ -2766,8 +2866,9 @@ function craft(id) {
   const r = CRAFTS.find(q => q.id === id); if (!r || !hasAll(r.need) || S.gold < r.gold) return;
   if (r.kind === 'slot' && S.acc.slots >= 2) return;
   Object.entries(r.need).forEach(([k, n]) => { S.inv[k] -= n; }); S.gold -= r.gold;
-  if (r.kind === 'item') S.items[id] = (S.items[id] || 0) + 1; else if (r.kind === 'acc') gainAcc(id); else S.acc.slots = Math.max(S.acc.slots, 2);
-  SFX.stairs(); toast(r.kind === 'slot' ? `${ico('ic_ring')}장착 칸 2` : `${accIco(id)}${(ACC[id] || ITEMS[id]).n}`); save(); renderHud(); showSmithy();
+  if (r.kind === 'tool' && S[id]) return;
+  if (r.kind === 'item') S.items[id] = (S.items[id] || 0) + 1; else if (r.kind === 'acc') gainAcc(id); else if (r.kind === 'tool') S[id] = 1; else S.acc.slots = Math.max(S.acc.slots, 2);
+  SFX.stairs(); toast(r.kind === 'slot' ? `${ico('ic_ring')}장착 칸 2` : `${accIco(id)}${(ACC[id] || ITEMS[id] || TOOLS[id]).n}`); save(); renderHud(); showSmithy();
 }
 function combine(i) {
   const [a, b, out] = RECIPES[i];
@@ -3046,7 +3147,7 @@ function renderDock() {
   if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate" data-a="bag" aria-label="가방">${ico('ic_bag')}${bagCount()}</button>`;
   const bagBtn = `<button class="btn small" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
   if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_sword')}성 밖</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
-  else if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_tree')}${F_ZONES[fZone(Math.round(hero.x))].n}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  else if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_tree')}${fPlace(Math.round(hero.x))}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (mine && S.mine) minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button><b>${S.deep.L ? `${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small>` : '숲 동굴'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
 }
 let sheetClosable = true;
@@ -3184,7 +3285,7 @@ function showSmithy() {
   pick += sh ? `<div class="rowi"><span class="nm">날 세우기 +${(S.sharp || 0) + 1} <small class="eff">파워 +4</small> ${needHtml(sh.need, sh.gold)}</span><button class="btn small" data-a="sharp" ${hasAll(sh.need) && S.gold >= sh.gold ? '' : 'disabled'}>세우기</button></div>` : `<div class="rowi"><span class="nm">날 세우기 +5</span></div>`;
   const sw = SWORDS[(S.sword || 0) + 1];
   pick += `<div class="rowi"><span class="nm">${ico('ic_sword')}${SWORDS[S.sword || 0].name}</span></div>` + (sw ? `<div class="rowi"><span class="nm">${sw.name} ${needHtml(sw.need, sw.gold)}</span><button class="btn small" data-a="sword" ${hasAll(sw.need) && S.gold >= sw.gold ? '' : 'disabled'}>만들기</button></div>` : '');
-  const crafts = CRAFTS.filter(r => r.kind !== 'slot' || S.acc.slots < 2).map(r => `<div class="rowi"><span class="nm">${r.kind === 'slot' ? ico('ic_ring') + '장신구 고리' : accIco(r.id) + (ACC[r.id] || ITEMS[r.id]).n}${r.kind === 'acc' ? ` <small class="eff">${accDesc(r.id)}</small>` : ''} ${needHtml(r.need, r.gold)}</span><button class="btn small" data-a="craft" data-o="${r.id}" ${hasAll(r.need) && S.gold >= r.gold ? '' : 'disabled'}>만들기</button></div>`).join('');
+  const crafts = CRAFTS.filter(r => (r.kind !== 'slot' || S.acc.slots < 2) && !(r.kind === 'tool' && S[r.id])).map(r => `<div class="rowi"><span class="nm">${r.kind === 'slot' ? ico('ic_ring') + '장신구 고리' : accIco(r.id) + (ACC[r.id] || ITEMS[r.id] || TOOLS[r.id]).n}${r.kind === 'acc' ? ` <small class="eff">${accDesc(r.id)}</small>` : ''} ${needHtml(r.need, r.gold)}</span><button class="btn small" data-a="craft" data-o="${r.id}" ${hasAll(r.need) && S.gold >= r.gold ? '' : 'disabled'}>만들기</button></div>`).join('');
   const recs = RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b)).map(([[a, b, o], i]) => `<div class="rowi"><span class="nm">${accIco(a)}<span class="${owned(a) ? '' : 'lack'}">${ACC[a].n}</span> + ${accIco(b)}<span class="${owned(b) ? '' : 'lack'}">${ACC[b].n}</span> ${ico('ic_arrow')} ${owned(a) && owned(b) ? ACC[o].n : '?'}</span><button class="btn small" data-a="combine" data-n="${i}" ${owned(a) && owned(b) && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`).join('');
   openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div><p class="dim" style="margin-top:10px">만들기</p><div class="rows">${crafts}</div>` + (recs ? `<p class="dim" style="margin-top:10px">합치기</p><div class="rows">${recs}</div>` : ''));
 }
@@ -3240,7 +3341,7 @@ const FISH = [
   [['trout', .35], ['catfish', .3], ['eel', .3], ['carp', .05]],
   [['moonkoi', .25], ['eel', .35], ['catfish', .4]],
 ];
-let fishing = null;
+let fishing = null, fishLake = false;
 function goFish(tx, ty) {
   mark(tx, ty, '159,211,255');
   const near = (a, b) => D4.some(([dx, dy]) => a + dx === tx && b + dy === ty);
@@ -3250,8 +3351,9 @@ function goFish(tx, ty) {
   if (!path.length) { startFish(); return; }
   hero.path = path; hero.fishAt = [tx, ty];
 }
-function startFish() {
+function startFish(lake) {
   if (!spend(2)) return;
+  fishLake = lake === true;
   renderHud();
   const ph = phaseIndex(), wait = (ph === 0 || ph === 2 ? 1 : 1.8) + Math.random() * 2;
   fishing = { t0: performance.now(), bite: wait * 1000, win: 750, done: false };
@@ -3272,7 +3374,7 @@ function pull() {
   const btns = document.querySelector('#sheet .btns'), say = document.getElementById('fsay');
   if (st !== 'bite') { if (say) say.textContent = '놓침'; SFX.deny(); }
   else {
-    const f = pickFrom(FISH[phaseIndex()]); addItem(f, 1); S.fishN = (S.fishN || 0) + 1;
+    const f = pickFrom(fishLake ? LAKE_FISH : FISH[phaseIndex()]); addItem(f, 1); S.fishN = (S.fishN || 0) + 1;
     if (say) say.innerHTML = `<span class="ore ${f}"></span> ${ORES[f].name}`;
     SFX.ore(2); buzz(20); questEvent('fish'); save();
   }
@@ -3336,11 +3438,11 @@ function drawCrops(c, o) {
 }
 /* ===== 식당 (기획 4번 7단계): 재료 둘을 골라 요리. 맞는 짝이면 요리법을 알게 되고, 먹으면 기력이 참 (시간은 안 돌아감) =====
    점심과 저녁엔 그날의 주민 의뢰: 정해진 것을 가져다주면 돈 */
-const COOKABLE = ['meat', 'herb', 'mush', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry'];
+const COOKABLE = ['perch', 'glowcap', 'meat', 'herb', 'mush', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry'];
 const RECIPES_K = [
   { out: 'soup', a: 'mush', b: 'herb' }, { out: 'grill', a: 'carp', b: 'herb' }, { out: 'grill', a: 'trout', b: 'herb' },
   { out: 'fry', a: 'potato', b: 'mush' }, { out: 'stew', a: 'radish', b: 'catfish' }, { out: 'jam', a: 'berry', b: 'berry' },
-  { out: 'eelbowl', a: 'eel', b: 'potato' }, { out: 'moonsoup', a: 'moonkoi', b: 'radish' }, { out: 'steak', a: 'meat', b: 'herb' },
+  { out: 'eelbowl', a: 'eel', b: 'potato' }, { out: 'moonsoup', a: 'moonkoi', b: 'radish' }, { out: 'steak', a: 'meat', b: 'herb' }, { out: 'grill', a: 'perch', b: 'herb' }, { out: 'soup', a: 'glowcap', b: 'herb' },
 ];
 const REQS = [['radish', 2, 120], ['carp', 3, 90], ['mush', 4, 70], ['iron', 6, 220], ['potato', 2, 180], ['trout', 2, 110], ['copperBar', 2, 200], ['herb', 5, 90], ['berry', 1, 200], ['silver', 3, 200]];
 let kitSel = [];
@@ -3480,7 +3582,7 @@ document.addEventListener('click', e => {
   else if (a === 'plant') plant(b.dataset.o, n);
   else if (a === 'water') water(n);
   else if (a === 'harvest') harvest(n);
-  else if (a === 'cast') startFish();
+  else if (a === 'cast') startFish(fishLake);
   else if (a === 'trade') trade(b.dataset.o);
   else if (a === 'smelt') smelt(b.dataset.o);
   else if (a === 'forge') startHammer();
@@ -3673,7 +3775,7 @@ window.MinerDiary = {
   bgm: () => bgm.mood,
   combo: () => combo.n,
   mfloats: () => mfloats.map(f => f.text),
-  fcell: (x, y) => S.forest.t[fI(x, y)], power: () => pickPower(),
+  fcell: (x, y) => S.forest.t[fI(x, y)], power: () => pickPower(), fishBite: () => { if (fishing) fishing.t0 = performance.now() - fishing.bite - 100; },
   huntSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, 0); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
   mons: () => (S.hunt ? S.hunt.mons.map(m => ({ id: m.id, kind: m.kind, x: m.x, y: m.y, hp: m.hp })) : []),
   setMon: (id, x, y) => { const m = S.hunt.mons.find(o => o.id === id); m.x = m.wx = x; m.y = m.wy = y; },
