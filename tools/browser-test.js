@@ -375,7 +375,34 @@ const shot = process.argv[2];
     await page.click('#sheet [data-a="harvest"]');
   }
   s = await st();
-  ok(s.harvestN === 3 && s.inv.radish >= 3 && !Object.keys(s.farm).length && (await quest()).includes('깊이 7'), '다 자란 무를 셋 거두면 퀘스트 끝');
+  ok(s.harvestN === 3 && s.inv.radish >= 3 && !Object.keys(s.farm).length && (await quest()).includes('식당'), '다 자란 무를 셋 거두면 다음 퀘스트 「식당 고치기」');
+
+  // 13-0e. 식당: 고치고, 재료 둘로 요리를 찾고, 먹으면 기력, 점심에 주민 의뢰
+  await page.evaluate(() => { S.inv.wood = 15; S.inv.ironBar = 2; S.gold += 1000; S.inv.mush = 1; S.inv.herb = 1; renderHud(); });
+  await visit('kitchen', '#sheet [data-a="restore"][data-o="kitchen"]');
+  await page.click('#sheet [data-a="restore"][data-o="kitchen"]');
+  ok((await st()).restored.includes('kitchen') && (await quest()).includes('요리'), '식당을 고치면 퀘스트 「요리 찾기」');
+  await page.click('#sheet [data-a="close"]');
+  await visit('kitchen', '#sheet [data-a="kpick"]');
+  await page.click('#sheet [data-a="kpick"][data-o="mush"]');
+  await page.click('#sheet [data-a="kpick"][data-o="herb"]');
+  await page.click('#sheet [data-a="kcookSel"]');
+  s = await st();
+  ok(s.items.soup === 1 && s.recipes.length === 1 && !s.inv.mush && (await quest()).includes('의뢰'), '버섯과 약초로 버섯 수프를 찾음, 다음 퀘스트 「주민 의뢰 들어주기」');
+  if (shot) await page.screenshot({ path: path.join(shot, 'kitchen.png') });
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => { S.energy = 50; renderHud(); showBag(); });
+  await page.click('#sheet [data-a="use"][data-o="soup"]');
+  s = await st();
+  ok(s.energy === 75 && !s.items.soup, '버섯 수프를 먹으면 기력 +25');
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => { S.minE = S.dayStart - S.max * .35; const q = todayReq(); S.inv[q.item] = (S.inv[q.item] || 0) + q.n; renderHud(); });   // 시간을 점심으로, 의뢰 물건 준비
+  await visit('kitchen', '#sheet [data-a="kreq"]');
+  const gR = (await st()).gold, rq = (await st()).req;
+  await page.click('#sheet [data-a="kreq"]');
+  s = await st();
+  ok(s.req.done && s.gold === gR + rq.gold + 100 && (await quest()).includes('깊이 7'), `점심에 의뢰(${rq.item} ${rq.n}개)를 들어주면 🪙${rq.gold} (퀘스트 보상 🪙100)`);
+  await page.click('#sheet [data-a="close"]');
   await visit('market', '#sheet [data-a="close"]');
   ok(await page.evaluate(() => { const next = { ...S.market.next }; rollMarket(false); return Object.keys(next).every(o => Math.abs(S.market.mult[o] - next[o]) < 1e-9) && S.market.sold.iron === 10; }), '다음 날 시세는 전날 예고대로, 판 만큼 떨어진 값은 절반 회복');
   await page.click('#sheet [data-a="close"]');
