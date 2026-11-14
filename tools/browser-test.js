@@ -222,8 +222,9 @@ const shot = process.argv[2];
   await page.evaluate(() => { S.gold = Math.max(S.gold, 300); renderHud(); });
   await visit('merchant', '#sheet [data-a="buy"]');
   const gB = (await st()).gold;
-  await page.click('#sheet [data-a="buy"][data-n="3"]');
-  await page.click('#sheet [data-a="buy"][data-n="0"]');
+  const shopIx = id => page.evaluate(i => SHOP.findIndex(it => it.id === i), id);
+  await page.evaluate(n => document.querySelector(`#sheet [data-a="buy"][data-n="${n}"]`).click(), await shopIx('compass'));
+  await page.evaluate(n => document.querySelector(`#sheet [data-a="buy"][data-n="${n}"]`).click(), await shopIx('recall'));
   s = await st();
   ok(s.acc.have.compass === 1 && s.items.recall === 1 && s.gold === gB - 230, '나침반 🪙150과 귀환서 🪙80을 삼');
   await page.click('#sheet [data-a="close"]');
@@ -338,8 +339,43 @@ const shot = process.argv[2];
   }
   s = await st();
   ok(s.fishN === 3 && Object.keys(s.inv).some(k => ['carp', 'trout', 'catfish', 'eel', 'moonkoi'].includes(k) && s.inv[k] > 0) && s.energy === eFi - 4, '강을 누르면 물가로 걸어가 낚시, 찌가 잠길 때 당기면 물고기 (던질 때 기력 2)');
-  ok((await quest()).includes('깊이 7'), '물고기 셋을 낚으면 퀘스트 끝');
+  ok((await quest()).includes('밭'), '물고기 셋을 낚으면 다음 퀘스트 「밭 일구기」');
   await page.click('#sheet [data-a="close"]');
+
+  // 13-0d. 밭: 고치고, 씨앗 사서 심고, 아침이나 점심에 물 주면 밤에 자람, 다 자라면 거둠
+  await page.evaluate(() => { S.inv.wood = 8; S.gold += 400; renderHud(); });
+  await visit('field', '#sheet [data-a="restore"][data-o="field"]');
+  await page.click('#sheet [data-a="restore"][data-o="field"]');
+  ok((await st()).restored.includes('field') && (await quest()).includes('거두기'), '밭을 고치면 퀘스트 「작물 거두기」');
+  await page.click('#sheet [data-a="close"]');
+  await visit('merchant', '#sheet [data-a="buy"][data-n="0"]');
+  for (let k = 0; k < 3; k++) await page.evaluate(() => document.querySelector('#sheet [data-a="buy"][data-n="0"]').click());   // 상점 창이 길어 아래쪽 단추는 창 안에서 바로 누름
+  ok((await st()).items.radishSeed === 3, '상인에게서 무 씨앗 셋을 삼');
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => { S.dayStart = S.minE = S.energy; renderHud(); });   // 시간을 아침으로 (물 주기 시험)
+  const plots = [[9, 28], [11, 28], [13, 28]];
+  for (const [px, py] of plots) {
+    const p = await page.evaluate(([x, y]) => window.MinerDiary.tileSpot(x, y), [px, py]);
+    await page.mouse.click(p.x, p.y);
+    await page.waitForSelector('#sheet [data-a="plant"]', { timeout: 15000 });
+    await page.click('#sheet [data-a="plant"]');
+    await page.waitForSelector('#sheet [data-a="water"]');
+    await page.click('#sheet [data-a="water"]');
+    await page.click('#sheet [data-a="close"]');
+  }
+  s = await st();
+  ok(Object.keys(s.farm).length === 3 && Object.values(s.farm).every(p2 => p2.crop === 'radish' && p2.watered), '밭 칸을 눌러 무를 심고 물을 줌');
+  if (shot) await page.screenshot({ path: path.join(shot, 'farm.png') });
+  ok(await page.evaluate(() => { growFarm(); const a = Object.values(S.farm).every(p2 => p2.days === 1 && !p2.watered); growFarm(); const b = Object.values(S.farm).every(p2 => p2.days === 1); return a && b; }), '물 준 날 밤에만 하루 자람');
+  await page.evaluate(() => { for (let d = 0; d < 2; d++) { Object.values(S.farm).forEach(p2 => { p2.watered = true; }); growFarm(); } });
+  for (const [px, py] of plots) {
+    const p = await page.evaluate(([x, y]) => window.MinerDiary.tileSpot(x, y), [px, py]);
+    await page.mouse.click(p.x, p.y);
+    await page.waitForSelector('#sheet [data-a="harvest"]', { timeout: 15000 });
+    await page.click('#sheet [data-a="harvest"]');
+  }
+  s = await st();
+  ok(s.harvestN === 3 && s.inv.radish >= 3 && !Object.keys(s.farm).length && (await quest()).includes('깊이 7'), '다 자란 무를 셋 거두면 퀘스트 끝');
   await visit('market', '#sheet [data-a="close"]');
   ok(await page.evaluate(() => { const next = { ...S.market.next }; rollMarket(false); return Object.keys(next).every(o => Math.abs(S.market.mult[o] - next[o]) < 1e-9) && S.market.sold.iron === 10; }), '다음 날 시세는 전날 예고대로, 판 만큼 떨어진 값은 절반 회복');
   await page.click('#sheet [data-a="close"]');
