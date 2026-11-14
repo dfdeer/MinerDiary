@@ -254,6 +254,15 @@ const shot = process.argv[2];
   s = await st();
   ok(s.gatherN >= 5 && (await quest()).includes('보물') && Object.keys(s.carry).length > 0, '숲에서 다섯 번 주우면 퀘스트 끝, 주운 것은 가방에');
   ok(s.energy === eF - Math.floor(s.forest.steps / 5), `숲에서는 5칸마다 기력 1 (걸음 ${s.forest.steps})`);
+  // 10-2a. 숲 깊은 곳: 큰 바위는 곡괭이 파워가 넘어야 깨짐
+  const bz = await page.evaluate(() => { const bx = F_ZONES[0].x, by = S.forest.ey; for (let x = bx - 1; x <= bx + 1; x++) S.forest.seen[fI(x, by)] = 1; return [bx, by]; });
+  ok(await page.evaluate(([x, y]) => window.MinerDiary.fcell(x, y), bz) === 'B' && await page.evaluate(() => window.MinerDiary.power()) === 10, '깊은 숲 앞엔 큰 바위, 낡은 곡괭이 파워는 10');
+  { const p = await page.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), bz); await page.mouse.click(p.x, p.y); await page.waitForTimeout(80); await page.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 20000 }); await page.waitForTimeout(100); }
+  ok(await page.evaluate(([x, y]) => window.MinerDiary.fcell(x, y), bz) === 'B' && (await page.textContent('#toast')).includes('파워 30'), '파워가 모자라면 「파워 30 필요」로 안 깨짐');
+  await page.evaluate(() => { S.sharp = 5; });
+  { const p = await page.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), bz); await page.mouse.click(p.x, p.y); await page.waitForTimeout(80); await page.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 20000 }); await page.waitForTimeout(100); }
+  ok(await page.evaluate(([x, y]) => window.MinerDiary.fcell(x, y), bz) === 'g' && (await st()).forestOpen[1] === 1, '파워 30이 되면 큰 바위를 깨고 깊은 숲이 열림 (다음 날에도 열려 있음)');
+  await page.evaluate(() => { S.sharp = 0; });
   await page.click('[data-a="leave"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 });
   s = await st();
   ok(!Object.keys(s.carry).length && ['herb', 'mush', 'wood', 'fiber', 'leather', 'copper'].some(k => s.inv[k] > 0), '숲에서 마을 길까지 걸어가서 마을로, 주운 것은 창고로');
@@ -370,6 +379,11 @@ const shot = process.argv[2];
   ok(s.pick === 1 && s.inv.copperBar === 0 && s.gold === gP - 200 + 50, '구리 주괴 5개와 🪙200으로 구리 곡괭이 (퀘스트 보상 🪙50)');
   ok(s.pickQ >= 1, `가운데를 맞춰 두드리면 품질이 오름 (${['보통', '좋음', '최상'][s.pickQ]})`);
   ok(await page.evaluate(() => window.MinerDiary.maxFloor()) === 7 && (await quest()).includes('시장'), '구리 곡괭이로 깊이 7까지, 다음 퀘스트 「시장 고치기」');
+  // 13-0x. 날 세우기: 곡괭이 파워 +4
+  const pw0 = await page.evaluate(() => { S.inv.copperBar = 3; S.gold += 100; showSmithy(); return window.MinerDiary.power(); });
+  await page.click('#sheet [data-a="sharp"]');
+  ok((await st()).sharp === 1 && await page.evaluate(() => window.MinerDiary.power()) === pw0 + 4 && (await page.textContent('#sheet')).includes('곡괭이 파워'), `대장간 날 세우기로 곡괭이 파워 +4 (${pw0} 다음 ${pw0 + 4})`);
+  await page.click('#sheet [data-a="close"]');
 
   // 13-0. 시장: 나무 10개와 🪙800으로 고치고, 시세대로 팔기 (많이 팔면 값이 떨어짐), 다음 날 시세는 예고대로
   await page.evaluate(() => { S.gold += 800; S.inv.wood = 10; S.inv.iron = 20; renderHud(); });
