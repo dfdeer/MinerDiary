@@ -2479,7 +2479,7 @@ function audio() {
   SFX_BUS.gain.value = vol('sfx') * 1.25;
   return AC;
 }
-function setVolumes() { if (!AC) return; SFX_BUS.gain.setTargetAtTime(vol('sfx') * 1.25, AC.currentTime, .05); BGM_BUS.gain.setTargetAtTime(bgm.mood ? vol('bgm') * 2.4 : 0, AC.currentTime, .1); }
+function setVolumes() { if (!AC) return; SFX_BUS.gain.setTargetAtTime(vol('sfx') * 1.25, AC.currentTime, .05); BGM_BUS.gain.setTargetAtTime(bgm.mood ? vol('bgm') * 1.1 : 0, AC.currentTime, .1); }
 function beep(freq, dur, type, v, slide) {
   if (S.mute || !vol('sfx')) return;
   try {
@@ -2492,70 +2492,184 @@ function beep(freq, dur, type, v, slide) {
   } catch (e) { /* 소리를 못 내는 기기는 조용히 */ }
 }
 
-/* ===== 배경음 (기획 37번): 장소와 때마다 다른 곡을 그 자리에서 합성. 화음 넷이 돌고, 선율은 정해진 씨앗으로 만들어 마디마다 조금씩 바뀜 =====
-   마을 낮(밝은 장조), 마을 밤(느린 곡), 땅속(낮고 울리는 단조, 물방울), 숲(피리 소리, 새소리), 성 밖(빠른 단조, 북) */
+/* ===== 배경음 (기획 37번): 파일 없이 악기 소리를 합성하고, 미리 지은 곡을 연주 =====
+   악기: 하프(줄을 튕기는 소리, 카플러스 스트롱), 피리, 오르골, 칼림바, 피아노, 깔리는 현, 낮은 줄, 손북. 공간 울림(잔향)은 곳마다 다름
+   곡은 16마디: 앞 8마디는 노래, 뒤 8마디는 다른 악기로 바꿔 부르거나 쉬어 가며 반주만. 다 돌면 처음부터 */
 const NOTE = n => 440 * Math.pow(2, (n - 69) / 12);
+const NN = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const midi = s => 12 * (+s[s.length - 1] + 1) + NN[s[0]] + (s[1] === '#' ? 1 : s[1] === 'b' ? -1 : 0);
+// "E5:2 G5:2 -:4" 를 [[음, 8분음표 길이], ...]
+const bar = s => s.trim().split(/\s+/).map(t => { const [n, d] = t.split(':'); return [n === '-' ? null : midi(n), +d]; });
 const BGM_SONGS = {
-  day:    { bpm: 96,  root: 60, scale: [0, 2, 4, 7, 9], chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'triangle', leadVol: .05, bass: 'sine', density: .62, oct: 12 },
-  night:  { bpm: 72,  root: 57, scale: [0, 2, 3, 7, 8], chords: [[0, 3, 7], [-4, 0, 3], [-7, -3, 0], [-5, -1, 2]], lead: 'sine', leadVol: .045, bass: 'sine', density: .42, oct: 12, bell: 1 },
-  mine:   { bpm: 64,  root: 50, scale: [0, 3, 5, 7, 10], chords: [[0, 3, 7], [0, 3, 7], [-2, 2, 5], [-4, 0, 3]], lead: 'sine', leadVol: .04, bass: 'triangle', density: .3, oct: 12, drip: 1 },
-  forest: { bpm: 88,  root: 62, scale: [0, 2, 3, 5, 7, 9, 10], chords: [[0, 3, 7], [5, 9, 12], [-2, 2, 5], [0, 3, 7]], lead: 'sine', leadVol: .05, bass: 'sine', density: .5, oct: 12, bird: 1, vib: 1 },
-  hunt:   { bpm: 132, root: 52, scale: [0, 2, 3, 5, 7, 8, 10], chords: [[0, 3, 7], [-4, 0, 3], [-2, 2, 5], [-5, -1, 2]], lead: 'square', leadVol: .022, bass: 'triangle', density: .7, oct: 12, drum: 1 },
+  // 마을 낮: 다장조, 하프 분산화음 위에 피리
+  day: {
+    bpm: 84, rev: [2.2, .22], lead: 'flute', alt: 'harp', arp: [0, 2, 3, 4, 3, 2, 1, 2], arpInst: 'harp', bassInst: 'bass', pad: .5,
+    chords: [[36, 60, 64, 67], [45, 57, 60, 64], [41, 57, 60, 65], [43, 55, 59, 62], [36, 60, 64, 67], [40, 55, 59, 64], [41, 57, 60, 65], [43, 55, 59, 62]],
+    mel: ['E5:2 G5:2 A5:1 G5:1 E5:2', 'C5:2 D5:1 E5:1 D5:4', 'C5:2 A4:2 C5:1 D5:1 F5:2', 'E5:3 D5:1 D5:4', 'E5:2 G5:2 C6:2 B5:1 A5:1', 'G5:4 E5:2 G5:2', 'A5:2 G5:1 F5:1 E5:2 D5:2', 'D5:2 E5:1 D5:1 C5:4'],
+  },
+  // 마을 저녁과 새벽: 바장조 자장가, 오르골과 피아노, 귀뚜라미
+  night: {
+    bpm: 64, rev: [2.8, .3], lead: 'musicbox', alt: 'piano', arp: [0, -1, 1, -1, 2, -1, 3, -1], arpInst: 'piano', bassInst: 'bass', pad: .8, crickets: 1,
+    chords: [[41, 57, 60, 65], [38, 57, 62, 65], [46, 58, 62, 65], [36, 55, 60, 64], [41, 57, 60, 65], [45, 57, 60, 64], [46, 58, 62, 65], [36, 55, 60, 64]],
+    mel: ['A5:2 C6:2 A5:2 F5:2', 'G5:3 F5:1 D5:4', 'F5:2 D5:2 F5:2 Bb5:2', 'A5:4 G5:4', 'A5:2 C6:2 A5:2 F5:2', 'E5:3 F5:1 A5:4', 'G5:2 Bb5:2 A5:2 G5:2', 'F5:8'],
+  },
+  // 땅속: 라단조, 칼림바와 깊은 울림, 물방울
+  mine: {
+    bpm: 58, rev: [4.2, .45], lead: 'kalimba', alt: 'harp', arp: [0, -1, -1, 3, -1, -1, 2, -1], arpInst: 'kalimba', bassInst: 'bass', pad: 1, drip: 1,
+    chords: [[38, 57, 62, 65], [38, 57, 62, 65], [36, 55, 60, 64], [34, 58, 62, 65], [38, 57, 62, 65], [43, 55, 58, 62], [36, 55, 60, 64], [38, 57, 62, 65]],
+    mel: ['D5:2 F5:2 A5:4', 'G5:2 F5:2 D5:4', 'E5:2 G5:2 C6:2 A5:2', 'F5:6 -:2', 'A5:2 G5:2 F5:2 D5:2', 'D5:2 G5:2 Bb5:4', 'A5:2 G5:2 E5:4', 'D5:8'],
+  },
+  // 숲: 사장조, 피리와 하프, 새소리와 바람
+  forest: {
+    bpm: 76, rev: [2.6, .3], lead: 'flute', alt: 'harp', arp: [0, 2, 4, 2, 3, 2, 4, 2], arpInst: 'harp', bassInst: 'bass', pad: .6, birds: 1, wind: 1,
+    chords: [[43, 59, 62, 67], [48, 60, 64, 67], [43, 59, 62, 67], [38, 57, 62, 66], [40, 59, 64, 67], [48, 60, 64, 67], [38, 57, 62, 66], [43, 59, 62, 67]],
+    mel: ['B5:2 D6:2 B5:1 A5:1 G5:2', 'E5:2 G5:2 A5:4', 'B5:2 A5:1 G5:1 D5:2 G5:2', 'A5:6 -:2', 'B5:2 G5:2 E5:2 G5:2', 'E6:3 D6:1 C6:2 B5:2', 'A5:2 F#5:2 A5:2 D6:2', 'G5:8'],
+  },
+  // 성 밖: 마단조, 튕기는 줄과 손북 (부드럽게 들뜬 느낌)
+  hunt: {
+    bpm: 96, rev: [1.8, .2], lead: 'flute', alt: 'harp', arp: [0, 2, 1, 2, 3, 2, 1, 2], arpInst: 'harp', bassInst: 'bass', pad: .4, drum: 1,
+    chords: [[40, 59, 64, 67], [36, 60, 64, 67], [43, 59, 62, 67], [38, 57, 62, 66], [40, 59, 64, 67], [36, 60, 64, 67], [38, 57, 62, 66], [40, 59, 64, 67]],
+    mel: ['E5:2 G5:2 B5:2 A5:1 G5:1', 'E5:4 -:2 D5:1 E5:1', 'D5:2 G5:2 B5:2 D6:2', 'A5:6 F#5:2', 'G5:2 A5:2 B5:2 E6:2', 'D6:2 C6:2 B5:2 G5:2', 'A5:2 B5:1 A5:1 F#5:2 D5:2', 'E5:8'],
+  },
 };
-const bgm = { mood: null, next: 0, step: 0, timer: 0, want: null };
+// 곡 하나를 16마디 사건 목록으로 [시작(8분음표), 악기, 음, 길이, 세기]
+function songEvents(song) {
+  const ev = [];
+  for (let half = 0; half < 2; half++) song.chords.forEach((ch, b) => {
+    const t0 = (half * 8 + b) * 8, [bass, ...tones] = ch, voice = [bass + 12, ...tones, tones[0] + 12];
+    ev.push([t0, song.bassInst, bass, 4, .9]); ev.push([t0 + 4, song.bassInst, bass + (b % 2 ? 7 : 12), 4, .6]);
+    song.arp.forEach((k, i) => { if (k >= 0) ev.push([t0 + i, song.arpInst, voice[k] + (song.arpInst === 'kalimba' ? 12 : 0), song.arpInst === 'piano' ? 4 : 2, (i % 4 ? .45 : .7) * (half ? 1 : .8)]); });
+    if (song.pad) ev.push([t0, 'pad', tones, 8, song.pad]);
+    if (song.drum) [0, 3, 4, 6].forEach((i, j) => ev.push([t0 + i, 'drum', j % 2 ? 55 : 45, 1, j % 2 ? .45 : .8]));
+    let p = 0;
+    bar(song.mel[b]).forEach(([n, d]) => {
+      if (n !== null) {
+        if (!half) ev.push([t0 + p, song.lead, n, d, .85]);
+        else if (b % 4 !== 3) ev.push([t0 + p, song.alt, n + (song.alt === 'harp' ? 0 : -12), d, .55]);   // 뒤 8마디: 다른 악기로 한 번 더, 넷째 마디마다 쉬어 감
+      }
+      p += d;
+    });
+  });
+  return ev.sort((a, b) => a[0] - b[0]);
+}
+// 줄을 튕기는 소리 (카플러스 스트롱). 음마다 한 번 만들어 둠
+const PLUCK = {};
+function pluckBuf(n, bright) {
+  const key = n + ':' + bright; if (PLUCK[key]) return PLUCK[key];
+  const sr = AC.sampleRate, len = Math.floor(sr * (n < 48 ? 3.2 : 2.2)), buf = AC.createBuffer(1, len, sr), d = buf.getChannelData(0);
+  const N = Math.max(2, Math.round(sr / NOTE(n))), decay = n < 48 ? .9975 : .996;
+  for (let i = 0; i < N; i++) d[i] = (Math.random() * 2 - 1) * .8;
+  for (let i = 1; i < N; i++) d[i] = d[i] * bright + d[i - 1] * (1 - bright);   // 튕기는 손끝의 부드러움
+  for (let i = N; i < len; i++) d[i] = decay * .5 * (d[i - N] + d[Math.max(0, i - N - 1)]);
+  for (let i = Math.floor(len * .55); i < len; i++) d[i] *= (len - i) / (len * .45);   // 끝에서 뚝 끊기지 않게 천천히 줄임
+  return (PLUCK[key] = buf);
+}
+function env(g, t, a, peak, dur, rel) {
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a);
+  g.gain.setTargetAtTime(.0001, t + Math.max(a, dur), rel);
+}
+function osc(type, f, t, end, out, detune = 0) { const o = AC.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); o.detune.value = detune; o.connect(out); o.start(t); o.stop(end); return o; }
+const INST = {
+  harp(t, n, dur, v) { const s = AC.createBufferSource(), g = AC.createGain(); s.buffer = pluckBuf(n, .55); g.gain.value = .22 * v; s.connect(g); g.connect(BGM_IN); s.start(t); },
+  bass(t, n, dur, v) { const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = pluckBuf(n, .35); f.type = 'lowpass'; f.frequency.value = 600; g.gain.value = .35 * v; s.connect(f); f.connect(g); g.connect(BGM_IN); s.start(t); },
+  flute(t, n, dur, v, e) {
+    const f0 = NOTE(n), g = AC.createGain(), lp = AC.createBiquadFilter(), end = t + dur * e + .6;
+    lp.type = 'lowpass'; lp.frequency.value = f0 * 3; g.connect(lp); lp.connect(BGM_IN);
+    const a = osc('sine', f0, t, end, g), b = osc('triangle', f0, t, end, g, 4);
+    const lfo = AC.createOscillator(), lg = AC.createGain(); lfo.frequency.value = 5; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f0 * .006, t + .35); lfo.connect(lg); lg.connect(a.frequency); lg.connect(b.frequency); lfo.start(t); lfo.stop(end);
+    env(g, t, .07, .07 * v, dur * e * .9, .12);
+    breath(t, f0, .012 * v);
+  },
+  musicbox(t, n, dur, v) {
+    const f0 = NOTE(n), g = AC.createGain(), g2 = AC.createGain(); g.connect(BGM_IN); g2.connect(BGM_IN);
+    osc('sine', f0, t, t + 2.4, g); osc('sine', f0 * 4, t, t + .6, g2);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.075 * v, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + 2.3);
+    g2.gain.setValueAtTime(.0001, t); g2.gain.exponentialRampToValueAtTime(.02 * v, t + .003); g2.gain.exponentialRampToValueAtTime(.0001, t + .5);
+  },
+  kalimba(t, n, dur, v) {
+    const f0 = NOTE(n), g = AC.createGain(), g2 = AC.createGain(); g.connect(BGM_IN); g2.connect(BGM_IN);
+    osc('sine', f0, t, t + 1.9, g); osc('sine', f0 * 5.95, t, t + .25, g2);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.09 * v, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + 1.8);
+    g2.gain.setValueAtTime(.0001, t); g2.gain.exponentialRampToValueAtTime(.025 * v, t + .002); g2.gain.exponentialRampToValueAtTime(.0001, t + .2);
+  },
+  piano(t, n, dur, v, e) {
+    const f0 = NOTE(n), g = AC.createGain(), lp = AC.createBiquadFilter(), end = t + 3;
+    lp.type = 'lowpass'; lp.frequency.setValueAtTime(f0 * 6, t); lp.frequency.exponentialRampToValueAtTime(f0 * 1.5, t + 1.2);
+    g.connect(lp); lp.connect(BGM_IN);
+    osc('triangle', f0, t, end, g); osc('sine', f0 * 2, t, end, g, 3);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.04 * v, t + .006); g.gain.setTargetAtTime(.0001, t + .01, .7);
+  },
+  pad(t, tones, dur, v, e) {
+    const g = AC.createGain(), lp = AC.createBiquadFilter(), end = t + dur * e + 2;
+    lp.type = 'lowpass'; lp.frequency.value = 700; g.connect(lp); lp.connect(BGM_IN);
+    tones.forEach(n => { osc('sawtooth', NOTE(n - 12), t, end, g, -6); osc('sawtooth', NOTE(n - 12), t, end, g, 6); });
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.006 * v, t + .45); g.gain.setTargetAtTime(.0001, t + dur * e, .55);   // 다음 화음과 겹치게 천천히 사라짐
+  },
+  drum(t, n, dur, v) {
+    const g = AC.createGain(), o = osc('sine', NOTE(n) * 2, t, t + .4, g); g.connect(BGM_IN);
+    o.frequency.exponentialRampToValueAtTime(NOTE(n), t + .12);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.11 * v, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + .35);
+  },
+};
+// 피리 숨소리
+function breath(t, f0, v) {
+  const n = Math.floor(AC.sampleRate * .25), buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = buf; f.type = 'bandpass'; f.frequency.value = f0 * 2; f.Q.value = 2; g.gain.value = v; s.connect(f); f.connect(g); g.connect(BGM_IN); s.start(t);
+}
+// 공간 울림: 곳마다 길이와 양이 다른 잔향
+function makeVerb(sec) {
+  const sr = AC.sampleRate, n = Math.floor(sr * sec), buf = AC.createBuffer(2, n, sr);
+  for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3); }
+  return buf;
+}
+// 곳의 소리 (물방울, 새, 귀뚜라미, 바람)
+function ambience(song, t, e) {
+  if (song.drip && Math.random() < .03) { const g = AC.createGain(), f = 1300 + Math.random() * 1100, o = osc('sine', f, t, t + .3, g); g.connect(BGM_IN); o.frequency.exponentialRampToValueAtTime(f * .55, t + .18); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.05, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + .25); }
+  if (song.birds && Math.random() < .012) { const f = 2400 + Math.random() * 1200; for (let k = 0; k < 2 + (Math.random() * 3 | 0); k++) { const g = AC.createGain(), s = t + k * .11, o = osc('sine', f * (1 + k * .06), s, s + .1, g); g.connect(BGM_IN); o.frequency.exponentialRampToValueAtTime(f * 1.3, s + .07); g.gain.setValueAtTime(.0001, s); g.gain.exponentialRampToValueAtTime(.014, s + .01); g.gain.exponentialRampToValueAtTime(.0001, s + .09); } }
+  if (song.crickets && Math.random() < .12) { const g = AC.createGain(); osc('sine', 4200, t, t + .3, g); g.connect(BGM_IN); for (let k = 0; k < 4; k++) { const s = t + k * .05; g.gain.setValueAtTime(.0001, s); g.gain.exponentialRampToValueAtTime(.006, s + .01); g.gain.exponentialRampToValueAtTime(.0001, s + .04); } }
+  if (song.wind && Math.random() < .015) {
+    const n = Math.floor(AC.sampleRate * 3), buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / n);
+    const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = buf; f.type = 'bandpass'; f.frequency.value = 500; f.Q.value = .7; g.gain.value = .05;
+    s.connect(f); f.connect(g); g.connect(BGM_IN); s.start(t);
+  }
+}
+const bgm = { mood: null, t0: 0, i: 0, loop: 0, timer: 0, want: null, ev: {} };
 function bgmMood() {
   if (scene === 'mine') return 'mine';
   if (scene === 'forest') return 'forest';
   if (scene === 'hunt') return 'hunt';
   return phaseIndex() >= 2 ? 'night' : 'day';
 }
-function tone(t, freq, dur, type, v, opt = {}) {
-  const o = AC.createOscillator(), g = AC.createGain();
-  o.type = type; o.frequency.setValueAtTime(freq, t);
-  if (opt.vib) { const l = AC.createOscillator(), lg = AC.createGain(); l.frequency.value = 5.2; lg.gain.value = freq * .012; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + dur + .05); }
-  if (opt.slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq * opt.slide), t + dur);
-  const a = opt.attack || .02;
-  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-  o.connect(g); g.connect(BGM_BUS); o.start(t); o.stop(t + dur + .02);
-}
-function noiseHit(t, dur, v, hp) {
-  const n = Math.floor(AC.sampleRate * dur), buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
-  const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
-  s.buffer = buf; f.type = hp ? 'highpass' : 'lowpass'; f.frequency.value = hp || 900; g.gain.value = v;
-  s.connect(f); f.connect(g); g.connect(BGM_BUS); s.start(t);
-}
-// 8분음표 하나를 만듦
-function bgmStep(song, t, step) {
-  const e = 60 / song.bpm / 2, bar = Math.floor(step / 8), pos = step % 8, ch = song.chords[bar % 4], R = song.root;
-  const phrase = [0, 0, 1, 0][Math.floor(bar / 4) % 4], seed = (bar % 4) * 17 + phrase * 131 + pos * 7;
-  // 깔리는 화음 (마디 첫 박)
-  if (pos === 0) ch.forEach((c, i) => tone(t, NOTE(R + c), e * 8 * .95, 'sine', .018 - i * .003, { attack: .25 }));
-  // 베이스
-  if (pos === 0 || pos === 4 || (song.drum && pos % 2 === 0)) tone(t, NOTE(R + ch[0] - 12), e * (song.drum ? 1.6 : 3.6), song.bass, song.drum ? .07 : .06, { attack: .01 });
-  // 선율: 같은 씨앗이면 같은 음이라 귀에 남고, 넷째 마디 묶음마다 조금 바뀜
-  if (H32(seed) < song.density) {
-    const pool = song.scale.map(s => s + song.oct).concat(ch.map(c => c + song.oct)), n = pool[Math.floor(H32(seed + 3) * pool.length)];
-    const len = H32(seed + 5) < .3 ? 2 : 1;
-    tone(t, NOTE(R + n), e * len * .95, song.lead, song.leadVol, { vib: song.vib, attack: song.lead === 'sine' ? .04 : .01 });
-  }
-  if (song.bell && pos === 6 && bar % 2) tone(t, NOTE(R + 24 + ch[2]), e * 6, 'sine', .02, { attack: .005 });
-  if (song.drum) { if (pos % 4 === 0) noiseHit(t, .12, .12); if (pos % 4 === 2) noiseHit(t, .06, .05, 4000); }
-  if (song.drip && Math.random() < .07) tone(t + Math.random() * e, 1400 + Math.random() * 900, .25, 'sine', .025, { slide: .6, attack: .003 });
-  if (song.bird && Math.random() < .05) { const f0 = 2200 + Math.random() * 900; tone(t, f0, .09, 'sine', .018, { slide: 1.25, attack: .005 }); tone(t + .12, f0 * 1.1, .09, 'sine', .015, { slide: 1.3, attack: .005 }); }
-}
+let BGM_IN = null, VERB = null, VERB_G = null;
 function bgmTick() {
   if (!AC || document.hidden) return;
   const want = bgmMood();
   if (want !== bgm.mood) {   // 곡이 바뀌면 잠깐 줄였다가 새 곡으로
-    if (bgm.want !== want) { bgm.want = want; BGM_BUS.gain.setTargetAtTime(0, AC.currentTime, .15); bgm.swap = AC.currentTime + .6; }
+    if (bgm.want !== want) { bgm.want = want; BGM_BUS.gain.setTargetAtTime(0, AC.currentTime, .2); bgm.swap = AC.currentTime + .9; }
     if (AC.currentTime < bgm.swap) return;
-    bgm.mood = want; bgm.step = 0; bgm.next = AC.currentTime + .1; setVolumes();
+    const song = BGM_SONGS[want];
+    if (!BGM_IN) { BGM_IN = AC.createGain(); BGM_IN.connect(BGM_BUS); }
+    if (VERB) { VERB.disconnect(); VERB_G.disconnect(); }
+    VERB = AC.createConvolver(); VERB.buffer = makeVerb(song.rev[0]); VERB_G = AC.createGain(); VERB_G.gain.value = song.rev[1];
+    BGM_IN.connect(VERB); VERB.connect(VERB_G); VERB_G.connect(BGM_BUS);
+    bgm.ev[want] = bgm.ev[want] || songEvents(song);
+    bgm.ev[want].forEach(([, inst, n]) => { if (inst === 'harp') pluckBuf(n, .55); else if (inst === 'bass') pluckBuf(n, .35); });   // 튕기는 소리는 미리 만들어 둠 (연주 중 멈칫하지 않게)
+    bgm.mood = want; bgm.i = 0; bgm.t0 = AC.currentTime + .15; setVolumes();
   }
-  if (!vol('bgm')) return;
-  const song = BGM_SONGS[bgm.mood], e = 60 / song.bpm / 2;
-  if (bgm.next < AC.currentTime) bgm.next = AC.currentTime + .05;
-  while (bgm.next < AC.currentTime + .35) { try { bgmStep(song, bgm.next, bgm.step); } catch (err) { /* 무시 */ } bgm.next += e; bgm.step++; }
+  if (!vol('bgm')) { bgm.t0 = AC.currentTime + .15; bgm.i = 0; return; }
+  const song = BGM_SONGS[bgm.mood], e = 60 / song.bpm / 2, ev = bgm.ev[bgm.mood], loopLen = 128 * e, ahead = AC.currentTime + 1.2;
+  if (bgm.t0 + (ev[bgm.i] ? ev[bgm.i][0] : 128) * e < AC.currentTime - .5) { bgm.t0 = AC.currentTime + .1; bgm.i = 0; }   // 오래 멈췄다 오면 처음부터
+  for (;;) {
+    if (bgm.i >= ev.length) { bgm.i = 0; bgm.t0 += loopLen; }
+    const [s, inst, n, d, v] = ev[bgm.i], t = bgm.t0 + s * e;
+    if (t > ahead) break;
+    if (t >= AC.currentTime - .3) try { INST[inst](Math.max(t, AC.currentTime + .01), n, d, v * (.92 + Math.random() * .16), e); } catch (err) { /* 무시 */ }
+    bgm.i++;
+  }
+  try { ambience(song, AC.currentTime + .05, e); } catch (err) { /* 무시 */ }
 }
 // 첫 누르기에서 소리를 켬 (브라우저는 사람이 누르기 전엔 소리를 막음)
 function startAudio() { try { audio(); setVolumes(); if (!bgm.timer) bgm.timer = setInterval(bgmTick, 100); } catch (e) { /* 무시 */ } }
@@ -2604,12 +2718,16 @@ function renderDock() {
   else if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_tree')}숲</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (mine && S.mine) minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button><b>${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small></b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
 }
+let sheetClosable = true;
 function openSheet(title, body, btns, closable = true) {
+  sheetClosable = closable;
   sheet.innerHTML = `<header><h2>${title}</h2>${closable ? `<button class="x" data-a="close" aria-label="닫기">${ico('ic_close')}</button>` : ''}</header>${body}${btns ? `<div class="btns">${btns}</div>` : ''}`;
   document.getElementById('veil').hidden = false;
   sheet.hidden = false; sheet.style.animation = 'none'; void sheet.offsetWidth; sheet.style.animation = '';
   renderDock();
 }
+// 창 바깥(어두운 막)을 누르면 창을 닫음. 망치질처럼 닫을 수 없는 창은 그대로
+document.getElementById('veil').addEventListener('click', () => { if (sheetClosable && !sheet.hidden) { SFX.tap(); closeSheet(); } });
 function hideSheet() { sheet.hidden = true; document.getElementById('veil').hidden = true; renderDock(); }
 function closeSheet() { selected = null; hideSheet(); }
 function sheetH() { return sheet.hidden ? 0 : sheet.getBoundingClientRect().height; }
