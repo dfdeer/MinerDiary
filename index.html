@@ -94,6 +94,12 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pill.icon .ico{width:22px;height:22px}
 .ph{color:var(--dim);font-weight:400;font-size:12px}
 .ore{display:inline-block;width:12px;height:12px;border-radius:3px;transform:rotate(45deg);flex:none;box-shadow:inset -2px -2px 0 rgba(0,0,0,.25)}
+.ore.copperBar,.ore.ironBar{transform:none;width:15px;height:9px;border-radius:2px}.ore.copperBar{background:#e0894a}.ore.ironBar{background:#b8c2cc}
+.hammer{display:flex;flex-direction:column;gap:12px;padding:6px 2px 4px}.hbar{position:relative;height:26px;border-radius:13px;background:rgba(0,0,0,.35);overflow:hidden}
+.hbar .zone{position:absolute;left:33%;right:33%;top:0;bottom:0;background:rgba(233,176,79,.35)}.hbar .zone2{position:absolute;left:43%;right:43%;top:0;bottom:0;background:rgba(255,214,120,.7)}
+.hbar .needle{position:absolute;top:-2px;bottom:-2px;width:6px;margin-left:-3px;border-radius:3px;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.8)}
+.hits{display:flex;gap:10px;justify-content:center}.hits b{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.4)}.hits b.h2{background:#ffd27a;border-color:#ffd27a}.hits b.h1{background:#c9a060;border-color:#c9a060}.hits b.h0{background:#6b4a3a;border-color:#6b4a3a}
+.btn.big{min-width:120px}
 .ore.copper{background:#d97a3a}.ore.iron{background:#c3cbd5}.ore.crystal{background:#7fdcef}.ore.moon{background:#efe9ff;box-shadow:0 0 6px #b9a8ff}
 
 .toast{position:fixed;left:50%;top:calc(var(--st) + 86px);transform:translateX(-50%);z-index:6;border-radius:999px;padding:7px 16px;font-size:14px;font-weight:700;white-space:nowrap;pointer-events:none;transition:opacity .3s}
@@ -143,7 +149,7 @@ const OBJ = [
   { id: 'merchant', gx: 13, gy: 18, w: 1, d: 1, stage: 0, kind: 'wagon', name: '떠돌이 상인' },
   { id: 'mine', gx: 27, gy: 10, w: 3, d: 3, stage: 0, kind: 'mine', name: '광산', icon: 'ic_pick', door: [28, 13] },
   { id: 'tree', gx: PLAZA.cx, gy: PLAZA.cy, w: 1, d: 1, stage: 0, kind: 'bigtree', name: '광장 큰 나무' },
-  { id: 'smithy', gx: 9, gy: 5, w: 3, d: 3, stage: 2, kind: 'smithy', name: '대장간', ruin: '부서진 대장간', icon: 'ic_hearth', feat: ['제련', '곡괭이 강화'], door: [12, 6] },
+  { id: 'smithy', gx: 9, gy: 5, w: 3, d: 3, stage: 3, kind: 'smithy', name: '대장간', ruin: '부서진 대장간', icon: 'ic_hearth', feat: ['제련', '곡괭이 강화'], door: [12, 6] },
   { id: 'bridge', gx: 16, gy: riverY(16), w: 1, d: 2, stage: 4, kind: 'bridge', name: '강가 다리', ruin: '무너진 강가 다리', feat: ['강 건너 밭', '낚시'] },
   { id: 'field', gx: 8, gy: 27, w: 6, d: 3, stage: 5, kind: 'field', name: '밭', ruin: '거친 밭', feat: ['농사'] },
   { id: 'forest', gx: 5, gy: 14, w: 1, d: 1, stage: 2, kind: 'logs', name: '숲', ruin: '막힌 숲길', icon: 'ic_tree', feat: ['숲 탐험', '동굴 찾기'], cost: 100 },
@@ -219,7 +225,7 @@ const blocked = (x, y) => {
 
 /* ===== 게임 규칙 설정 ===== */
 const KEY = 'minerdiary.v1';
-const MAX_ENERGY = 100, DIG_COST = 2, MW = 18, MH = 18, MAX_FLOOR = 5;
+const MAX_ENERGY = 100, DIG_COST = 2, MW = 18, MH = 18, MAX_FLOOR = 10;
 const FAINT_LOSS = 0.3;                                    // 쓰러지면 그날 캔 광석 중 잃는 비율 (1단계 임시값)
 const START_FRAC = { normal: 1, late: 0.9, faint: 0.7 };
 const ORES = {
@@ -227,10 +233,19 @@ const ORES = {
   iron:    { name: '철 광석',   price: 25,  color: '#aeb7c2', light: '#eef2f6' },
   crystal: { name: '수정 원석', price: 60,  color: '#5fc9e0', light: '#c9f6ff' },
   moon:    { name: '월광석',    price: 150, color: '#d8cfff', light: '#ffffff' },
+  copperBar: { name: '구리 주괴', price: 65,  color: '#e0894a', light: '#ffd0a0' },
+  ironBar:   { name: '철 주괴',   price: 160, color: '#b8c2cc', light: '#f4f8fb' },
 };
-const ORE_ORDER = ['copper', 'iron', 'crystal', 'moon'];
-const FLOOR_ORES = { 1: [['copper', 1]], 2: [['copper', .8], ['iron', .2]], 3: [['copper', .5], ['iron', .5]], 4: [['copper', .35], ['iron', .5], ['crystal', .15]], 5: [['copper', .25], ['iron', .5], ['crystal', .25]] };
-const FLOOR_ROCK = { 1: [138, 104, 72], 2: [134, 90, 70], 3: [116, 104, 90], 4: [92, 100, 112], 5: [88, 78, 104] };
+const ORE_ORDER = ['copper', 'iron', 'crystal', 'moon', 'copperBar', 'ironBar'];
+/* ===== 대장간 (3단계): 용광로에 광석을 넣고 자면 아침에 주괴. 주괴와 돈으로 곡괭이 강화 (망치질 박자로 품질) ===== */
+const SMELT = { copper: 'copperBar', iron: 'ironBar' }, SMELT_N = 5, FURNACE_MAX = 10;
+const PICKS = [{ name: '낡은 곡괭이' }, { name: '구리 곡괭이', need: { copperBar: 5 }, gold: 200 }, { name: '철 곡괭이', need: { ironBar: 5 }, gold: 600 }];
+const QUAL = ['보통', '좋음', '최상'], QUAL_BONUS = [0, .15, .3];   // 품질: 광석이 2개 나올 확률
+const maxFloor = () => (S.pick >= 1 ? MAX_FLOOR : 5);                // 구리 곡괭이부터 단단한 바위를 깨고 6~10층
+const digCost = t => (t === 'b' ? 1 : t === 'h' ? (S.pick >= 2 ? 2 : 3) : S.pick >= 2 ? 1 : DIG_COST);
+const FLOOR_ORES = { 1: [['copper', 1]], 2: [['copper', .8], ['iron', .2]], 3: [['copper', .5], ['iron', .5]], 4: [['copper', .35], ['iron', .5], ['crystal', .15]], 5: [['copper', .25], ['iron', .5], ['crystal', .25]],
+  6: [['copper', .2], ['iron', .55], ['crystal', .25]], 7: [['copper', .1], ['iron', .55], ['crystal', .35]], 8: [['iron', .55], ['crystal', .45]], 9: [['iron', .45], ['crystal', .55]], 10: [['iron', .4], ['crystal', .6]] };
+const FLOOR_ROCK = { 1: [138, 104, 72], 2: [134, 90, 70], 3: [116, 104, 90], 4: [92, 100, 112], 5: [88, 78, 104], 6: [104, 88, 80], 7: [84, 96, 92], 8: [78, 84, 110], 9: [100, 76, 90], 10: [70, 70, 92] };
 const PHASES = [{ name: '아침', at: 0 }, { name: '점심', at: 30 }, { name: '저녁', at: 60 }, { name: '새벽', at: 90 }];
 const GOAL = { id: 'smithy', name: '대장간', cost: 500 };
 const HOME = OBJ.find(o => o.id === 'house').door;   // 낡은 집 문 앞
@@ -262,9 +277,13 @@ const QUESTS = [
   { id: 'forest', text: '숲길 치우기', target: 'forest' },
   { id: 'cave', text: '숲에서 동굴 찾기', target: 'forest', reward: 30 },
   { id: 'gold', text: '대장간 복구비 모으기', need: 500, target: 'smithy' },
+  { id: 'smithy', text: '대장간 고치기', target: 'smithy' },
+  { id: 'smelt', text: '용광로에 광석 넣기', target: 'smithy' },
+  { id: 'pick', text: '구리 곡괭이 만들기', target: 'smithy', reward: 50 },
+  { id: 'deep10', text: '광산 10층 도착', need: 10, target: 'mine', reward: 200 },
 ];
 const questNow = () => QUESTS[S.quest];
-const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' ? S.deepest : q.id === 'gold' ? S.gold : 0);
+const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
   let q = questNow(), flag = false;
@@ -282,7 +301,7 @@ function questEvent(type, n) {
 /* ===== 상태와 저장 ===== */
 let S;
 function freshState() {
-  return { v: 2, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [] };
+  return { v: 2, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], pick: 0, pickQ: 0, furnace: null };
 }
 function load() {
   try {
@@ -328,22 +347,25 @@ function spend(n) {
 }
 function addItem(o, n) { S.inv[o] = (S.inv[o] || 0) + n; S.today[o] = (S.today[o] || 0) + n; questEvent('ore', n); }
 function newDay(kind) {
+  let smelted = null;
+  if (S.furnace) { smelted = S.furnace; S.inv[smelted.bar] = (S.inv[smelted.bar] || 0) + smelted.n; S.furnace = null; }
   S.day += 1; S.energy = Math.round(S.max * START_FRAC[kind]); S.minE = S.dayStart = S.energy;
   S.today = {}; S.mine = null; S.floors = null; S.screen = 'village'; scene = 'village'; FLAT = false;
   hero.x = HOME[0]; hero.y = HOME[1]; hero.path = []; hero.target = null; selected = null;
   cam.to = null; cam.s = 1; follow = true; snapCam(); fade = 1.2;
+  return smelted ? `<p>${ico('ic_hearth')}<span class="ore ${smelted.bar}"></span>${ORES[smelted.bar].name} +${smelted.n}</p>` : '';
 }
 function sleep() {
   const kind = phaseIndex() === 3 ? 'late' : 'normal';
-  newDay(kind); questEvent('sleep'); save(); renderHud();
-  openSheet(`${S.day}일차 아침`, `<p>${PWR}${S.energy}/${S.max}</p>`);
+  const sm = newDay(kind); questEvent('sleep'); save(); renderHud();
+  openSheet(`${S.day}일차 아침`, `<p>${PWR}${S.energy}/${S.max}</p>` + sm);
 }
 function faint() {
   const lost = {};
   Object.keys(S.today).forEach(o => { const n = Math.min(Math.floor(S.today[o] * FAINT_LOSS), S.inv[o] || 0); if (n > 0) { S.inv[o] -= n; lost[o] = n; } });
-  newDay('faint'); save(); renderHud();
+  const sm = newDay('faint'); save(); renderHud();
   const ls = ORE_ORDER.filter(o => lost[o]).map(o => `<span><span class="ore ${o}"></span> -${lost[o]}</span>`).join(' ');
-  openSheet(ico('ic_warn') + '쓰러짐', `<p>${S.day}일차 아침 ${PWR}${S.energy}/${S.max}</p>` + (ls ? `<p class="warn">${ls}</p>` : ''));
+  openSheet(ico('ic_warn') + '쓰러짐', `<p>${S.day}일차 아침 ${PWR}${S.energy}/${S.max}</p>` + (ls ? `<p class="warn">${ls}</p>` : '') + sm);
 }
 /* ===== 아이콘 (코드 도형). 24×24 판 위의 SVG 경로. 화면 글에는 ico(), 그림 위에는 emo() ===== */
 function gearPath() {
@@ -1356,7 +1378,7 @@ function genBoard(floor, dawn, C) {
     if (!door.length) continue;
     const [dx, dy] = door[rnd(door.length)];
     for (let yy = hy - 1; yy <= hy + 1; yy++) for (let xx = hx - 1; xx <= hx + 1; xx++) { t[I(xx, yy)] = 'f'; hid[I(xx, yy)] = 1; }
-    t[I(hx + dx * 2, hy + dy * 2)] = !C && floor === MAX_FLOOR ? 'h' : 'b';
+    t[I(hx + dx * 2, hy + dy * 2)] = !C && (floor === 5 || floor === 10) ? 'h' : 'b';
     for (const [ax, ay] of [[-2, -1], [-2, 1], [2, -1], [2, 1], [-1, -2], [1, -2], [-1, 2], [1, 2]]) if (t[I(hx + ax, hy + ay)] === 'r') o[I(hx + ax, hy + ay)] = Math.random() < .7 ? better : pick();
     break;
   }
@@ -1372,7 +1394,7 @@ function genBoard(floor, dawn, C) {
   for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) if (!inner(xx, yy)) { t[I(xx, yy)] = 'e'; o[I(xx, yy)] = ''; }
   t[I(1, 1)] = 'u';
   // 계단: 사다리에서 걸어서 가장 먼 바닥
-  if (!C && floor < MAX_FLOOR) {
+  if (!C && floor < maxFloor()) {
     const dist = new Map([[I(2, 2), 0]]), q = [I(2, 2)]; let far = I(2, 2);
     while (q.length) { const i = q.shift(); if (dist.get(i) > dist.get(far)) far = i; D4.forEach(([dx, dy]) => { const j = I(i % w + dx, ((i / w) | 0) + dy); if (!dist.has(j) && t[j] === 'f' && !hid[j]) { dist.set(j, dist.get(i) + 1); q.push(j); } }); }
     t[far] = 'd';
@@ -1420,7 +1442,7 @@ function startFloor(floor) {
   hero.x = S.mine.hx; hero.y = S.mine.hy; hero.path = []; hero.target = null; hero.dig = null; hero.goal = null; hero.fx = 1; hero.back = false;
   mineSee(); cam.s = 1; cam.to = null; follow = true; snapCam();
   questEvent('enter'); save(); renderHud(); renderDock();
-  if (floor === MAX_FLOOR) toast('더 아래는 단단한 바위');
+  if (floor === maxFloor()) toast(floor < MAX_FLOOR ? '더 아래는 단단한 바위' : '가장 깊은 층');
 }
 function enterMine(floor) {
   hideSheet(); selected = null;
@@ -1452,14 +1474,14 @@ function goStairs() {
   if (!path) return;
   hero.dig = null; hero.goal = [x, y]; hero.path = path; follow = true; if (!path.length) mineArrive();
 }
-function descend() { if (!S.mine || S.mine.floor >= MAX_FLOOR) return; const f = S.mine.floor + 1; fade = .8; startFloor(f); toast(`${f}층`); SFX.stairs(); }
+function descend() { if (!S.mine || S.mine.floor >= maxFloor()) return; const f = S.mine.floor + 1; fade = .8; startFloor(f); toast(`${f}층`); SFX.stairs(); }
 // 광산에서 칸을 누름
 function mineTapCell(x, y) {
   const m = S.mine, i = mI(x, y), t = m.t[i], seen = m.seen[i];
   hero.dig = null; hero.goal = null;
   if (seen && ROCKISH(t)) {
     if (t === 'e') { mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
-    if (t === 'h') { toast('곡괭이 강화 필요'); mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
+    if (t === 'h' && S.pick < 1) { toast('곡괭이 강화 필요'); mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
     mark(x, y, '255,220,150');
     const hx = Math.round(hero.x), hy = Math.round(hero.y);
     if (Math.abs(hx - x) + Math.abs(hy - y) === 1 && !hero.path.length) { dig(x, y); return; }
@@ -1497,8 +1519,8 @@ function mineArrive() {
 }
 function dig(x, y, force) {
   const m = S.mine, i = mI(x, y), t = m.t[i];
-  if (!ROCKISH(t) || t === 'e' || t === 'h') return;
-  const cost = t === 'b' ? 1 : DIG_COST;
+  if (!ROCKISH(t) || t === 'e' || (t === 'h' && S.pick < 1)) return;
+  const cost = digCost(t);
   // 마지막 기력: 쓰러지기 전에 한 번 물어봄
   if (S.energy <= cost && !force) {
     openSheet(ico('ic_warn') + '기력 바닥', '<p class="warn">이 칸을 캐면 쓰러짐</p>', `<button class="btn" data-a="leave">마을로</button><button class="btn primary" data-a="digForce" data-n="${i}">캐기</button>`);
@@ -1517,7 +1539,7 @@ function dig(x, y, force) {
   }
   burst(p[0], p[1], `rgb(${col})`, rgbk(col, 50), 10);
   if (ore) {
-    const n = 1; addItem(ore, n);
+    const n = Math.random() < QUAL_BONUS[S.pickQ || 0] ? 2 : 1; addItem(ore, n);
     burst(p[0], p[1], ORES[ore].color, ORES[ore].light, 14);
     mfloats.push({ x: p[0], y: p[1] - TW * .3, text: `+${n}`, color: ORES[ore].light, life: 1.1 });
     SFX.ore(n); buzz(15);
@@ -1959,7 +1981,7 @@ function renderHud() {
 
 function questHtml() {
   const q = questNow();
-  if (!q) return `<div class="quest plate done">${ico('ic_check')}대장간 복구비 마련</div>`;
+  if (!q) return `<div class="quest plate done">${ico('ic_check')}다음 이야기 준비 중</div>`;
   const pr = q.need ? Math.min(questProg(q), q.need) : 0;
   return `<button class="quest plate" data-a="quest"><em>${S.quest + 1}/${QUESTS.length}</em>${q.text}${q.need ? `<span>${q.id === 'gold' ? GOLD : ''}${pr}/${q.need}</span><i style="width:${pr / q.need * 100}%"></i>` : ''}</button>`;
 }
@@ -1981,7 +2003,7 @@ function renderDock() {
     const m = S.mine, stairs = m.t.some((t, i) => t === 'd' && m.seen[i]);
     minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${m.floor}층</b>
       <div class="got">${oreRow(S.today)}</div>
-      ${m.floor < MAX_FLOOR ? `<button class="btn small ${stairs ? 'primary' : ''}" data-a="descend" ${stairs ? '' : 'disabled'}>${m.floor + 1}층 ▼</button>` : ''}`;
+      ${m.floor < maxFloor() ? `<button class="btn small ${stairs ? 'primary' : ''}" data-a="descend" ${stairs ? '' : 'disabled'}>${m.floor + 1}층 ▼</button>` : ''}`;
   }
 }
 function openSheet(title, body, btns, closable = true) {
@@ -2010,7 +2032,7 @@ function showCard(o, msg) {
   }
   if (!o.done) {
     const goal = o.id === GOAL.id;
-    openSheet(`${ico(o.icon || 'ic_lock')}${o.ruin}`, featHtml(o), goal ? `<span class="tag">준비 중</span><button class="btn" disabled>${GOLD}${GOAL.cost}</button>` : '');
+    openSheet(`${ico(o.icon || 'ic_lock')}${o.ruin}`, featHtml(o), goal ? `<button class="btn primary" data-a="restoreSmithy" ${S.gold >= GOAL.cost ? '' : 'disabled'}>${GOLD}${GOAL.cost}</button>` : '');
     return;
   }
   if (o.id === 'house') {
@@ -2019,11 +2041,13 @@ function showCard(o, msg) {
   } else if (o.id === 'chief') {
     if (!S.introSeen) { showIntro(0); return; }
     let line;
-    if (S.gold >= GOAL.cost) line = '대장간 고칠 돈은 다 모였네요. 이제 대장장이가 돌아오기만 기다리면 돼요.';
+    if (S.restored.includes('smithy')) line = S.chiefDay !== S.day ? CHIEF_TIPS[(S.day - 1) % CHIEF_TIPS.length] : '대장간 불이 다시 켜지니 마을이 살아나는 것 같아요.';
+    else if (S.gold >= GOAL.cost) line = '대장간 고칠 돈은 다 모였네요. 대장간에 가 봐요.';
     else if (S.chiefDay !== S.day) { line = CHIEF_TIPS[(S.day - 1) % CHIEF_TIPS.length]; S.chiefDay = S.day; save(); }
     else line = `다음은 대장간이에요. ${GOLD}${GOAL.cost - S.gold}만 더 모으면 돼요.`;
     openSheet('촌장', `<p>${line}</p>`);
   } else if (o.id === 'merchant') showMerchant();
+  else if (o.id === 'smithy') showSmithy();
   else if (o.id === 'mine') {
     const f = []; for (let i = 1; i <= S.deepest; i++) f.push(`<button class="btn" data-a="enter" data-n="${i}">${i}층</button>`);
     openSheet(ico('ic_pick') + '광산', `<div class="floors">${f.join('')}</div>`);
@@ -2040,6 +2064,66 @@ function showBag() {
 }
 function showMenu() {
   openSheet(ico('ic_settings') + '설정', '', `<button class="btn" data-a="mute">${S.mute ? ico('ic_mute') + '소리 꺼짐' : ico('ic_sound') + '소리 켜짐'}</button><button class="btn" data-a="resetAsk">처음부터</button>`);
+}
+function restoreSmithy() {
+  const o = OBJ.find(v => v.id === 'smithy');
+  if (o.done || S.gold < GOAL.cost) return;
+  S.gold -= GOAL.cost; S.restored.push('smithy'); o.done = true; o.grow = 0;
+  SFX.stairs(); questEvent('smithy'); save(); renderHud();
+  openSheet('대장장이', '<p>대장간을 고쳐 줘서 고마워요. 광석을 용광로에 넣고 자면 아침엔 주괴가 돼 있을 거예요. 주괴를 모아 오면 곡괭이도 새로 두드려 줄게요.</p>');
+}
+function showSmithy() {
+  let smelt;
+  if (S.furnace) smelt = `<div class="rowi"><span class="nm"><span class="ore ${S.furnace.bar}"></span>${ORES[S.furnace.bar].name} <small>×${S.furnace.n}</small></span><small>내일 아침</small></div>`;
+  else {
+    const rows = Object.keys(SMELT).filter(o => (S.inv[o] || 0) >= SMELT_N).map(o => { const n = Math.min(FURNACE_MAX, Math.floor(S.inv[o] / SMELT_N)); return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${n * SMELT_N} → <span class="ore ${SMELT[o]}"></span>${n}</span><button class="btn small" data-a="smelt" data-o="${o}">넣기</button></div>`; }).join('');
+    smelt = rows || `<p class="dim">광석 ${SMELT_N} → 주괴 1</p>`;
+  }
+  const cur = PICKS[S.pick], next = PICKS[S.pick + 1];
+  let pick = `<div class="rowi"><span class="nm">${ico('ic_pick')}${cur.name}${S.pick ? ` <small>${QUAL[S.pickQ]}</small>` : ''}</span></div>`;
+  if (next) {
+    const ok = Object.entries(next.need).every(([k, n]) => (S.inv[k] || 0) >= n) && S.gold >= next.gold;
+    pick += `<div class="rowi"><span class="nm">${next.name} ${Object.entries(next.need).map(([k, n]) => `<span class="ore ${k}"></span>${Math.min(S.inv[k] || 0, n)}/${n}`).join(' ')} ${GOLD}${next.gold}</span><button class="btn small ${ok ? 'primary' : ''}" data-a="forge" ${ok ? '' : 'disabled'}>강화</button></div>`;
+  }
+  openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div>`);
+}
+function smelt(o) {
+  if (S.furnace || !SMELT[o]) return;
+  const n = Math.min(FURNACE_MAX, Math.floor((S.inv[o] || 0) / SMELT_N)); if (!n) return;
+  S.inv[o] -= n * SMELT_N; S.furnace = { bar: SMELT[o], n };
+  SFX.stairs(); questEvent('smelt'); save(); renderHud(); showSmithy();
+}
+// 망치질: 바늘이 오가는 막대에서 가운데를 맞춰 세 번 두드림. 맞춘 정도로 품질
+let hammer = null;
+function startHammer() {
+  const next = PICKS[S.pick + 1]; if (!next) return;
+  if (!Object.entries(next.need).every(([k, n]) => (S.inv[k] || 0) >= n) || S.gold < next.gold) return;
+  hammer = { t0: performance.now(), hits: [], period: 2.4 };   // 바늘이 한 번 오가는 초 (두드릴 때마다 빨라짐)
+  openSheet(ico('ic_hearth') + '망치질', `<div class="hammer"><div class="hbar"><i class="zone"></i><i class="zone2"></i><i class="needle" id="needle"></i></div><div class="hits" id="hits">${'<b></b>'.repeat(3)}</div></div>`, `<button class="btn primary big" data-a="strike">${ico('ic_pick')}</button>`, false);
+  requestAnimationFrame(hammerTick);
+}
+const needlePos = () => { const u = ((performance.now() - hammer.t0) / 1000 / hammer.period) % 1; return u < .5 ? u * 2 : 2 - u * 2; };   // 일정한 빠르기로 오감
+function hammerTick() {
+  if (!hammer) return;
+  const el = document.getElementById('needle'); if (el) el.style.left = (needlePos() * 100) + '%';
+  requestAnimationFrame(hammerTick);
+}
+function strike() {
+  if (!hammer || hammer.hits.length >= 3) return;
+  const d = Math.abs(needlePos() - .5), sc = d < .07 ? 2 : d < .17 ? 1 : 0;
+  hammer.hits.push(sc); { const n2 = performance.now(), u0 = ((n2 - hammer.t0) / 1000 / hammer.period) % 1; hammer.period *= .82; hammer.t0 = n2 - u0 * hammer.period * 1000; } SFX.dig(); buzz(20);
+  const hs = document.getElementById('hits'); if (hs) hs.innerHTML = hammer.hits.map(v => `<b class="h${v}"></b>`).join('') + '<b></b>'.repeat(3 - hammer.hits.length);
+  if (hammer.hits.length < 3) return;
+  const total = hammer.hits.reduce((a, v) => a + v, 0), q = total >= 5 ? 2 : total >= 3 ? 1 : 0;
+  hammer = null;
+  setTimeout(() => finishForge(q), 350);
+}
+function finishForge(q) {
+  const next = PICKS[S.pick + 1];
+  Object.entries(next.need).forEach(([k, n]) => { S.inv[k] -= n; });
+  S.gold -= next.gold; S.pick += 1; S.pickQ = q; S.floors = null;
+  SFX.stairs(); questEvent('pick'); save(); renderHud();
+  openSheet('대장장이', `<p>${next.name} 완성이에요. ${['쓸 만하게 나왔네요.', '솜씨가 좋은데요.', '이건 정말 잘 나왔어요.'][q]}</p><div class="feat"><span>${ico('ic_pick')}${next.name} ${QUAL[q]}</span></div>`);
 }
 function clearForest() {
   const o = OBJ.find(v => v.id === 'forest');
@@ -2061,6 +2145,10 @@ document.addEventListener('click', e => {
   else if (a === 'enter') enterMine(n);
   else if (a === 'leave') { hideSheet(); goExit(); }
   else if (a === 'clearForest') clearForest();
+  else if (a === 'restoreSmithy') restoreSmithy();
+  else if (a === 'smelt') smelt(b.dataset.o);
+  else if (a === 'forge') startHammer();
+  else if (a === 'strike') strike();
   else if (a === 'forest') enterForest();
   else if (a === 'descend') goStairs();
   else if (a === 'digForce') { hideSheet(); dig(n % S.mine.w, Math.floor(n / S.mine.w), true); }
@@ -2195,7 +2283,7 @@ window.MinerDiary = {
   glintDir: (x, y) => glintDir(x, y), newFloor: f => { S.mine = null; S.floors = null; startFloor(f); },
   // 숲 칸을 화면 가운데로 옮기고 그 위치를 돌려줌
   forestSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, 0); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
-  caveNear: () => caveNear(), pendulum: () => pendA,
+  caveNear: () => caveNear(), pendulum: () => pendA, maxFloor: () => maxFloor(), needle: () => (hammer ? needlePos() : null),
   spotPoint: id => {
     const o = OBJ.find(q => q.id === id); follow = false;
     const z = hgt(o.gx, o.gy), up = o.kind === 'npc' || o.kind === 'wagon' ? 1 : .6;
