@@ -1790,8 +1790,11 @@ function drawMine(c, dt) {
 // 등불 빛 (화면 좌표), 그 위에 멀리서 빛나는 광맥
 function mineLight(c) {
   const p = iso(hero.x + .5, hero.y + .5, .6), sx = (p[0] - cam.fx) * cam.s + W / 2, sy = (p[1] - cam.fy) * cam.s + H / 2, r = TW * cam.s, lr = lightR() / 4.6;
-  const dark = Math.min(.82, .5 + S.deep.L * .04);
-  const g = c.createRadialGradient(sx, sy, r * 1.4 * lr, sx, sy, r * 6.5 * lr); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(4,2,1,${dark})`); R(c, 0, 0, W, H, g);
+  // 등불 밖은 완전한 어둠 (화면을 밝게 해도 아무것도 안 보임). 쿼터뷰에 맞춰 납작한 타원
+  const RR = lightR() * TW * cam.s * .74;
+  c.save(); c.translate(sx, sy); c.scale(1, .55);
+  const g = c.createRadialGradient(0, 0, RR * .45, 0, 0, RR * 1.02); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.7, 'rgba(0,0,0,.7)'); g.addColorStop(1, '#000');
+  c.fillStyle = g; c.fillRect(-W * 2, -H * 4, W * 4, H * 8); c.restore();
   const w = c.createRadialGradient(sx, sy, 1, sx, sy, r * 2.4); w.addColorStop(0, 'rgba(255,200,120,.12)'); w.addColorStop(1, 'rgba(255,200,120,0)'); R(c, 0, 0, W, H, w);
   mglows.forEach(([q, o, n]) => {
     const X = (q[0] - cam.fx) * cam.s + W / 2, Y = (q[1] - cam.fy) * cam.s + H / 2, a = .45 + .35 * Math.sin(tnow * 2 + n * 20), rr = TW * cam.s * .7;

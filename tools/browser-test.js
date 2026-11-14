@@ -100,6 +100,7 @@ const shot = process.argv[2];
   ok((await quest()).includes('광석 캐기'), '광산에 들어가면 퀘스트 「광석 캐기」');
   ok((await cell(0, 0)).t === 'u' && (await cell(0, 0)).seen && !(await cell(30, 30)).seen, '등불이 닿는 곳만 보임');
   ok(Object.keys((await deep()).seen).length >= 1, '본 곳이 저장됨');
+  ok(await page.evaluate(() => { const d = cv.getContext('2d').getImageData(Math.round(W * .5 * DPR), Math.round(H * .2 * DPR), 1, 1).data; return d[0] + d[1] + d[2] === 0; }), '등불 밖은 완전히 검음 (밝기를 올려도 안 보임)');
 
   // 5. 끝없는 굴: 처음 구멍까지 걸어가서 깊이 2로, 깊이 2에서 다음 구멍으로 깊이 3
   for (let k = 0; k < 20 && (await deep()).L === 1; k++) { const h = await page.evaluate(() => window.MinerDiary.nearestHole()); await tap(h[0], h[1]); }
