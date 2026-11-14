@@ -50,7 +50,7 @@ const shot = process.argv[2];
   ok(await page.textContent('#sheet p') === line1 && await page.locator('#sheet [data-a="introPrev"]').count() === 0, '이전을 누르면 앞 대사로 돌아가고, 첫 대사엔 이전 단추가 없음');
   while (await page.locator('#sheet [data-a="intro"]').count()) await page.click('#sheet [data-a="intro"]');
   await page.click('#sheet [data-a="introDone"]');
-  ok((await st()).introSeen && (await quest()).includes('광산 들어가기'), '소개가 끝나면 다음 퀘스트 「광산 들어가기」');
+  ok((await st()).introSeen && (await quest()).includes('숲 동굴'), '소개가 끝나면 다음 퀘스트 「숲 동굴 들어가기」');
   ok(!/누른 곳|끌어서|스페이스바|밝은 테두리/.test(await page.evaluate(() => document.body.innerText)), '조작 설명 문구 없음');
   if (shot) await page.screenshot({ path: path.join(shot, 'village.png') });
   // 소리: 설정에서 효과음과 배경음 크기를 따로 바꾸고, 배경음은 장소마다 다른 곡
@@ -99,13 +99,52 @@ const shot = process.argv[2];
   const deep = async () => (await st()).deep;
   // 기력이 캐기 비용과 걸음(8칸마다 1)만큼 줄었는지
   const spent = (a, b) => (a.energy - b.energy) - (Math.floor(b.deep.steps / 8) - Math.floor(a.deep.steps / 8));
-  // 4. 광산(땅속) 입장
+  // 4. 숲 동굴 (연습판): 광산 입구는 무너져 있고, 숲 속 동굴에서 먼저 캐기를 익힘
+  ok((await quest()).includes('숲 동굴'), '첫 퀘스트 다음은 「숲 동굴 들어가기」');
+  await visit('mine', '#sheet h2:has-text("무너진 광산 입구")');
+  ok(await page.locator('#sheet [data-a="restore"]').count() === 0, '광산 입구는 처음엔 무너져 있고 아직 못 고침');
+  await page.click('#sheet [data-a="close"]');
+  await visit('forest', '#sheet [data-a="forest"]');
+  await page.click('#sheet [data-a="forest"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'forest', null, { timeout: 5000 });
+  { const p = await page.evaluate(() => window.MinerDiary.forestSpot(S.forest.ex - 5, S.forest.ey - 3)); await page.mouse.click(p.x, p.y); }
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'mine' && S.deep.L === 0, null, { timeout: 15000 });
+  await page.waitForTimeout(300);
+  ok((await quest()).includes('광석 캐기'), '숲에서 동굴 입구로 걸어가면 숲 동굴, 퀘스트 「광석 캐기」');
+  ok(await page.evaluate(() => { let holes = 0; for (let y = -18; y <= 18; y++) for (let x = -18; x <= 18; x++) if (mT(x, y) === 'd') holes++; const e0 = S.energy; dig(30, 0); return holes === 0 && mT(30, 0) === 'w' && S.energy === e0; }), '숲 동굴은 작고(바깥 벽은 못 캠) 내려가는 구멍이 없음');
+  for (let k = 0; k < 5; k++) {
+    const r = await page.evaluate(() => window.MinerDiary.nearRock());
+    await page.evaluate(([x, y]) => window.MinerDiary.setCell(x, y, 'r', 'copper'), r);
+    await tap(r[0], r[1]);
+  }
+  ok((await st()).carry.copper >= 5 && (await quest()).includes('상인'), '동굴에서 광석 다섯을 캐면 「상인에게 광석 팔기」');
+  ok((await page.evaluate(() => window.MinerDiary.mfloats())).some(t => /^구리 광석 \+[12]$/.test(t)), '캐면 광석 이름과 개수가 떠오름 (구리 광석 +1)');
+  ok(!/\d+\/\d+/.test((await quest()).replace(/\d+\/\d+\s*$/, '')) && !(await page.evaluate(() => document.querySelector('.quest em'))), '퀘스트 막대에 몇 번째인지(전체 개수) 숫자가 없음');
+  await page.click('[data-a="leave"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'forest', null, { timeout: 20000 });
+  ok(true, '동굴에서 나가면 숲으로');
+  await page.click('[data-a="leave"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 });
+  ok((await st()).inv.copper >= 5, '숲을 지나 마을로, 가방 것은 창고로');
+  await visit('merchant', '#sheet [data-a="sellAll"]');
+  if (shot) await page.screenshot({ path: path.join(shot, 'merchant.png') });
+  await page.click('#sheet [data-a="sellAll"]');
+  ok((await quest()).includes('광산 입구 고치기') && (await st()).gold >= 60, `팔고 나면 「광산 입구 고치기」 (🪙${(await st()).gold})`);
+  await page.click('#sheet [data-a="close"]');
+  // 4-1. 광산 입구를 고치면 촌장이 본 게임을 소개하고 광맥 추를 줌
+  await visit('mine', '#sheet [data-a="restore"][data-o="mine"]');
+  const gMine = (await st()).gold;
+  await page.click('#sheet [data-a="restore"][data-o="mine"]');
+  s0 = await st();
+  ok(s0.restored.includes('mine') && s0.gold === gMine - 60 && s0.acc.have.dowse === 1 && (await page.textContent('#sheet')).includes('진짜') && (await quest()).includes('광산 들어가기'), '🪙60으로 광산 입구를 고치면 촌장이 광산을 소개하고 광맥 추를 줌');
+  await page.click('#sheet [data-a="close"]');
+  // 4-2. 광산(땅속) 입장
   await visit('mine', '#sheet [data-a="enter"]');
   await page.click('#sheet [data-a="enter"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
   await page.waitForTimeout(300);
   ok((await st()).screen === 'mine', '광산 입장 (깊이 1, 입구)');
-  ok((await quest()).includes('광석 캐기'), '광산에 들어가면 퀘스트 「광석 캐기」');
+  ok((await quest()).includes('집에서 자기'), '광산에 들어가면 퀘스트 「집에서 자기」');
   ok((await cell(0, 0)).t === 'u' && (await cell(0, 0)).seen && !(await cell(30, 30)).seen, '등불이 닿는 곳만 보임');
   ok(Object.keys((await deep()).seen).length >= 1, '본 곳이 저장됨');
   const hudE = async () => +(await page.textContent('.energy b')).replace(/[^0-9]/g, '');
@@ -181,13 +220,11 @@ const shot = process.argv[2];
 
   // 9. 팔기
   const worth = await page.evaluate(() => ORE_ORDER.reduce((a, o) => a + (S.inv[o] || 0) * ORES[o].price, 0)), g0 = s.gold;
-  ok(s.quest === 3 && g0 === 20, '광석 5개를 캐면 보상 🪙20과 함께 「상인에게 광석 팔기」로');
   await visit('merchant', '#sheet [data-a="sellAll"]');
   if (shot) await page.screenshot({ path: path.join(shot, 'merchant.png') });
   await page.click('#sheet [data-a="sellAll"]');
   s = await st();
-  ok(s.gold === g0 + worth + 20 && Object.values(s.inv).every(n => n === 0), '전부 팔아 돈이 정확히 들어옴 (퀘스트 보상 🪙20 포함)');
-  ok(s.quest === 4, '팔고 나면 퀘스트 「집에서 자기」');
+  ok(s.gold === g0 + worth && Object.values(s.inv).every(n => n === 0), '전부 팔아 돈이 정확히 들어옴');
 
   // 10. 집에서 자기
   const day = s.day, ph = await page.evaluate(() => window.MinerDiary.phaseIndex()), expE = ph === 3 ? 90 : ph <= 1 ? 110 : 100;
@@ -198,16 +235,7 @@ const shot = process.argv[2];
   await page.waitForFunction(() => +document.getElementById('sumv').textContent === S.bestDay, null, { timeout: 4000 });
   ok(true, '하루 정산 값이 끝까지 올라감');
   ok(s.day === day + 1 && s.energy === expE && s.minE === s.energy, `자고 나서 ${s.day}일차 기력 ${s.energy} (저녁 전에 자면 덤 110, 새벽이면 90)`);
-  ok(s.quest === 6 && (await quest()).includes('숲길 치우기'), '자고 나면 이미 간 깊이 3은 바로 끝나고 「숲길 치우기」');
-
-  // 10-1. 숲길 치우기 (🪙100), 광맥 추 받기
-  if (s.gold < 100) await page.evaluate(() => { window.MinerDiary.state().gold = 100; renderHud(); });
-  await visit('forest', '#sheet [data-a="restore"][data-o="forest"]');
-  const gF = (await st()).gold;
-  await page.click('#sheet [data-a="restore"][data-o="forest"]');
-  s = await st();
-  ok(s.gold === gF - 100 && s.restored.includes('forest') && s.acc.have.dowse === 1 && s.acc.eq.includes('dowse'), '숲길을 치우면 🪙100이 들고 광맥 추를 받아 낌');
-  ok(s.quest === 7 && (await quest()).includes('채집'), '다음 퀘스트 「숲에서 채집」');
+  ok((await quest()).includes('숲에서 채집'), '자고 나면 이미 간 깊이 3은 바로 끝나고 「숲에서 채집」');
 
   // 10-2. 숲 채집: 안개 속에서 주울 것을 찾아 밟으면 가방에
   await visit('forest', '#sheet [data-a="forest"]');
@@ -224,7 +252,7 @@ const shot = process.argv[2];
     await page.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 15000 });
   }
   s = await st();
-  ok(s.gatherN >= 5 && s.quest === 8 && Object.keys(s.carry).length > 0, '숲에서 다섯 번 주우면 퀘스트 끝, 주운 것은 가방에');
+  ok(s.gatherN >= 5 && (await quest()).includes('보물') && Object.keys(s.carry).length > 0, '숲에서 다섯 번 주우면 퀘스트 끝, 주운 것은 가방에');
   ok(s.energy === eF - Math.floor(s.forest.steps / 5), `숲에서는 5칸마다 기력 1 (걸음 ${s.forest.steps})`);
   await page.click('[data-a="leave"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 });
   s = await st();
@@ -242,6 +270,12 @@ const shot = process.argv[2];
   await page.evaluate(([x, y]) => { const M = window.MinerDiary; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) M.setCell(x + dx, y + dy, 'f', ''); M.setCell(x + 1, y, 'r', 'copper'); M.setCell(x - 1, y, 'r', 'copper'); M.setCell(x, y - 2, 'T'); }, hm);
   await tap(hm[0] + 1, hm[1]); await tap(hm[0] - 1, hm[1]);
   ok(await page.evaluate(() => window.MinerDiary.combo()) >= 2 && (await st()).bestCombo >= 2, '광석을 연달아 캐면 연속 캐기가 이어짐');
+  // 풍요의 고리: 끼면 광석을 캘 때마다 하나 더
+  await page.evaluate(([x, y]) => { S.acc.have.plenty = 1; S.acc.eq = ['plenty']; window.MinerDiary.setCell(x + 1, y, 'r', 'iron'); }, hm);
+  const ir0 = (await st()).carry.iron || 0;
+  await tap(hm[0] + 1, hm[1]);
+  ok(((await st()).carry.iron || 0) - ir0 >= 2, '풍요의 고리를 끼면 광석을 캘 때마다 하나 더');
+  await page.evaluate(() => { S.acc.have.plenty = 0; S.acc.eq = ['dowse']; });
   const gC = (await st()).gold, nC = await page.evaluate(() => window.MinerDiary.carryN());
   await tap(hm[0], hm[1] - 2);
   s = await st();
@@ -264,7 +298,7 @@ const shot = process.argv[2];
   await visit('smithy', '#sheet h2:has-text("부서진 대장간")');
   ok((await page.textContent('#sheet')).includes('곡괭이 강화'), '부서진 대장간 팻말');
   await page.evaluate(() => { const s = window.MinerDiary.state(); s.gold = 1000; s.inv.copper = 27; s.inv.coal = 10; questEvent(); renderHud(); });
-  ok((await st()).quest === 10 && (await quest()).includes('대장간 고치기'), '돈이 모이면 퀘스트 「대장간 고치기」');
+  ok((await quest()).includes('대장간 고치기'), '돈이 모이면 퀘스트 「대장간 고치기」');
   await visit('smithy', '#sheet [data-a="restore"][data-o="smithy"]');
   await page.click('#sheet [data-a="restore"][data-o="smithy"]');
   s = await st();
@@ -275,7 +309,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="smelt"][data-o="copper"]');
   s = await st();
   ok(s.furnace && s.furnace.bar === 'copperBar' && s.furnace.n === 5 && s.inv.copper === 2 && s.inv.coal === 5, '용광로에 구리 광석 25개와 석탄 5개를 넣으면 주괴 5개가 내일 나옴');
-  ok(s.quest === 12 && (await quest()).includes('구리 곡괭이'), '다음 퀘스트 「구리 곡괭이 만들기」');
+  ok((await quest()).includes('구리 곡괭이'), '다음 퀘스트 「구리 곡괭이 만들기」');
   await page.click('#sheet [data-a="close"]');
 
   // 11. 쓰러짐
@@ -602,7 +636,7 @@ const shot = process.argv[2];
   /* ===== 컴퓨터 크기: 누르는 위치가 맞는지 ===== */
   const desk = await open(1440, 900);
   const d = helpers(desk);
-  await desk.evaluate(() => { const s = window.MinerDiary.state(); s.introSeen = true; window.MinerDiary.speed(10); });
+  await desk.evaluate(() => { const s = window.MinerDiary.state(); s.introSeen = true; s.restored.push('mine'); applyRestored(); window.MinerDiary.speed(10); });
   await d.visit('mine', '#sheet [data-a="enter"]');
   await desk.click('#sheet [data-a="enter"]');
   await desk.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
