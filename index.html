@@ -2205,7 +2205,12 @@ const CHEST = ['plumb', 'charm', 'feather', 'insole', 'honey', 'leather', 'leath
 function genForest(day) {
   const I = (x, y) => y * FW + x, t = Array(FW * FH).fill('g'), R0 = H32(day * 7919 + 13) * 1e5 | 0, it = {};
   const h = (x, y, k) => H32(x * 92821 + y * 68917 + R0 + k * 7);
-  for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) { const v = h(x, y, 1); t[I(x, y)] = v < .3 ? 't' : v < .34 ? 's' : v < .36 ? 'k' : 'g'; if (x === 0 || y === 0 || x === FW - 1 || y === FH - 1) t[I(x, y)] = 't'; }
+  for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
+    const v = h(x, y, 1); t[I(x, y)] = v < .3 ? 't' : v < .34 ? 's' : v < .36 ? 'k' : 'g';
+    // 가장자리는 두께가 들쭉날쭉한 빽빽한 숲 (네모 테두리로 안 보이게)
+    const edge = Math.min(x, y, FW - 1 - x, FH - 1 - y), thick = 1 + vnoise(x / 4, y / 4, R0 + 5) * 3.6;
+    if (edge < thick) t[I(x, y)] = h(x, y, 2) < .82 ? 't' : 'k';
+  }
   const ex = FW - 2, ey = (FH / 2) | 0;   // 마을 쪽(오른쪽 위 가장자리)에서 들어옴
   for (let x = 2; x < ex; x++) t[I(x, ey)] = 'g';   // 가운데 길: 구역 사이 큰 바위를 지나 안쪽까지
   for (let y = ey - 2; y <= ey + 2; y++) for (let x = ex - 3; x <= ex; x++) t[I(x, y)] = 'g';
@@ -2232,7 +2237,14 @@ function genForest(day) {
     if (!it[x + ',' + y] && z && r > .996 - z * .002) it[x + ',' + y] = 'sparkle';
   }
   // 구역 사이 바위 줄과 큰 바위 (부순 곳은 길)
-  F_ZONES.slice(1).forEach((z, i) => { const bx = F_ZONES[i].x; for (let y = 1; y < FH - 1; y++) t[I(bx, y)] = 'k'; t[I(bx, ey)] = (S.forestOpen || {})[i + 1] ? 'g' : 'B'; t[I(bx - 1, ey)] = 'g'; t[I(bx + 1, ey)] = 'g'; delete it[bx + ',' + ey]; });
+  F_ZONES.slice(1).forEach((z, i) => {
+    const bx = F_ZONES[i].x, wx = {}; wx[ey] = bx;
+    // 큰 바위 자리에서 위아래로 한 줄씩 조금씩 휘어 감 (한 줄에 한 칸까지만 휘어 틈이 안 생김)
+    for (const dir of [1, -1]) for (let y = ey + dir; y >= 0 && y < FH; y += dir) { const want = bx + Math.round((vnoise(y / 4, i * 9, R0 + 17) - .5) * 6); const prev = wx[y - dir]; wx[y] = prev + Math.max(-1, Math.min(1, want - prev)); }
+    for (let y = 0; y < FH; y++) for (let x = wx[y] - 1; x <= wx[y]; x++) { if (y === ey && x === bx - 1) continue; const r = h(x, y, 51); t[I(x, y)] = r < .62 ? 'k' : r < .86 ? 't' : 's'; delete it[x + ',' + y]; }
+    t[I(bx, ey)] = (S.forestOpen || {})[i + 1] ? 'g' : 'B'; t[I(bx - 1, ey)] = (S.forestOpen || {})[i + 1] ? 'g' : 'k'; t[I(bx - 2, ey)] = 'g'; t[I(bx + 1, ey)] = 'g';
+    if (!(S.forestOpen || {})[i + 1]) t[I(bx - 1, ey)] = 'g';
+  });
   // 깊은 구역마다 상자 하나
   for (let z = 1; z < F_ZONES.length; z++) for (let n = 0; n < 200; n++) { const x = F_ZONES[z].x + 2 + (h(n, z, 41) * 12 | 0), y = 2 + (h(z, n, 42) * (FH - 4) | 0); if (t[I(x, y)] === 'g' && !it[x + ',' + y] && y !== ey) { it[x + ',' + y] = 'chest'; break; } }
   // 낡은 상자 둘: 먼 곳에
@@ -2333,6 +2345,39 @@ function forestArrive() {
 }
 
 /* ===== 숲 그리기 ===== */
+// 숲 안개: 화면 전체를 덮고 본 칸만 도려낸 뒤 흐리게 얹음 (가장자리가 칸 모양이 아니라 부드럽게)
+const fogC = document.createElement('canvas'), fogX = fogC.getContext('2d');
+function forestFog(c) {
+  const f = S.forest, vr = viewTiles();
+  if (fogC.width !== cv.width || fogC.height !== cv.height) { fogC.width = cv.width; fogC.height = cv.height; }
+  fogX.setTransform(1, 0, 0, 1, 0, 0); fogX.globalCompositeOperation = 'source-over'; fogX.clearRect(0, 0, fogC.width, fogC.height);
+  fogX.fillStyle = '#16251a'; fogX.fillRect(0, 0, fogC.width, fogC.height);
+  fogX.setTransform(DPR * cam.s, 0, 0, DPR * cam.s, DPR * (W / 2 - cam.fx * cam.s), DPR * (H / 2 - cam.fy * cam.s));
+  fogX.globalCompositeOperation = 'destination-out'; fogX.fillStyle = '#000'; fogX.beginPath();
+  for (let y = vr.y0; y <= vr.y1; y++) for (let x = vr.x0; x <= vr.x1; x++) {
+    if (fIn(x, y) ? !f.seen[fI(x, y)] : !(Math.max(-x, x - FW + 1, -y, y - FH + 1) <= 3 && f.seen[fI(Math.max(0, Math.min(FW - 1, x)), Math.max(0, Math.min(FH - 1, y)))])) continue;
+    const a = iso(x - .15, y - .15, 0), b = iso(x + 1.15, y - .15, 0), cc = iso(x + 1.15, y + 1.15, 0), d = iso(x - .15, y + 1.15, 0);
+    fogX.moveTo(a[0], a[1] - ZU * 1.6); fogX.lineTo(b[0], b[1] - ZU * 1.6); fogX.lineTo(cc[0], cc[1]); fogX.lineTo(d[0], d[1]); fogX.closePath();   // 위로도 조금 열어 나무 꼭대기가 잘리지 않게
+  }
+  fogX.fill();
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.filter = `blur(${Math.round(TW * cam.s * DPR * .22)}px)`; c.drawImage(fogC, 0, 0); c.filter = 'none'; c.restore();
+}
+// 숲 작은 지도 (광산과 같은 자리, 화면과 같은 방향)
+function drawForestMap(c) {
+  const f = S.forest, z = UIZ, mw = 120 * z, mh = 90 * z, mx = W - mw - 10, my = hudH() + 50 * z, sc = 3 * z, hx = Math.round(hero.x), hy = Math.round(hero.y);
+  c.save(); c.globalAlpha = .9; c.fillStyle = 'rgba(16,26,14,.85)'; c.beginPath(); c.roundRect(mx, my, mw, mh, 10 * z); c.fill(); c.strokeStyle = '#8a6238'; c.lineWidth = 2; c.stroke(); c.clip();
+  const R2 = Math.ceil(mw / sc);
+  for (let y = Math.max(0, hy - R2); y <= Math.min(FH - 1, hy + R2); y++) for (let x = Math.max(0, hx - R2); x <= Math.min(FW - 1, hx + R2); x++) {
+    if (!f.seen[fI(x, y)]) continue; const t = f.t[fI(x, y)];
+    const dx = x - hero.x, dy = y - hero.y, px = mx + mw / 2 + (dx - dy) * sc * .75, py = my + mh / 2 + (dx + dy) * sc * .375;
+    if (px < mx - sc || px > mx + mw + sc || py < my - sc || py > my + mh + sc) continue;
+    c.fillStyle = t === 't' ? '#2f5a2a' : t === 'k' ? '#857d70' : t === 's' ? '#3f7a35' : t === 'B' ? '#e0d4bc' : t === 'v' ? '#140d08' : t === 'x' ? '#d2b98e' : F_ZONES[fZone(x)].ground[1];
+    c.beginPath(); c.moveTo(px, py - sc * .375); c.lineTo(px + sc * .75, py); c.lineTo(px, py + sc * .375); c.lineTo(px - sc * .75, py); c.closePath(); c.fill();
+    const it = f.it[x + ',' + y]; if (it === 'chest' || it === 'sparkle') { c.fillStyle = '#ffe27a'; c.fillRect(px - z, py - z, 2 * z, 2 * z); }
+  }
+  c.fillStyle = '#fff'; c.fillRect(mx + mw / 2 - 1.5 * z, my + mh / 2 - 1.5 * z, 3 * z, 3 * z);
+  c.restore();
+}
 // 숲 깊은 곳을 막는 큰 바위 (금 간 곳이 보이고, 위에 필요한 파워)
 function boulderAt(c, x, y) {
   const q = iso(x + .5, y + .5, 0), u = TW / 100, ink = Math.max(1.4, TW * .022), need = F_ZONES[fZone(x - 1)].need;
@@ -2381,12 +2426,20 @@ function drawForest(c, dt) {
   for (let s = Math.max(0, vr.x0 + vr.y0); s <= Math.min(FW + FH - 2, vr.x1 + vr.y1); s++) {
     for (let x = Math.max(0, s - FH + 1); x <= Math.min(FW - 1, s); x++) {
       const y = s - x, i = fI(x, y);
-      if (!f.seen[i]) { tileTop(c, x, y, 0, H32(i * 13 + f.day) < .5 ? '#1f331f' : '#223722'); continue; }
+      if (!f.seen[i]) { tileTop(c, x, y, 0, F_ZONES[fZone(x)].ground[0]); continue; }
       forestGround(c, x, y, i);
       if (f.t[i] === 'x') tileTop(c, x, y, 0, '#d2b98e');
       const what = f.it[x + ',' + y]; if (what) gatherAt(c, x, y, what);
     }
   }
+  // 숲 바깥: 끝없이 이어지는 빽빽한 숲 (지도 끝이 곧은 선으로 보이지 않게)
+  const outs = [];
+  for (let s2 = vr.x0 + vr.y0; s2 <= vr.x1 + vr.y1; s2++) for (let x = Math.max(vr.x0, s2 - vr.y1); x <= Math.min(vr.x1, s2 - vr.y0); x++) {
+    const y = s2 - x; if (fIn(x, y)) continue;
+    tileTop(c, x, y, 0, F_ZONES[fZone(Math.max(0, Math.min(FW - 1, x)))].ground[2]);
+    if (H32(x * 3571 + y * 7919 + 11) < .7) outs.push([x, y]);
+  }
+  outs.forEach(([x, y]) => { if (x + y < hero.x + hero.y) treeAt(c, x, y); });   // 광부 뒤쪽 나무 먼저
   wind = wind.filter(w => (w.life -= dt) > 0);
   for (const pass of [0, 1]) {
   if (pass === 1) heroDraw();
@@ -2403,6 +2456,7 @@ function drawForest(c, dt) {
     }
   }
   }
+  outs.forEach(([x, y]) => { if (x + y >= hero.x + hero.y) treeAt(c, x, y); });   // 광부 앞쪽 나무
   wind.forEach(w => { w.z += dt * .8; const p = iso(w.x, w.y, w.z); c.globalAlpha = Math.min(1, w.life * 1.5); Cc(c, p[0], p[1], TW * .03, w.col || '#eef6ff'); }); c.globalAlpha = 1;
   { const p = iso(f.ex + .5, f.ey + .5, 0); label(c, '마을', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); }
   { const vx = f.ex - 5, vy = f.ey - 3; if (f.seen[fI(vx, vy)]) { const p = iso(vx + .5, vy + .5, 0); label(c, '동굴', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); } }
@@ -3523,9 +3577,10 @@ function frame(ms) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0); R(ctx, 0, 0, W, H, '#1a2b1a');
     ctx.setTransform(DPR * cam.s, 0, 0, DPR * cam.s, DPR * (W / 2 - cam.fx * cam.s), DPR * (H / 2 - cam.fy * cam.s));
     drawForest(ctx, dt);
+    forestFog(ctx);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0); if (SKY[phase].tint) R(ctx, 0, 0, W, H, SKY[phase].tint);
     const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,20,8,.4)'); R(ctx, 0, 0, W, H, v);
-    drawArrows(ctx);
+    drawArrows(ctx); drawForestMap(ctx);
   } else {
     // 마을은 따로 그린 뒤, 위아래만 흐리게 해서 작은 모형처럼
     oc.setTransform(DPR, 0, 0, DPR, 0, 0); drawSky(oc);
