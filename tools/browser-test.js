@@ -250,7 +250,7 @@ const shot = process.argv[2];
     if (s.day !== dayBefore) break;
     const r = await page.evaluate(() => window.MinerDiary.nearRock());
     if (!r) break;
-    await page.evaluate(([x, y]) => window.MinerDiary.setCell(x, y, 'r', ''), r);
+    await page.evaluate(([x, y]) => { window.MinerDiary.setCell(x, y, 'r', ''); S.deep.steps = 0; }, r);   // 걸음 기력으로 쓰러지지 않게 (캐기에서 물어보는지만 봄)
     await tap(r[0], r[1]);
     if (await page.locator('#sheet [data-a="digForce"]').count()) { guarded = true; await page.click('#sheet [data-a="digForce"]'); }
   }

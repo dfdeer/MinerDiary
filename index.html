@@ -328,7 +328,7 @@ function questEvent(type, n) {
 /* ===== 상태와 저장 ===== */
 let S;
 function freshState() {
-  return { v: 2, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0,
+  return { v: 3, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0,
     deep: { seed: (Math.random() * 1e6) | 0, L: 1, x: 0, y: 1, dug: {}, seen: {}, ups: {}, camps: [], lastCamp: null, steps: 0 } };
 }
 function load() {
@@ -336,18 +336,7 @@ function load() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const d = JSON.parse(raw);
-      if (d && d.v === 2) {
-        const n = Object.assign(freshState(), d);
-        if (d.pendulum && !n.acc.have.dowse) { n.acc.have.dowse = 1; n.acc.eq.push('dowse'); }   // 예전 광맥 추
-        if (n.screen === 'mine' && (!d.deep || (d.mine && d.mine.t))) n.screen = 'village';           // 예전 층 판 광산
-        return n;
-      }
-      if (d && d.v === 1) {   // 예전 화면의 기록: 날짜, 돈, 가방 등은 그대로
-        const n = freshState();
-        ['day', 'energy', 'minE', 'dayStart', 'gold', 'inv', 'today', 'deepest', 'introSeen', 'chiefDay'].forEach(k => { if (d[k] !== undefined) n[k] = d[k]; });
-        if (!n.dayStart) n.dayStart = n.energy;
-        return n;
-      }
+      if (d && d.v === 3) return Object.assign(freshState(), d);   // 저장 구조가 바뀌면 예전 기록은 새로 시작 (11/14 사용자 결정)
     }
   } catch (e) { /* 저장소를 못 쓰면 새로 시작 */ }
   return freshState();
@@ -2449,7 +2438,6 @@ window.addEventListener('resize', () => { resize(); snapCam(); });
 
 /* ===== 시작 ===== */
 S = load();
-if (S.introSeen && S.quest === 0) S.quest = 1;   // 퀘스트가 없던 때의 기록
 function startGame() {
   applyRestored();
   resize();
