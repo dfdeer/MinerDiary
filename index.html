@@ -107,6 +107,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .nd{display:inline-flex;align-items:center;gap:3px;font-size:12px;margin-left:6px}.nd.lack,.lack{color:#e68a7a}
 .ore.carp,.ore.trout,.ore.catfish,.ore.eel,.ore.moonkoi{transform:none;border-radius:50% 40% 40% 50%;width:15px;height:10px}.ore.carp{background:#b8a070}.ore.trout{background:#e08a8a}.ore.catfish{background:#6a6a5a}.ore.eel{background:#4a5a3a}.ore.moonkoi{background:#cfc4ff;box-shadow:0 0 6px #b9a8ff}
 .fishing{height:110px;border-radius:14px;background:linear-gradient(#4f9fd8,#3f7fb0);position:relative;overflow:hidden;margin-bottom:6px}.fishing .bob{position:absolute;left:50%;top:44px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#fff 0 30%,#e04a3a 31%);border:2px solid #2b1a12;transition:transform .1s}.fishing .bob.bite{transform:translateY(10px) scale(.9)}.fishing .say{position:absolute;left:0;right:0;top:8px;text-align:center;font-size:22px;color:#fff;text-shadow:0 2px 0 #2b1a12}
+.ore.crystalGem,.ore.amethystGem,.ore.rubyGem{transform:rotate(45deg) scale(.9);border-radius:2px;box-shadow:0 0 6px rgba(255,255,255,.6)}.ore.crystalGem{background:#7fdcef}.ore.amethystGem{background:#b48cf0}.ore.rubyGem{background:#ff4d6a}
 .ore.radish{background:#f4f0e6;border-radius:50%}.ore.potato{background:#b08850;border-radius:45%}.ore.berry{background:#e0405a;border-radius:50% 50% 50% 0}
 .ore.herb{background:#4fae55}.ore.mush{background:#d9483a}.ore.wood{background:#a8703a}.ore.fiber{background:#d8c46a}.ore.leather{background:#8a5a32;transform:none;border-radius:4px}
 .ore.copper{background:#d97a3a}.ore.coal{background:#3a3a40}.ore.silver{background:#e6ecf2}.ore.gold{background:#f2c230}.ore.amethyst{background:#a46be0}.ore.ruby{background:#e0405a}
@@ -167,7 +168,7 @@ const OBJ = [
   { id: 'kitchen', gx: 20, gy: 17, w: 3, d: 3, stage: 7, kind: 'kitchen', name: '식당', ruin: '닫힌 식당', icon: 'ic_rest', feat: ['요리', '주민 의뢰'], door: [21, 20] },
   { id: 'market', gx: 19, gy: 3, w: 4, d: 3, stage: 4, kind: 'market', name: '시장', ruin: '빈 시장 터', icon: 'ic_shop', feat: ['매일 바뀌는 시세'], door: [20, 6] },
   { id: 'gate', gx: 16, gy: -1, w: 1, d: 1, stage: 9, kind: 'gate', name: '성벽 문', ruin: '닫힌 성벽 문', feat: ['성 밖 사냥터'] },
-  { id: 'jewel', gx: 22, gy: 10, w: 2, d: 2, stage: 10, kind: 'jewel', name: '세공소', ruin: '부서진 세공소', icon: 'ic_shard', feat: ['보석 세공'], door: [22, 12] },
+  { id: 'jewel', gx: 22, gy: 10, w: 2, d: 2, stage: 6, kind: 'jewel', name: '세공소', ruin: '부서진 세공소', icon: 'ic_shard', feat: ['보석 세공'], door: [22, 12] },
   { id: 'museum', gx: 26, gy: 2, w: 4, d: 4, stage: 12, kind: 'museum', name: '박물관', ruin: '무너진 박물관', icon: 'ic_treasure', feat: ['광석 도감', '기증'], door: [27, 6] },
 ];
 OBJ.forEach(o => { o.done = o.stage === 0; o.grow = o.done ? 1 : 0; });
@@ -250,6 +251,9 @@ const ORES = {
   amethyst: { name: '자수정',   price: 110, color: '#a46be0', light: '#e2c9ff' },
   ruby:     { name: '루비',     price: 220, color: '#e0405a', light: '#ffb0bc' },
   moon:     { name: '월광석',    price: 150, color: '#d8cfff', light: '#ffffff' },
+  crystalGem:  { name: '수정 보석', price: 180, color: '#7fdcef', light: '#e0fbff' },
+  amethystGem: { name: '자수정 보석', price: 330, color: '#b48cf0', light: '#efe2ff' },
+  rubyGem:     { name: '루비 보석', price: 680, color: '#ff4d6a', light: '#ffd0d8' },
   copperBar: { name: '구리 주괴', price: 65,  color: '#e0894a', light: '#ffd0a0' },
   ironBar:   { name: '철 주괴',   price: 160, color: '#b8c2cc', light: '#f4f8fb' },
   herb:      { name: '약초',     price: 12,  color: '#4fae55', light: '#bff0b0' },
@@ -268,7 +272,7 @@ const ORES = {
   silverBar: { name: '은 주괴',   price: 280, color: '#e8eef4', light: '#ffffff' },
   goldBar:   { name: '금 주괴',   price: 560, color: '#f5cf45', light: '#fff4b8' },
 };
-const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry'];
+const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'crystalGem', 'amethystGem', 'rubyGem', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry'];
 /* ===== 대장간 (3단계): 용광로에 광석 5개와 석탄 1개를 넣고 자면 아침에 주괴. 주괴와 돈으로 곡괭이 강화 (망치질 박자로 품질) ===== */
 const SMELT = { copper: 'copperBar', iron: 'ironBar', silver: 'silverBar', gold: 'goldBar' }, SMELT_N = 5, FURNACE_MAX = 10;
 // 곡괭이: 구리는 7층까지, 철(가운데 단계)부터 단단한 바위와 10층, 은은 캐는 기력 1, 금은 단단한 바위도 쉽게. 높은 단계일수록 망치질이 빠르고 칸이 좁음
@@ -330,10 +334,12 @@ const QUESTS = [
   { id: 'request', text: '주민 의뢰 들어주기', need: 1, target: 'kitchen', reward: 100 },
   { id: 'deep7', text: '깊이 7 도달', need: 7, target: 'mine', reward: 100 },
   { id: 'pick2', text: '철 곡괭이 만들기', need: 2, target: 'smithy', reward: 100 },
+  { id: 'jewel', text: '세공소 고치기', target: 'jewel' },
+  { id: 'cut', text: '보석 깎기', need: 1, target: 'jewel', reward: 100 },
   { id: 'deep10', text: '깊이 10 도달', need: 10, target: 'mine', reward: 200 },
 ];
 const questNow = () => QUESTS[S.quest];
-const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : 0);
+const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : q.id === 'cut' ? S.cutN || 0 : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
   let q = questNow(), flag = false;
@@ -2244,6 +2250,7 @@ function showCard(o, msg) {
     openSheet('촌장', `<p>${line}</p>`);
   } else if (o.id === 'merchant') showMerchant();
   else if (o.id === 'kitchen') showKitchen();
+  else if (o.id === 'jewel') showJewel();
   else if (o.id === 'market') showMarket();
   else if (o.id === 'smithy') showSmithy();
   else if (o.id === 'mine') {
@@ -2277,6 +2284,7 @@ const RESTORE = {
   bridge: { gold: 300, need: { wood: 20, ironBar: 2 }, who: '촌장', line: '다리가 이어졌네요. 이 낚싯대도 가져가요. 강에선 아침이랑 저녁에 잘 잡히고, 새벽엔 그때만 나오는 물고기가 있대요.', then: () => { S.rod = 1; } },
   field: { gold: 300, need: { wood: 8 }, who: '촌장', line: '밭이 다시 일궈졌네요. 씨앗은 떠돌이 상인이 팔아요. 아침이나 점심에 물을 주면 그날 밤 한 뼘씩 자라요.' },
   kitchen: { gold: 1000, need: { wood: 15, ironBar: 2 }, who: '식당 주인', line: '식당을 다시 열게 됐어요. 재료 두 가지를 골라 요리해 봐요. 처음 찾은 맛은 적어 둘게요. 점심이랑 저녁엔 마을 사람들이 부탁도 하러 와요.' },
+  jewel: { gold: 1500, need: { silverBar: 3, crystal: 2 }, who: '세공사', line: '세공소를 고쳐 줘서 고마워요. 원석을 가져오면 같이 깎아요. 결을 따라 정확히 두드릴수록 보석이 더 나와요. 귀한 원석일수록 까다롭고요.' },
   market: { gold: 800, need: { wood: 10 }, who: '시장 상인', line: '시장이 다시 열렸어요. 값은 날마다 바뀌어요. 많이 팔면 값이 떨어지니 나눠서 파는 게 좋아요. 내일 무엇이 오를지도 알려 줄게요.', then: () => rollMarket(true) },
 };
 const canRestore = id => { const i = QUESTS.findIndex(q => q.id === id); return i >= 0 && S.quest >= i; };
@@ -2341,9 +2349,13 @@ let hammer = null;
 function startHammer() {
   const next = PICKS[S.pick + 1]; if (!next) return;
   if (!Object.entries(next.need).every(([k, n]) => (S.inv[k] || 0) >= n) || S.gold < next.gold) return;
-  hammer = { t0: performance.now(), hits: [], period: next.period, zone: next.zone };   // 바늘이 한 번 오가는 초 (두드릴 때마다 빨라짐)
-  const z1 = 50 - 17 * next.zone, z2 = 50 - 7 * next.zone;
-  openSheet(ico('ic_hearth') + '망치질', `<div class="hammer"><div class="hbar"><i class="zone" style="left:${z1}%;right:${z1}%"></i><i class="zone2" style="left:${z2}%;right:${z2}%"></i><i class="needle" id="needle"></i></div><div class="hits" id="hits">${'<b></b>'.repeat(3)}</div></div>`, `<button class="btn primary big" data-a="strike">${ico('ic_pick')}</button>`, false);
+  openHammer('망치질', next.period, next.zone, q => finishForge(q));
+}
+// 막대 놀이: period 바늘이 한 번 오가는 초(두드릴 때마다 빨라짐), zone 맞는 칸 넓이, done(품질 0~2)
+function openHammer(title, period, zone, done) {
+  hammer = { t0: performance.now(), hits: [], period, zone, done };
+  const z1 = 50 - 17 * zone, z2 = 50 - 7 * zone;
+  openSheet(ico('ic_hearth') + title, `<div class="hammer"><div class="hbar"><i class="zone" style="left:${z1}%;right:${z1}%"></i><i class="zone2" style="left:${z2}%;right:${z2}%"></i><i class="needle" id="needle"></i></div><div class="hits" id="hits">${'<b></b>'.repeat(3)}</div></div>`, `<button class="btn primary big" data-a="strike">${ico('ic_pick')}</button>`, false);
   requestAnimationFrame(hammerTick);
 }
 const needlePos = () => { const u = ((performance.now() - hammer.t0) / 1000 / hammer.period) % 1; return u < .5 ? u * 2 : 2 - u * 2; };   // 일정한 빠르기로 오감
@@ -2359,8 +2371,8 @@ function strike() {
   const hs = document.getElementById('hits'); if (hs) hs.innerHTML = hammer.hits.map(v => `<b class="h${v}"></b>`).join('') + '<b></b>'.repeat(3 - hammer.hits.length);
   if (hammer.hits.length < 3) return;
   const total = hammer.hits.reduce((a, v) => a + v, 0), q = total >= 5 ? 2 : total >= 3 ? 1 : 0;
-  hammer = null;
-  setTimeout(() => finishForge(q), 350);
+  const done = hammer.done; hammer = null;
+  setTimeout(() => done(q), 350);
 }
 function finishForge(q) {
   const next = PICKS[S.pick + 1];
@@ -2507,6 +2519,23 @@ function doReq() {
   S.inv[q.item] -= q.n; S.gold += q.gold; q.done = true; S.reqN = (S.reqN || 0) + 1;
   SFX.coin(); toast(`${GOLD}+${q.gold}`); questEvent('request'); save(); renderHud(); showKitchen();
 }
+/* ===== 세공소 (기획 4번 10단계): 원석 하나와 🪙30으로 깎기. 막대 놀이로 결을 맞출수록 보석이 더 나옴 =====
+   보통 1개, 좋음 1개(반은 2개), 최상 2개. 귀한 원석일수록 바늘이 빠르고 칸이 좁음 */
+const CUTS = { crystal: { out: 'crystalGem', period: 2.2, zone: 1 }, amethyst: { out: 'amethystGem', period: 1.9, zone: .85 }, ruby: { out: 'rubyGem', period: 1.6, zone: .7 } }, CUT_GOLD = 30;
+function showJewel() {
+  const rows = Object.keys(CUTS).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o] || 0}</small> → <span class="ore ${CUTS[o].out}"></span>${ORES[CUTS[o].out].name}</span><button class="btn small" data-a="cut" data-o="${o}" ${(S.inv[o] || 0) >= 1 && S.gold >= CUT_GOLD ? '' : 'disabled'}>${GOLD}${CUT_GOLD}</button></div>`).join('');
+  openSheet(ico('ic_shard') + '세공소', `<div class="rows">${rows}</div>`);
+}
+function cutGem(o) {
+  const C = CUTS[o]; if (!C || (S.inv[o] || 0) < 1 || S.gold < CUT_GOLD) return;
+  S.inv[o]--; S.gold -= CUT_GOLD; renderHud();
+  openHammer('깎기', C.period, C.zone, q => {
+    const n = q === 2 ? 2 : q === 1 ? 1 + (Math.random() < .5 ? 1 : 0) : 1;
+    S.inv[C.out] = (S.inv[C.out] || 0) + n; S.cutN = (S.cutN || 0) + 1;
+    SFX.stairs(); questEvent('cut'); save(); renderHud();
+    openSheet('세공사', `<p>${['괜찮게 나왔어요.', '결이 잘 맞았네요.', '이건 정말 잘 깎였어요.'][q]}</p><div class="feat"><span><span class="ore ${C.out}"></span>${ORES[C.out].name} ×${n} ${QUAL[q]}</span></div>`);
+  });
+}
 /* ===== 시장 (기획 5번): 매일 바뀌는 시세. 많이 팔면 값이 떨어졌다가 며칠에 걸쳐 회복. 내일 오를 것 하나를 미리 알려 줌 ===== */
 const TRADE = ORE_ORDER;
 const clampM = v => Math.max(.5, Math.min(1.8, v));
@@ -2552,6 +2581,7 @@ document.addEventListener('click', e => {
   else if (a === 'market') showMarket();
   else if (a === 'home') upgradeHome();
   else if (a === 'pull') pull();
+  else if (a === 'cut') cutGem(b.dataset.o);
   else if (a === 'kpick') kpick(b.dataset.o);
   else if (a === 'kcookSel') cook(kitSel[0], kitSel[1]);
   else if (a === 'kcook') { const r = RECIPES_K[n]; cook(r.a, r.b); }

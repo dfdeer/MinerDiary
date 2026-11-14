@@ -410,6 +410,21 @@ const shot = process.argv[2];
   await forge();
   s = await st();
   ok(s.pick === 2 && s.inv.ironBar === 0 && await page.evaluate(() => window.MinerDiary.maxFloor()) === 10, '철 곡괭이로 단단한 바위와 깊이 10까지');
+
+  // 13-0f. 세공소: (깊이 7을 갔다 치고) 고치고, 원석을 막대 놀이로 깎아 보석
+  await page.evaluate(() => { S.deepest = 7; questEvent(); S.inv.silverBar = 3; S.inv.crystal = 3; S.gold += 1600; renderHud(); });
+  ok((await quest()).includes('세공소'), '깊이 7과 철 곡괭이 다음 퀘스트 「세공소 고치기」');
+  await visit('jewel', '#sheet [data-a="restore"][data-o="jewel"]');
+  await page.click('#sheet [data-a="restore"][data-o="jewel"]');
+  ok((await st()).restored.includes('jewel') && (await quest()).includes('보석'), '세공소를 고치면 퀘스트 「보석 깎기」');
+  await page.click('#sheet [data-a="close"]');
+  await visit('jewel', '#sheet [data-a="cut"][data-o="crystal"]');
+  await page.click('#sheet [data-a="cut"][data-o="crystal"]');
+  for (let k = 0; k < 3; k++) await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
+  await page.waitForSelector('#sheet h2:has-text("세공사")', { timeout: 3000 });
+  s = await st();
+  ok(s.inv.crystalGem >= 1 && s.inv.crystal === 0 && s.cutN === 1 && (await quest()).includes('깊이 10'), `수정 원석을 깎아 수정 보석 ${s.inv.crystalGem}개, 다음 퀘스트 「깊이 10 도달」`);
+  await page.click('#sheet [data-a="close"]');
   await visit('smithy', '#sheet [data-a="close"]');
 
   // 13-1. 장신구: 만들기, 합치기, 끼기
