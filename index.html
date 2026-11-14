@@ -100,6 +100,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .hbar .needle{position:absolute;top:-2px;bottom:-2px;width:6px;margin-left:-3px;border-radius:3px;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.8)}
 .hits{display:flex;gap:10px;justify-content:center}.hits b{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.4)}.hits b.h2{background:#ffd27a;border-color:#ffd27a}.hits b.h1{background:#c9a060;border-color:#c9a060}.hits b.h0{background:#6b4a3a;border-color:#6b4a3a}
 .btn.big{min-width:120px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);font-size:13px}.chip.on{border-color:#e9b04f;background:rgba(233,176,79,.25)}.chip:disabled{opacity:.4}
 .up{color:#8fe08a}.down{color:#f0907a}.news{background:rgba(233,176,79,.15);border-radius:10px;padding:6px 10px}
 .slots{display:flex;gap:8px;margin:2px 0 8px}.slot{flex:1;min-height:52px;border-radius:12px;border:2px dashed rgba(255,255,255,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
 .slot.on{border:2px solid #e9b04f;background:rgba(233,176,79,.15)}.slot .ico{width:22px;height:22px}
@@ -324,12 +325,15 @@ const QUESTS = [
   { id: 'fish', text: '물고기 낚기', need: 3, target: 'bridge', reward: 60 },
   { id: 'field', text: '밭 일구기', target: 'field' },
   { id: 'harvest', text: '작물 거두기', need: 3, target: 'field', reward: 80 },
+  { id: 'kitchen', text: '식당 고치기', target: 'kitchen' },
+  { id: 'cook', text: '요리 찾기', need: 1, target: 'kitchen', reward: 50 },
+  { id: 'request', text: '주민 의뢰 들어주기', need: 1, target: 'kitchen', reward: 100 },
   { id: 'deep7', text: '깊이 7 도달', need: 7, target: 'mine', reward: 100 },
   { id: 'pick2', text: '철 곡괭이 만들기', need: 2, target: 'smithy', reward: 100 },
   { id: 'deep10', text: '깊이 10 도달', need: 10, target: 'mine', reward: 200 },
 ];
 const questNow = () => QUESTS[S.quest];
-const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : 0);
+const questProg = q => (q.id === 'ore' ? S.qn : q.id === 'deep' || q.id === 'deep7' || q.id === 'deep10' ? S.deepest : q.id === 'gold' ? S.gold : q.id === 'pick' || q.id === 'pick2' ? S.pick : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
   let q = questNow(), flag = false;
@@ -2087,7 +2091,11 @@ const RECIPES = [['compass', 'plumb', 'guide'], ['compass', 'flag', 'twin'], ['g
   ['boots', 'insole', 'trailboots'], ['gloves', 'magnet', 'minergloves'], ['clover', 'pouch', 'luckpouch'], ['charm', 'honey', 'sleepcharm'], ['explorer', 'glowdowse', 'star']];
 const COMBINE_GOLD = 100;
 // 쓰고 없어지는 것
-const ITEMS = { radishSeed: { n: '무 씨앗', ic: 'ic_seed', seed: 'radish' }, potatoSeed: { n: '감자 씨앗', ic: 'ic_seed', seed: 'potato' }, berrySeed: { n: '딸기 씨앗', ic: 'ic_seed', seed: 'berry' }, recall: { n: '귀환서', ic: 'ic_scroll' }, campRecall: { n: '야영 귀환서', ic: 'ic_scroll' }, tent: { n: '야영 천막', ic: 'ic_tent' } };
+const ITEMS = {
+  soup: { n: '버섯 수프', ic: 'ic_rest', eat: 25 }, grill: { n: '생선 구이', ic: 'ic_fish', eat: 30 }, fry: { n: '감자 볶음', ic: 'ic_rest', eat: 35 },
+  stew: { n: '무 조림', ic: 'ic_rest', eat: 30 }, jam: { n: '딸기 잼', ic: 'ic_rest', eat: 20 }, eelbowl: { n: '장어 덮밥', ic: 'ic_fish', eat: 60 },
+  moonsoup: { n: '달빛 국', ic: 'ic_rest', eat: 80 }, mush2: { n: '이상한 죽', ic: 'ic_rest', eat: 5 },
+  radishSeed: { n: '무 씨앗', ic: 'ic_seed', seed: 'radish' }, potatoSeed: { n: '감자 씨앗', ic: 'ic_seed', seed: 'potato' }, berrySeed: { n: '딸기 씨앗', ic: 'ic_seed', seed: 'berry' }, recall: { n: '귀환서', ic: 'ic_scroll' }, campRecall: { n: '야영 귀환서', ic: 'ic_scroll' }, tent: { n: '야영 천막', ic: 'ic_tent' } };
 // 대장간에서 만드는 것 (장신구, 쓸 것, 장신구 고리)
 const CRAFTS = [
   { id: 'tent', kind: 'item', need: { fiber: 6, wood: 4 }, gold: 0 },
@@ -2131,6 +2139,7 @@ function buy(i) {
 }
 function useItem(id) {
   if (!(S.items[id] > 0)) return;
+  if (ITEMS[id].eat) { const e = ITEMS[id].eat; S.items[id]--; S.energy = Math.min(S.max, S.energy + e); SFX.coin(); toast(`${accIco(id)}${PWR}+${e}`); save(); renderHud(); showBag(); return; }   // 먹어도 시간은 거꾸로 가지 않음
   if (id === 'tent') { pitchTent(); return; }
   if (id === 'recall') { if (scene === 'village') return; S.items.recall--; hideSheet(); SFX.stairs(); toVillage('home'); toast(`${ico('ic_scroll')}마을`); return; }
   if (id === 'campRecall') { const lc = S.deep.lastCamp; if (!lc) return; S.items.campRecall--; hideSheet(); SFX.stairs(); fade = 1; unpack(); startDeep(lc[0], lc[1], lc[2]); return; }
@@ -2234,6 +2243,7 @@ function showCard(o, msg) {
     else line = `다음은 대장간이에요. ${GOLD}${GOAL.cost - S.gold}만 더 모으면 돼요.`;
     openSheet('촌장', `<p>${line}</p>`);
   } else if (o.id === 'merchant') showMerchant();
+  else if (o.id === 'kitchen') showKitchen();
   else if (o.id === 'market') showMarket();
   else if (o.id === 'smithy') showSmithy();
   else if (o.id === 'mine') {
@@ -2249,8 +2259,8 @@ function showMerchant() {
 function showBag() {
   const out = scene !== 'village', src = out ? S.carry : S.inv;
   const rows = ORE_ORDER.filter(o => src[o]).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name}</span><span>×${src[o]}</span><small>${GOLD}${ORES[o].price * src[o]}</small></div>`).join('');
-  const usable = id => (id === 'tent' ? scene === 'mine' : id === 'recall' ? out : !!S.deep.lastCamp);
-  const items = Object.keys(ITEMS).filter(id => S.items[id] > 0).map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small>×${S.items[id]}</small></span>${ITEMS[id].seed ? '' : `<button class="btn small" data-a="use" data-o="${id}" ${usable(id) ? '' : 'disabled'}>쓰기</button>`}</div>`).join('');
+  const usable = id => (ITEMS[id].eat ? S.energy < S.max : id === 'tent' ? scene === 'mine' : id === 'recall' ? out : !!S.deep.lastCamp);
+  const items = Object.keys(ITEMS).filter(id => S.items[id] > 0).map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small>×${S.items[id]}</small></span>${ITEMS[id].seed ? '' : `<button class="btn small" data-a="use" data-o="${id}" ${usable(id) ? '' : 'disabled'}>${ITEMS[id].eat ? `${PWR}+${ITEMS[id].eat}` : '쓰기'}</button>`}</div>`).join('');
   const slots = []; for (let i = 0; i < S.acc.slots; i++) { const id = S.acc.eq[i]; slots.push(id ? `<button class="slot on" data-a="unequip" data-o="${id}" aria-label="빼기">${accIco(id)}<small>${ACC[id].n}</small></button>` : '<span class="slot"></span>'); }
   const accs = Object.keys(ACC).filter(id => freeOwned(id) > 0).map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ACC[id].n}${owned(id) > 1 ? ` <small>×${freeOwned(id)}</small>` : ''}</span><button class="btn small" data-a="equip" data-o="${id}" ${S.acc.eq.length < S.acc.slots ? '' : 'disabled'}>끼기</button></div>`).join('');
   openSheet(ico('ic_bag') + (out ? `가방 <small>${carryN()}/${bagCap()}</small>` : '창고'),
@@ -2266,6 +2276,7 @@ const RESTORE = {
   smithy: { gold: 500, who: '대장장이', line: '대장간을 고쳐 줘서 고마워요. 광석을 용광로에 넣고 자면 아침엔 주괴가 돼 있을 거예요. 주괴를 모아 오면 곡괭이도 새로 두드려 줄게요.' },
   bridge: { gold: 300, need: { wood: 20, ironBar: 2 }, who: '촌장', line: '다리가 이어졌네요. 이 낚싯대도 가져가요. 강에선 아침이랑 저녁에 잘 잡히고, 새벽엔 그때만 나오는 물고기가 있대요.', then: () => { S.rod = 1; } },
   field: { gold: 300, need: { wood: 8 }, who: '촌장', line: '밭이 다시 일궈졌네요. 씨앗은 떠돌이 상인이 팔아요. 아침이나 점심에 물을 주면 그날 밤 한 뼘씩 자라요.' },
+  kitchen: { gold: 1000, need: { wood: 15, ironBar: 2 }, who: '식당 주인', line: '식당을 다시 열게 됐어요. 재료 두 가지를 골라 요리해 봐요. 처음 찾은 맛은 적어 둘게요. 점심이랑 저녁엔 마을 사람들이 부탁도 하러 와요.' },
   market: { gold: 800, need: { wood: 10 }, who: '시장 상인', line: '시장이 다시 열렸어요. 값은 날마다 바뀌어요. 많이 팔면 값이 떨어지니 나눠서 파는 게 좋아요. 내일 무엇이 오를지도 알려 줄게요.', then: () => rollMarket(true) },
 };
 const canRestore = id => { const i = QUESTS.findIndex(q => q.id === id); return i >= 0 && S.quest >= i; };
@@ -2460,6 +2471,42 @@ function drawCrops(c, o) {
     c.restore();
   }
 }
+/* ===== 식당 (기획 4번 7단계): 재료 둘을 골라 요리. 맞는 짝이면 요리법을 알게 되고, 먹으면 기력이 참 (시간은 안 돌아감) =====
+   점심과 저녁엔 그날의 주민 의뢰: 정해진 것을 가져다주면 돈 */
+const COOKABLE = ['herb', 'mush', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry'];
+const RECIPES_K = [
+  { out: 'soup', a: 'mush', b: 'herb' }, { out: 'grill', a: 'carp', b: 'herb' }, { out: 'grill', a: 'trout', b: 'herb' },
+  { out: 'fry', a: 'potato', b: 'mush' }, { out: 'stew', a: 'radish', b: 'catfish' }, { out: 'jam', a: 'berry', b: 'berry' },
+  { out: 'eelbowl', a: 'eel', b: 'potato' }, { out: 'moonsoup', a: 'moonkoi', b: 'radish' },
+];
+const REQS = [['radish', 2, 120], ['carp', 3, 90], ['mush', 4, 70], ['iron', 6, 220], ['potato', 2, 180], ['trout', 2, 110], ['copperBar', 2, 200], ['herb', 5, 90], ['berry', 1, 200], ['silver', 3, 200]];
+let kitSel = [];
+function todayReq() { if (!S.req || S.req.day !== S.day) { const r = REQS[(S.day * 7 + 3) % REQS.length]; S.req = { day: S.day, item: r[0], n: r[1], gold: r[2], done: false }; } return S.req; }
+function findRecipe(a, b) { return RECIPES_K.find(r => (r.a === a && r.b === b) || (r.a === b && r.b === a)); }
+function showKitchen() {
+  const has = o => (S.inv[o] || 0) - kitSel.filter(k => k === o).length;
+  const chips = COOKABLE.filter(o => S.inv[o]).map(o => `<button class="chip ${kitSel.includes(o) ? 'on' : ''}" data-a="kpick" data-o="${o}" ${has(o) > 0 || kitSel.includes(o) ? '' : 'disabled'}><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o]}</small></button>`).join('');
+  const known = (S.recipes || []).map(i => RECIPES_K[i]).map((r, j) => `<div class="rowi"><span class="nm">${accIco(r.out)}${ITEMS[r.out].n} <small>${ORES[r.a].name} + ${ORES[r.b].name}</small> ${PWR}+${ITEMS[r.out].eat}</span><button class="btn small" data-a="kcook" data-n="${S.recipes[j]}" ${(S.inv[r.a] || 0) >= (r.a === r.b ? 2 : 1) && (S.inv[r.b] || 0) >= 1 ? '' : 'disabled'}>요리</button></div>`).join('');
+  const ph = phaseIndex(), q = todayReq(), reqOpen = ph === 1 || ph === 2;
+  const req = !reqOpen ? '<p class="dim">점심과 저녁에 의뢰</p>' : q.done ? `<p class="dim">${ico('ic_check')}오늘 의뢰 끝</p>` : `<div class="rowi"><span class="nm"><span class="ore ${q.item}"></span>${ORES[q.item].name} ${Math.min(S.inv[q.item] || 0, q.n)}/${q.n}</span><button class="btn small" data-a="kreq" ${(S.inv[q.item] || 0) >= q.n ? '' : 'disabled'}>${GOLD}${q.gold}</button></div>`;
+  openSheet(ico('ic_rest') + '식당', `<p class="dim">재료 둘</p><div class="chips">${chips || '<span class="dim">재료 없음</span>'}</div><div class="btns" style="margin:6px 0 10px"><button class="btn primary" data-a="kcookSel" ${kitSel.length === 2 ? '' : 'disabled'}>요리</button></div>`
+    + (known ? `<p class="dim">알게 된 요리</p><div class="rows">${known}</div>` : '') + `<p class="dim" style="margin-top:10px">주민 의뢰</p>${req}`);
+}
+function kpick(o) { const i = kitSel.indexOf(o); if (i >= 0) kitSel.splice(i, 1); else if (kitSel.length < 2 && (S.inv[o] || 0) > kitSel.filter(k => k === o).length) kitSel.push(o); showKitchen(); }
+function cook(a, b) {
+  if ((S.inv[a] || 0) < (a === b ? 2 : 1) || (S.inv[b] || 0) < 1) return;
+  S.inv[a]--; S.inv[b]--;
+  const r = findRecipe(a, b), out = r ? r.out : 'mush2';
+  S.items[out] = (S.items[out] || 0) + 1;
+  if (r) { const i = RECIPES_K.indexOf(r); S.recipes = S.recipes || []; if (!S.recipes.includes(i)) { S.recipes.push(i); toast(`${ico('ic_check')}새 요리 ${ITEMS[out].n}`); } else toast(`${accIco(out)}${ITEMS[out].n}`); }
+  else toast(`${accIco(out)}${ITEMS[out].n}`);
+  SFX.ore(2); questEvent('cook'); save(); renderHud(); kitSel = []; showKitchen();
+}
+function doReq() {
+  const q = todayReq(), ph = phaseIndex(); if (q.done || (S.inv[q.item] || 0) < q.n || !(ph === 1 || ph === 2)) return;
+  S.inv[q.item] -= q.n; S.gold += q.gold; q.done = true; S.reqN = (S.reqN || 0) + 1;
+  SFX.coin(); toast(`${GOLD}+${q.gold}`); questEvent('request'); save(); renderHud(); showKitchen();
+}
 /* ===== 시장 (기획 5번): 매일 바뀌는 시세. 많이 팔면 값이 떨어졌다가 며칠에 걸쳐 회복. 내일 오를 것 하나를 미리 알려 줌 ===== */
 const TRADE = ORE_ORDER;
 const clampM = v => Math.max(.5, Math.min(1.8, v));
@@ -2505,6 +2552,10 @@ document.addEventListener('click', e => {
   else if (a === 'market') showMarket();
   else if (a === 'home') upgradeHome();
   else if (a === 'pull') pull();
+  else if (a === 'kpick') kpick(b.dataset.o);
+  else if (a === 'kcookSel') cook(kitSel[0], kitSel[1]);
+  else if (a === 'kcook') { const r = RECIPES_K[n]; cook(r.a, r.b); }
+  else if (a === 'kreq') doReq();
   else if (a === 'plant') plant(b.dataset.o, n);
   else if (a === 'water') water(n);
   else if (a === 'harvest') harvest(n);
