@@ -459,6 +459,34 @@ const shot = process.argv[2];
   await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 15000 });
   s = await st();
   ok(s.inv.meat >= 1 && !Object.keys(s.carry).length, '나가기 단추로 마을에 돌아오면 잡은 것이 창고로');
+
+  // 13-0h. 야시장: 아침엔 닫혀 있고, 저녁에 시장에서 수상한 상인의 의뢰를 들어줌
+  ok((await quest()).includes('야시장'), '사냥 다음 퀘스트 「저녁 야시장 거래」');
+  await page.evaluate(() => { S.minE = S.dayStart - S.max * .1; renderHud(); });
+  await visit('market', '#sheet [data-a="close"]');
+  ok(await page.locator('#sheet [data-a="nsell"]').count() === 0 && (await page.textContent('#sheet')).includes('저녁부터'), '야시장은 아침엔 닫혀 있음');
+  await page.click('#sheet [data-a="close"]');
+  await page.evaluate(() => { S.minE = S.dayStart - S.max * .65; const b = nightToday().buy[0]; S.inv[b.item] = (S.inv[b.item] || 0) + b.n; renderHud(); });
+  await visit('market', '#sheet [data-a="nsell"]');
+  const gN = (await st()).gold, nb = (await st()).night.buy[0];
+  await page.click('#sheet [data-a="nsell"][data-n="0"]');
+  s = await st();
+  ok(s.night.buy[0].done && s.gold === gN + nb.gold + 100 && await page.locator('#sheet [data-a="nsell"][data-n="0"]').isDisabled(), `저녁 야시장에서 ${nb.item} ${nb.n}개를 🪙${nb.gold}에 팔고, 같은 의뢰는 하루 한 번`);
+  await page.click('#sheet [data-a="close"]');
+
+  // 13-0i. 박물관: 고치고 종류마다 하나씩 기증, 10종이면 보상
+  await page.evaluate(() => { S.inv.silverBar = 3; S.inv.goldBar = 2; S.inv.wood = 30; S.gold += 3000; ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'herb', 'mush', 'fiber', 'carp', 'radish'].forEach(o => { S.inv[o] = (S.inv[o] || 0) + 1; }); renderHud(); });
+  ok((await quest()).includes('박물관'), '야시장 다음 퀘스트 「박물관 고치기」');
+  await visit('museum', '#sheet [data-a="restore"][data-o="museum"]');
+  await page.click('#sheet [data-a="restore"][data-o="museum"]');
+  ok((await st()).restored.includes('museum') && (await quest()).includes('기증'), '박물관을 고치면 퀘스트 「박물관에 기증」');
+  await page.click('#sheet [data-a="close"]');
+  await visit('museum', '#sheet [data-a="donate"]');
+  const gMu = (await st()).gold, coal0 = (await st()).inv.coal;
+  for (let k = 0; k < 10; k++) await page.click('#sheet [data-a="donate"] >> nth=0');
+  s = await st();
+  ok(s.museum.length === 10 && s.gold === gMu + 500 + 300 && s.inv.coal === coal0 - 1 && !s.museum.some((o, i) => s.museum.indexOf(o) !== i), '10종을 하나씩 기증하면 🪙500 (퀘스트 보상 🪙300), 같은 것은 한 번만');
+  await page.click('#sheet [data-a="close"]');
   await visit('smithy', '#sheet [data-a="close"]');
 
   // 13-1. 장신구: 만들기, 합치기, 끼기
