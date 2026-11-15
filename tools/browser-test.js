@@ -20,6 +20,7 @@ const shot = process.argv[2];
     await page.waitForTimeout(500);
     return page;
   }
+  const P = (s, k) => ((s.inv || {})[k] || 0) + ((s.carry || {})[k] || 0);   // 가방과 창고를 합친 수 (마을 안에선 둘 다 씀)
   const helpers = page => ({
     st: () => page.evaluate(() => JSON.parse(JSON.stringify(window.MinerDiary.state()))),
     // 캔버스 위 칸 누르기
@@ -134,7 +135,8 @@ const shot = process.argv[2];
   ok(true, '동굴에서 나가면 숲으로');
   await page.click('[data-a="leave"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 });
-  ok((await st()).inv.copper >= 5, '숲을 지나 마을로, 가방 것은 창고로');
+  ok((await st()).carry.copper >= 5 && !(await st()).inv.copper, '숲을 지나 마을로 와도 가방은 그대로 들고 있음 (저절로 창고에 안 들어감)');
+  ok(await page.evaluate(() => /\d+\/\d+/.test(document.querySelector('#dock [data-a="bag"]').textContent)), '마을 아래 가방 단추엔 가방 칸 수');
   await visit('merchant', '#sheet [data-a="sellAll"]');
   if (shot) await page.screenshot({ path: path.join(shot, 'merchant.png') });
   await page.click('#sheet [data-a="sellAll"]');
@@ -234,16 +236,28 @@ const shot = process.argv[2];
   await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 30000 });
   await page.waitForTimeout(1000);
   s = await st();
-  ok(s.screen === 'village' && carry0.copper >= 5 && Object.entries(carry0).every(([k, n]) => s.inv[k] === n) && !Object.keys(s.carry).length, `깊이 3에서 걸어서 마을까지, 가방 것은 창고로 (${s.screen} ${JSON.stringify(s.inv)} ${JSON.stringify(s.carry)} ${s.day})`);
+  ok(s.screen === 'village' && carry0.copper >= 5 && Object.entries(carry0).every(([k, n]) => s.carry[k] === n), `깊이 3에서 걸어서 마을까지, 가방은 그대로 (${s.screen} ${JSON.stringify(s.carry)} ${s.day})`);
+  // 집 창고: 가방에서 넣고 꺼냄
+  await visit('house', '#sheet [data-a="store"]');
+  await page.click('#sheet [data-a="store"]');
+  await page.click('#sheet [data-a="stAll"]');
+  s = await st();
+  ok(!Object.keys(s.carry).length && Object.entries(carry0).every(([k, n]) => s.inv[k] === n), '집 창고에서 모두 넣기를 누르면 가방 것이 창고로');
+  await page.click('#sheet [data-a="stOut"][data-o="copper"]');
+  s = await st();
+  ok(s.carry.copper === carry0.copper && !s.inv.copper, '창고에서 꺼내기를 누르면 가방으로');
+  await page.click('#sheet [data-a="stIn"][data-o="copper"]');
+  ok((await st()).inv.copper === carry0.copper, '넣기를 누르면 그 물건만 창고로');
+  await page.click('#sheet [data-a="close"]');
   ok(Object.keys(s.deep.dug).length >= dug0, '판 곳은 사라지지 않음');
 
   // 9. 팔기
-  const worth = await page.evaluate(() => ORE_ORDER.reduce((a, o) => a + (S.inv[o] || 0) * ORES[o].price, 0)), g0 = s.gold;
+  const worth = await page.evaluate(() => ORE_ORDER.reduce((a, o) => a + have(o) * ORES[o].price, 0)), g0 = (await st()).gold;
   await visit('merchant', '#sheet [data-a="sellAll"]');
   if (shot) await page.screenshot({ path: path.join(shot, 'merchant.png') });
   await page.click('#sheet [data-a="sellAll"]');
   s = await st();
-  ok(s.gold === g0 + worth && Object.values(s.inv).every(n => n === 0), '전부 팔아 돈이 정확히 들어옴');
+  ok(s.gold === g0 + worth && Object.values(s.inv).every(n => n === 0) && !Object.keys(s.carry).length, '마을 안에선 창고 것도 그 자리에서 팔림, 전부 팔아 돈이 정확히 들어옴');
 
   // 10. 집에서 자기
   const day = s.day, ph = await page.evaluate(() => window.MinerDiary.phaseIndex()), expE = ph === 3 ? 90 : ph <= 1 ? 110 : 100;
@@ -308,7 +322,7 @@ const shot = process.argv[2];
   await page.evaluate(() => { leaveGrove(); S.rod = 0; S.sickle = 0; });
   await page.click('[data-a="leave"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 });
   s = await st();
-  ok(!Object.keys(s.carry).length && ['herb', 'mush', 'wood', 'fiber', 'leather', 'copper'].some(k => s.inv[k] > 0), '숲에서 마을 길까지 걸어가서 마을로, 주운 것은 창고로');
+  ok(['herb', 'mush', 'wood', 'fiber', 'leather', 'copper'].some(k => s.carry[k] > 0), '숲에서 마을 길까지 걸어가서 마을로, 주운 것은 가방에 그대로');
 
   // 10-2b. 광산: 광맥 줄기와 연속 캐기, 숨은 보물 상자
   ok((await quest()).includes('보물'), '채집 다음 퀘스트 「광산 숨은 보물 찾기」');
@@ -360,7 +374,7 @@ const shot = process.argv[2];
   // 10-4. 대장간: 무너진 팻말, 🪙500으로 복구, 용광로에 광석 넣기
   await visit('smithy', '#sheet h2:has-text("부서진 대장간")');
   ok((await page.textContent('#sheet')).includes('곡괭이 강화'), '부서진 대장간 팻말');
-  await page.evaluate(() => { const s = window.MinerDiary.state(); s.gold = 1000; s.inv.copper = 27; s.inv.coal = 10; questEvent(); renderHud(); });
+  await page.evaluate(() => { const s = window.MinerDiary.state(); s.gold = 1000; s.carry = {}; s.inv.copper = 27; s.inv.coal = 10; questEvent(); renderHud(); });
   ok((await quest()).includes('대장간 고치기'), '돈이 모이면 퀘스트 「대장간 고치기」');
   await visit('smithy', '#sheet [data-a="restore"][data-o="smithy"]');
   await page.click('#sheet [data-a="restore"][data-o="smithy"]');
@@ -419,7 +433,7 @@ const shot = process.argv[2];
   const gP = (await st()).gold;
   await forge();
   s = await st();
-  ok(s.pick === 1 && s.inv.copperBar === 0 && s.gold === gP - 200 + 50, '구리 주괴 5개와 🪙200으로 구리 곡괭이 (퀘스트 보상 🪙50)');
+  ok(s.pick === 1 && !P(s, 'copperBar') && s.gold === gP - 200 + 50, '구리 주괴 5개와 🪙200으로 구리 곡괭이 (퀘스트 보상 🪙50)');
   ok(s.pickQ >= 1, `가운데를 맞춰 두드리면 품질이 오름 (${['보통', '좋음', '최상'][s.pickQ]})`);
   ok(await page.evaluate(() => window.MinerDiary.maxFloor()) === 7 && (await quest()).includes('시장'), '구리 곡괭이로 깊이 7까지, 다음 퀘스트 「시장 고치기」');
   // 13-0x. 날 세우기: 곡괭이 파워 +4
@@ -434,7 +448,7 @@ const shot = process.argv[2];
   await visit('market', '#sheet [data-a="restore"][data-o="market"]');
   await page.click('#sheet [data-a="restore"][data-o="market"]');
   s = await st();
-  ok(s.restored.includes('market') && s.inv.wood === 0 && s.market && (await quest()).includes('시장에서 팔기'), '시장을 고치면 시세가 생기고 퀘스트 「시장에서 팔기」');
+  ok(s.restored.includes('market') && !P(s, 'wood') && s.market && (await quest()).includes('시장에서 팔기'), '시장을 고치면 시세가 생기고 퀘스트 「시장에서 팔기」');
   await page.click('#sheet [data-a="close"]');
   const pr = await page.evaluate(() => [unitPrice('iron'), unitPrice('iron', 19), tradeValue('iron')]);
   ok(pr[1] < pr[0], `많이 팔수록 한 개 값이 떨어짐 (${pr[0]} → ${pr[1]})`);
@@ -443,16 +457,16 @@ const shot = process.argv[2];
   const gM = (await st()).gold;
   await page.click('#sheet [data-a="trade"][data-o="iron"]');
   s = await st();
-  ok(s.gold === gM + pr[2] + 50 && s.inv.iron === 0 && s.market.sold.iron === 20, `철 광석 20개를 시세로 팔아 🪙${pr[2]} (퀘스트 보상 🪙50)`);
+  ok(s.gold === gM + pr[2] + 50 && !P(s, 'iron') && s.market.sold.iron === 20, `철 광석 20개를 시세로 팔아 🪙${pr[2]} (퀘스트 보상 🪙50)`);
   // 13-0a2. 시장 상인들: 음식 상인과 재료 상인
   await page.evaluate(() => { S.gold += 200; marketTab = 'food'; showMarket(); });
   const gFd = (await st()).gold;
   await page.click('#sheet [data-a="mbuy"][data-o="food"][data-n="1"]');
   ok((await st()).items.bread === 1 && (await st()).gold === gFd - 35, '시장 음식 상인에게서 빵 🪙35');
-  const wd0 = (await st()).inv.wood || 0;
+  const wd0 = await page.evaluate(() => S.carry.wood || 0);
   await page.click('#sheet [data-a="mtab"][data-o="mat"]');
   await page.click('#sheet [data-a="mbuy"][data-o="mat"][data-n="0"]');
-  ok((await st()).inv.wood === wd0 + 5, '시장 재료 상인에게서 나뭇가지 5개');
+  ok(await page.evaluate(() => S.carry.wood || 0) === wd0 + 5, '시장 재료 상인에게서 산 나뭇가지 5개는 가방에');
   await page.evaluate(() => { marketTab = 'trade'; showMarket(); });
 
   // 13-0b. 집 고치기: 최대 기력 +20
@@ -484,7 +498,7 @@ const shot = process.argv[2];
     await page.evaluate(() => document.querySelector('#sheet [data-a="pull"]').click());
   }
   s = await st();
-  ok(s.fishN === fN0 + 3 && Object.keys(s.inv).some(k => ['carp', 'trout', 'catfish', 'eel', 'moonkoi'].includes(k) && s.inv[k] > 0) && s.energy === eFi - 4, '강을 누르면 물가로 걸어가 낚시, 찌가 잠길 때 당기면 물고기 (던질 때 기력 2)');
+  ok(s.fishN === fN0 + 3 && ['carp', 'trout', 'catfish', 'eel', 'moonkoi'].some(k => P(s, k) > 0) && s.energy === eFi - 4, '강을 누르면 물가로 걸어가 낚시, 찌가 잠길 때 당기면 물고기 (던질 때 기력 2)');
   ok((await quest()).includes('밭'), '물고기 셋을 낚으면 다음 퀘스트 「밭 일구기」');
   await page.click('#sheet [data-a="close"]');
 
@@ -521,7 +535,7 @@ const shot = process.argv[2];
     await page.click('#sheet [data-a="harvest"]');
   }
   s = await st();
-  ok(s.harvestN === 3 && s.inv.radish >= 3 && !Object.keys(s.farm).length && (await quest()).includes('식당'), '다 자란 무를 셋 거두면 다음 퀘스트 「식당 고치기」');
+  ok(s.harvestN === 3 && P(s, 'radish') >= 3 && !Object.keys(s.farm).length && (await quest()).includes('식당'), '다 자란 무를 셋 거두면 다음 퀘스트 「식당 고치기」');
 
   // 13-0e. 식당: 고치고, 재료 둘로 요리를 찾고, 먹으면 기력, 점심에 주민 의뢰
   await page.evaluate(() => { S.inv.wood = 15; S.inv.ironBar = 2; S.gold += 1000; S.inv.mush = 1; S.inv.herb = 1; renderHud(); });
@@ -534,7 +548,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="kpick"][data-o="herb"]');
   await page.click('#sheet [data-a="kcookSel"]');
   s = await st();
-  ok(s.items.soup === 1 && s.recipes.length === 1 && !s.inv.mush && (await quest()).includes('의뢰'), '버섯과 약초로 버섯 수프를 찾음, 다음 퀘스트 「주민 의뢰 들어주기」');
+  ok(s.items.soup === 1 && s.recipes.length === 1 && !P(s, 'mush') && (await quest()).includes('의뢰'), '버섯과 약초로 버섯 수프를 찾음, 다음 퀘스트 「주민 의뢰 들어주기」');
   if (shot) await page.screenshot({ path: path.join(shot, 'kitchen.png') });
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { S.energy = 50; renderHud(); showBag(); });
@@ -564,7 +578,7 @@ const shot = process.argv[2];
   await page.evaluate(() => { const s = window.MinerDiary.state(); s.inv.ironBar = 5; s.gold += 600; renderHud(); });
   await forge();
   s = await st();
-  ok(s.pick === 2 && s.inv.ironBar === 0 && await page.evaluate(() => window.MinerDiary.maxFloor()) === 10, '철 곡괭이로 단단한 바위와 깊이 10까지');
+  ok(s.pick === 2 && !P(s, 'ironBar') && await page.evaluate(() => window.MinerDiary.maxFloor()) === 10, '철 곡괭이로 단단한 바위와 깊이 10까지');
 
   // 13-0f. 세공소: (깊이 7을 갔다 치고) 고치고, 원석을 막대 놀이로 깎아 보석
   await page.evaluate(() => { S.deepest = 7; questEvent(); S.inv.silverBar = 3; S.inv.crystal = 3; S.gold += 1600; renderHud(); });
@@ -578,7 +592,7 @@ const shot = process.argv[2];
   for (let k = 0; k < 3; k++) await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
   await page.waitForSelector('#sheet h2:has-text("세공사")', { timeout: 3000 });
   s = await st();
-  ok(s.inv.crystalGem >= 1 && s.inv.crystal === 0 && s.cutN === 1 && (await quest()).includes('깊이 10'), `수정 원석을 깎아 수정 보석 ${s.inv.crystalGem}개, 다음 퀘스트 「깊이 10 도달」`);
+  ok(P(s, 'crystalGem') >= 1 && !P(s, 'crystal') && s.cutN === 1 && (await quest()).includes('깊이 10'), `수정 원석을 깎아 수정 보석 ${P(s, 'crystalGem')}개, 다음 퀘스트 「깊이 10 도달」`);
   await page.click('#sheet [data-a="close"]');
 
   // 13-0g. 성벽 문과 사냥: (깊이 10을 갔다 치고) 문을 고치고, 검을 만들고, 성 밖에서 몬스터 셋을 잡음
@@ -590,7 +604,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="close"]');
   await visit('smithy', '#sheet [data-a="sword"]');
   await page.click('#sheet [data-a="sword"]');
-  ok((await st()).sword === 1 && !(await st()).inv.copperBar, '대장간에서 구리 주괴로 구리 검');
+  ok((await st()).sword === 1 && !P(await st(), 'copperBar'), '대장간에서 구리 주괴로 구리 검');
   await page.click('#sheet [data-a="close"]');
   await visit('gate', '#sheet [data-a="hunt"]');
   ok(await page.locator('#sheet [data-a="hunt"]').isDisabled() === (await page.evaluate(() => phaseIndex())) < 1, '성벽 문은 점심부터 열림');
@@ -615,20 +629,22 @@ const shot = process.argv[2];
   await page.click('#minebar [data-a="leave"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 15000 });
   s = await st();
-  ok(s.inv.meat >= 1 && !Object.keys(s.carry).length, '나가기 단추로 마을에 돌아오면 잡은 것이 창고로');
+  ok(s.carry.meat >= 1, '나가기 단추로 마을에 돌아오면 잡은 것은 가방에 그대로');
 
   // 13-0g2. 세계 지도와 눈 덮인 산마을: 짐을 꾸려 길을 떠나고, 산마을 시장에 팔고, 산 광산에 들어가고, 여관에서 자고, 돌아옴
   ok((await quest()).includes('산마을'), '사냥 다음 퀘스트 「눈 덮인 산마을 가기」');
   await page.evaluate(() => { S.inv.coal = 10; S.gold += 100; S.energy = S.max; S.minE = S.dayStart - S.max * .35; renderHud(); });
   await visit('gate', '#sheet [data-a="world"]');
   await page.click('#sheet [data-a="world"]');
-  await page.waitForSelector('#sheet [data-a="pack"][data-o="coal"]');
-  await page.click('#sheet [data-a="pack"][data-o="coal"]');
-  ok((await st()).carry.coal === 10 && !(await st()).inv.coal, '지도에서 짐 꾸리기: 창고의 석탄을 가방에');
+  ok(await page.locator('#sheet [data-a="pack"]').count() === 0, '지도엔 짐 꾸리기가 없음 (창고는 집에서)');
+  await page.evaluate(() => { closeSheet(); S.carry = {}; storeOut('coal'); closeSheet(); });
+  ok((await st()).carry.coal === 10 && !(await st()).inv.coal, '집 창고에서 석탄을 꺼내 가방에');
+  await page.evaluate(() => { S.inv.copper = 7; showWorld(); });
   ok(await page.locator('#sheet [data-a="travel"][data-o="mtn"]').count() === 0 && await page.locator('#sheet [data-a="walk"][data-o="mtn"]').count() === 1, '처음 가는 마을은 바로 가기 없이 걸어가기만');
   await page.click('#sheet [data-a="walk"][data-o="mtn"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'forest' && S.forest.road === 'mtn', null, { timeout: 5000 });
   ok((await page.textContent('#minebar')).includes('눈길') && (await st()).carry.coal === 10, '첫 길은 눈길을 직접 걸음 (짐은 가방에 그대로)');
+  ok(await page.evaluate(() => have('copper') === 0 && S.inv.copper === 7), '마을 밖에선 집 창고 것을 못 씀 (가방 것만)');
   if (shot) await page.screenshot({ path: path.join(shot, 'road.png') });
   // 길가 광석 바위 캐기
   const mr = await page.evaluate(() => { const f = S.forest; for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) if (f.t[fI(x, y)] === 'm') { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) f.seen[fI(x + dx, y + dy)] = 1; const n = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => f.t[fI(x + dx, y + dy)] === 'g'); if (n) { hero.x = x + n[0]; hero.y = y + n[1]; return [x, y]; } } return null; });
@@ -664,6 +680,13 @@ const shot = process.argv[2];
   s = await st();
   ok(s.day === dIn + 1 && s.gold === gIn - 50 && await page.evaluate(() => window.MinerDiary.scene()) === 'town', '여관에서 🪙50에 자면 다음 날 산마을에서 시작');
   await page.click('#sheet [data-a="close"]');
+  // 여관 창고: 이 마을 안에서만 씀
+  await page.evaluate(() => { S.carry.iron = 4; });
+  await tclick(5, 5, '#sheet [data-a="store"]');
+  await page.click('#sheet [data-a="store"]');
+  await page.click('#sheet [data-a="stAll"]');
+  ok(await page.evaluate(() => S.stash.mtn.iron === 4 && !S.carry.iron && have('iron') === 4), '여관 창고에 넣은 것은 산마을 안에서는 들고 있지 않아도 씀');
+  await page.click('#sheet [data-a="close"]');
   await page.click('#minebar [data-a="world"]');
   await page.click('#sheet [data-a="travel"][data-o="home"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 5000 });
@@ -672,6 +695,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="close"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 5000 });
   ok((await st()).loc === 'home', '지도에서 마을로 돌아옴 (성벽 문 앞)');
+  ok(await page.evaluate(() => have('iron') === (S.inv.iron || 0) + (S.carry.iron || 0) && S.stash.mtn.iron === 4), '산마을 여관 창고 것은 처음 마을에서 못 씀');
   // 이동수단: 손수레(대장간)는 길 기력 15와 가방 +10, 당나귀 수레(산마을 시장)는 길 기력 5와 가방 +20
   await page.evaluate(() => { S.inv.wood = (S.inv.wood || 0) + 20; S.inv.ironBar = (S.inv.ironBar || 0) + 3; S.gold += 500; renderHud(); });
   await visit('smithy', '#sheet [data-a="craft"][data-o="cart"]');
@@ -731,10 +755,10 @@ const shot = process.argv[2];
   ok((await st()).restored.includes('museum') && (await quest()).includes('기증'), '박물관을 고치면 퀘스트 「박물관에 기증」');
   await page.click('#sheet [data-a="close"]');
   await visit('museum', '#sheet [data-a="donate"]');
-  const gMu = (await st()).gold, coal0 = (await st()).inv.coal;
+  const gMu = (await st()).gold, coal0 = P(await st(), 'coal');
   for (let k = 0; k < 10; k++) await page.click('#sheet [data-a="donate"] >> nth=0');
   s = await st();
-  ok(s.museum.length === 10 && s.gold === gMu + 500 + 300 && s.inv.coal === coal0 - 1 && !s.museum.some((o, i) => s.museum.indexOf(o) !== i), '10종을 하나씩 기증하면 🪙500 (퀘스트 보상 🪙300), 같은 것은 한 번만');
+  ok(s.museum.length === 10 && s.gold === gMu + 500 + 300 && P(s, 'coal') === coal0 - 1 && !s.museum.some((o, i) => s.museum.indexOf(o) !== i), '10종을 하나씩 기증하면 🪙500 (퀘스트 보상 🪙300), 같은 것은 한 번만');
   await page.click('#sheet [data-a="close"]');
 
   // 13-0j. 옛 광부의 갱도: 깊이 5에 처음 가면 가까이에 옛 갱도 방이 생기고, 일지를 읽으면 이야기와 보상
@@ -800,7 +824,7 @@ const shot = process.argv[2];
   await page.evaluate(() => showBag());
   await page.click('#sheet [data-a="use"][data-o="recall"]');
   s = await st();
-  ok(s.screen === 'village' && s.items.recall === 0 && s.inv.copper >= 3, '귀환서를 쓰면 바로 마을, 가방 것은 창고로');
+  ok(s.screen === 'village' && s.items.recall === 0 && s.carry.copper >= 3, '귀환서를 쓰면 바로 마을, 가방은 그대로');
   await page.waitForTimeout(800);
   await visit('smithy', '#sheet [data-a="close"]');
 
