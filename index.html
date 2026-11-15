@@ -526,9 +526,8 @@ const ICONS = {
   ic_settings: [[gearPath(), '#b9c0c8'], ['M12 8.6a3.4 3.4 0 1 0 .01 0Z', '#5a6068']],
   ic_sound: [['M3.5 9h4l5-4v14l-5-4h-4Z', '#b9c0c8'], ['M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12', 'none', 1.8]],
   ic_mute: [['M3.5 9h4l5-4v14l-5-4h-4Z', '#b9c0c8'], ['M15.5 9l5.5 6M21 9l-5.5 6', 'none', 2, '#d9583c']],
-  ic_pick: [['M4.6 21 14.6 7.4', 'none', 4.8, '#2b1a12'], ['M4.6 21 14.6 7.4', 'none', 3, '#b47a44'], ['M5.8 19.4l2.2-3', 'none', 3, '#7a4c28'],
-    ['M1.6 10.2C4.4 5 9.4 2.6 13.4 3.2 17.6 2.8 21 5.2 22.6 9.8 20 8.4 17.2 7.8 14.8 8 L12.6 8C9 7.8 5 8.6 1.6 10.2Z', '#c3ccd6', 1.4],
-    ['M4.6 7.6C7.2 5.4 10.4 4.4 13.4 4.6 16 4.4 18.4 5.4 20 7', 'none', 1.1, '#f4f7fa'], ['M11.6 3.6h3.6l.4 4.6h-4.4Z', '#7d8792', 1.2]],
+  ic_pick: [['M5.8 20.8L16.8 7.7', 'none', 4.8, '#2b1a12'], ['M5.8 20.8L16.8 7.7', 'none', 3, '#b47a44'], ['M6.7 19.7L9.3 16.6', 'none', 3, '#7a4c28'],
+    ['M6.2 4.1C11.2 1.3 15.7 2.7 18.8 5.3C21.9 7.9 24.1 12.1 22.2 17.5C21.4 14 19.3 10.9 16.2 8.3C13.2 5.8 9.8 4.2 6.2 4.1Z', '#c3ccd6', 1.4], ['M10.2 3.8C13.4 3.6 15.9 4.7 17.9 6.4C19.9 8 21.4 10.3 21.8 13.5', 'none', 1.1, '#f4f7fa'], ['M17.9 3.7L20.5 5.9 17 10 14.4 7.9Z', '#7d8792', 1.2]],
   ic_shop: [['M4 10.5h16v9.5H4Z', '#c09060'], ['M3 6h18l-1 4.5H4Z', '#e04a3a'], ['M7.5 6h3l-.4 4.5h-2.6ZM13.5 6h3l.4 4.5h-2.6Z', '#fff4e6', 0], ['M7 14h4v6H7Z', '#7a4a2a']],
   ic_village: [['M5.5 11h13v9.5h-13Z', '#e8c99a'], ['M2.5 11.8 12 3.5l9.5 8.3Z', '#d4473a'], ['M10 14.5h4v6h-4Z', '#8a5a32']],
   ic_tree: [['M10.6 15h2.8v6.5h-2.8Z', '#8a5a32'], ['M12 2.5c4.4 0 7.5 3.2 7.5 6.8 0 3.9-3.3 6.4-7.5 6.4s-7.5-2.5-7.5-6.4C4.5 5.7 7.6 2.5 12 2.5Z', '#4f9a45'], ['M9 6.5a2.2 2.2 0 1 0 .01 0Z', '#8fd07a', 0]],
@@ -883,9 +882,11 @@ function chibi(c, X, Y, s, o) {
   const pickaxe = () => {
     c.save(); c.translate(rs * 16, -48); c.rotate(ang); c.translate(-rs * 16, 48);
     limb(c, rs * 6, -26, rs * 23, -84, '#a8703a', 5.5);
-    c.beginPath(); c.moveTo(rs * 5, -90); c.quadraticCurveTo(rs * 27, -98, rs * 42, -72);
+    // 쇠 날은 자루 끝에서 자루와 직각으로 양쪽에 뻗고 끝이 자루 쪽으로 살짝 휨
+    c.beginPath(); c.moveTo(rs * 3.5, -88.7); c.quadraticCurveTo(rs * 27.2, -98.4, rs * 41.9, -77.5);
     c.strokeStyle = OUT; c.lineWidth = 12; c.stroke(); c.strokeStyle = '#b7c0ca'; c.lineWidth = 6.5; c.stroke();
-    c.beginPath(); c.moveTo(rs * 12, -92); c.quadraticCurveTo(rs * 27, -96, rs * 36, -80); c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 2; c.stroke();
+    c.beginPath(); c.moveTo(rs * 10, -92); c.quadraticCurveTo(rs * 26.6, -97.4, rs * 37, -83); c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 2; c.stroke();
+    shape(c, () => { c.save(); c.translate(rs * 23.6, -86.4); c.rotate(rs * .284); c.roundRect(-4.5, -5, 9, 10, 2); c.restore(); }, '#7d8792', 2.5);
     c.restore();
   };
   const gripArm = () => {
