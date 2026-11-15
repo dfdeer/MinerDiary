@@ -40,7 +40,9 @@ const shot = process.argv[2];
   // 1. 퀘스트를 따라 촌장 만나기
   const quest = () => page.evaluate(() => document.querySelector('.quest').innerText.replace(/\s+/g, ' ').trim());
   ok(await page.locator('#sheet').isHidden() && (await quest()).includes('촌장 만나기'), '시작하면 첫 퀘스트 「촌장 만나기」가 보임');
+  ok(await page.locator('.quest .ico').count() >= 2 && await page.locator('.qtap').isVisible() && await page.evaluate(() => document.querySelector('.quest').classList.contains('hint')), '퀘스트 막대엔 느낌표 표시와 화살표, 처음엔 손가락이 톡톡 (글 설명 없음)');
   await page.click('[data-a="quest"]');
+  ok(await page.locator('.qtap').count() === 0, '한 번 누르면 손가락은 사라짐');
   await page.waitForSelector('#sheet [data-a="intro"]', { timeout: 15000 });
   ok(true, '퀘스트를 누르면 촌장에게 걸어가서 소개가 열림');
   const line1 = await page.textContent('#sheet p');
@@ -50,6 +52,7 @@ const shot = process.argv[2];
   ok(await page.textContent('#sheet p') === line1 && await page.locator('#sheet [data-a="introPrev"]').count() === 0, '이전을 누르면 앞 대사로 돌아가고, 첫 대사엔 이전 단추가 없음');
   while (await page.locator('#sheet [data-a="intro"]').count()) await page.click('#sheet [data-a="intro"]');
   await page.click('#sheet [data-a="introDone"]');
+  ok(await page.evaluate(() => document.querySelector('.quest').classList.contains('fresh')), '새 퀘스트가 되면 퀘스트 막대가 반짝임');
   ok((await st()).introSeen && (await quest()).includes('숲 동굴'), '소개가 끝나면 다음 퀘스트 「숲 동굴 들어가기」');
   ok(!/누른 곳|끌어서|스페이스바|밝은 테두리/.test(await page.evaluate(() => document.body.innerText)), '조작 설명 문구 없음');
   if (shot) await page.screenshot({ path: path.join(shot, 'village.png') });
