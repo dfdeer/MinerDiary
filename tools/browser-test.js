@@ -595,11 +595,23 @@ const shot = process.argv[2];
   await page.waitForSelector('#sheet [data-a="pack"][data-o="coal"]');
   await page.click('#sheet [data-a="pack"][data-o="coal"]');
   ok((await st()).carry.coal === 10 && !(await st()).inv.coal, '지도에서 짐 꾸리기: 창고의 석탄을 가방에');
-  const eTr = (await st()).energy;
-  await page.click('#sheet [data-a="travel"][data-o="mtn"]');
-  await page.waitForFunction(() => window.MinerDiary.scene() === 'town', null, { timeout: 5000 });
+  ok(await page.locator('#sheet [data-a="travel"][data-o="mtn"]').count() === 0 && await page.locator('#sheet [data-a="walk"][data-o="mtn"]').count() === 1, '처음 가는 마을은 바로 가기 없이 걸어가기만');
+  await page.click('#sheet [data-a="walk"][data-o="mtn"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'forest' && S.forest.road === 'mtn', null, { timeout: 5000 });
+  ok((await page.textContent('#minebar')).includes('눈길') && (await st()).carry.coal === 10, '첫 길은 눈길을 직접 걸음 (짐은 가방에 그대로)');
+  if (shot) await page.screenshot({ path: path.join(shot, 'road.png') });
+  // 길가 광석 바위 캐기
+  const mr = await page.evaluate(() => { const f = S.forest; for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) if (f.t[fI(x, y)] === 'm') { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) f.seen[fI(x + dx, y + dy)] = 1; const n = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => f.t[fI(x + dx, y + dy)] === 'g'); if (n) { hero.x = x + n[0]; hero.y = y + n[1]; return [x, y]; } } return null; });
+  if (mr) {
+    const p = await page.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), mr); await page.mouse.click(p.x, p.y); await page.waitForTimeout(300);
+    ok(await page.evaluate(([x, y]) => window.MinerDiary.fcell(x, y), mr) === 'g' && await page.evaluate(() => ['silver', 'iron', 'crystal'].some(k => S.carry[k] > 0)), '길가 광석 바위를 캐면 그 지역 광석 (눈길은 은, 철, 수정)');
+  }
+  await page.evaluate(() => { const f = S.forest; hero.x = f.zx + 2; hero.y = f.zy; for (let dy = -2; dy <= 2; dy++) for (let dx = -1; dx <= 3; dx++) f.seen[fI(f.zx + dx, f.zy + dy)] = 1; S.forest.t[fI(f.zx + 1, f.zy)] = 'g'; });
+  { const p = await page.evaluate(() => window.MinerDiary.forestSpot(S.forest.zx, S.forest.zy)); await page.mouse.click(p.x, p.y); }
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'town', null, { timeout: 15000 });
   s = await st();
-  ok(s.loc === 'mtn' && s.energy === eTr - 25 && (await quest()).includes('야시장'), '길을 떠나면 기력 25를 쓰고 눈 덮인 산마을에 도착, 다음 퀘스트로');
+  ok(s.loc === 'mtn' && s.visited.mtn && (await quest()).includes('야시장'), '길 끝까지 걸으면 눈 덮인 산마을에 도착, 다음 퀘스트로');
+  await page.evaluate(() => { S.carry.coal = 10; });
   if (shot) await page.screenshot({ path: path.join(shot, 'town.png') });
   const tclick = async (x, y, sel) => { const p = await page.evaluate(([x, y]) => window.MinerDiary.townSpot(x, y), [x, y]); await page.mouse.click(p.x, p.y); await page.waitForSelector(sel, { timeout: 15000 }); };
   await tclick(13, 5, '#sheet [data-a="tsell"][data-o="coal"]');
@@ -625,6 +637,10 @@ const shot = process.argv[2];
   await page.click('#minebar [data-a="world"]');
   await page.click('#sheet [data-a="travel"][data-o="home"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 5000 });
+  await page.evaluate(() => showWorld());
+  ok(await page.locator('#sheet [data-a="travel"][data-o="mtn"]').count() === 1, '한 번 가 본 마을은 지도에서 기력만 내고 바로 감');
+  await page.click('#sheet [data-a="close"]');
+  await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 5000 });
   ok((await st()).loc === 'home', '지도에서 마을로 돌아옴 (성벽 문 앞)');
   // 이동수단: 손수레(대장간)는 길 기력 15와 가방 +10, 당나귀 수레(산마을 시장)는 길 기력 5와 가방 +20
   await page.evaluate(() => { S.inv.wood = (S.inv.wood || 0) + 20; S.inv.ironBar = (S.inv.ironBar || 0) + 3; S.gold += 500; renderHud(); });
@@ -638,8 +654,8 @@ const shot = process.argv[2];
   await page.evaluate(() => { closeSheet(); homeFromTown(); });
   // 다른 마을: 항구(박물관 뒤)와 화산 기슭(깊이 12 뒤), 세 마을을 다 가 보면 광차 철길
   await page.evaluate(() => { S.restored.push('museum'); S.deepest = Math.max(S.deepest, 12); S.energy = S.max; showWorld(); });
-  ok(await page.locator('#sheet [data-a="travel"][data-o="port"]').count() === 1 && await page.locator('#sheet [data-a="travel"][data-o="volcano"]').count() === 1, '박물관을 고치면 항구 마을, 깊이 12면 화산 기슭 마을이 지도에 생김');
-  await page.evaluate(() => { S.carry = { crystalGem: 2 }; });
+  ok(await page.locator('#sheet [data-a="walk"][data-o="port"]').count() === 1 && await page.locator('#sheet [data-a="walk"][data-o="volcano"]').count() === 1, '박물관을 고치면 항구 마을, 깊이 12면 화산 기슭 마을이 지도에 생김');
+  await page.evaluate(() => { S.carry = { crystalGem: 2 }; S.visited.port = 1; showWorld(); });
   await page.click('#sheet [data-a="travel"][data-o="port"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'town' && S.loc === 'port', null, { timeout: 5000 });
   const gPt = (await st()).gold;

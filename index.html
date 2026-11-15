@@ -1812,7 +1812,7 @@ function rareNear() {
 }
 // 아래 막대의 나가기 단추: 위로 가는 곳까지 걸어가서 올라감. 깊으면 마을까지 이어서
 function goExit() {
-  if (scene === 'forest') { const f = S.forest; walkTo(f.ex, f.ey, f.grove ? leaveGrove : leaveForest); return; }
+  if (scene === 'forest') { const f = S.forest; walkTo(f.ex, f.ey, f.road ? roadBack : f.grove ? leaveGrove : leaveForest); return; }
   if (scene === 'hunt') { const h2 = S.hunt; walkTo(h2.ex, h2.ey, leaveHunt); return; }
   if (scene === 'town') { showWorld(); return; }
   if (scene !== 'mine') return;
@@ -2234,6 +2234,10 @@ const fZone = x => F_ZONES.findIndex(z => x >= z.x);
 const GROVES = {
   mush: { n: '버섯 골짜기', ground: ['#5f8a4a', '#668f4e', '#588244'], items: { mush: .07, glowcap: .03, truffle: .006, herb: .02 } },
   lake: { n: '호숫가 숲', ground: ['#6aa35a', '#71a85e', '#639a52'], items: { herb: .03, fiber: .05, herb2: .01 } },
+  // 다른 마을로 가는 첫 길 (기획 50번)
+  road_mtn: { n: '눈길', ground: ['#eef3f8', '#e6edf4', '#f4f8fb'], items: { herb: .02, wood: .03, herb2: .008 }, ores: [['silver', .5], ['iron', .3], ['crystal', .2]] },
+  road_volcano: { n: '잿빛 고개', ground: ['#8a7f78', '#938780', '#80766f'], items: { wood: .02, fiber: .01 }, ores: [['gold', .4], ['iron', .3], ['amethyst', .3]] },
+  road_port: { n: '해안길', ground: ['#ecdcae', '#e6d4a4', '#f2e4b8'], items: { fiber: .04, herb: .015 }, ores: [['silver', .4], ['pearl', .3], ['iron', .3]] },
 };
 const fGround = x => (S.forest && S.forest.grove ? GROVES[S.forest.grove].ground : F_ZONES[fZone(Math.max(0, Math.min(FW - 1, x)))].ground);
 const fPlace = x => (S.forest.grove ? GROVES[S.forest.grove].n : F_ZONES[fZone(x)].n);
@@ -2256,6 +2260,40 @@ function genGrove(kind, day) {
   }
   for (let n = 0; n < 300; n++) { const x = cx - 10 + (h(n, 3, 61) * 14 | 0), y = cy - 7 + (h(3, n, 62) * 14 | 0); if (t[I(x, y)] === 'g' && !it[x + ',' + y]) { it[x + ',' + y] = 'chest'; break; } }
   return { day, t, it, seen: Array(FW * FH).fill(0), ex, ey, hx: ex - 1, hy: ey, steps: 0, grove: kind };
+}
+// 첫 길: 오른쪽(마을 쪽)에서 왼쪽 끝(그 마을)까지 구불구불한 길. 길가엔 광석 바위(m)와 그 지역 재료
+function genRoad(dest, day) {
+  const I = (x, y) => y * FW + x, t = Array(FW * FH).fill('t'), it = {}, R0 = H32(day * 211 + dest.length * 37) * 1e5 | 0, volc = dest === 'volcano';
+  const h = (x, y, k) => H32(x * 92821 + y * 68917 + R0 + k * 7), mid = x => 18 + Math.round((vnoise(x / 9, 3, R0) - .5) * 18);
+  for (let x = 2; x <= FW - 3; x++) { const my = mid(x); for (let y = my - 2; y <= my + 2; y++) t[I(x, y)] = 'g'; }
+  for (let y = 2; y < FH - 2; y++) for (let x = 3; x < FW - 3; x++) { if (t[I(x, y)] === 'g') continue; if (vnoise(x / 4, y / 4, R0 + 9) > .62 && Math.abs(y - mid(x)) < 9) t[I(x, y)] = 'g'; }
+  for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) { if (t[I(x, y)] !== 'g') { if (volc && h(x, y, 2) < .55) t[I(x, y)] = 'k'; continue; } const r = h(x, y, 1); if (Math.abs(y - mid(x)) > 1 && r < .06) t[I(x, y)] = volc ? 'k' : 't'; }
+  if (dest === 'port') for (let x = 1; x < FW - 1; x++) for (let y = mid(x) + 5; y < FH - 1; y++) t[I(x, y)] = 'w';   // 해안길: 남쪽은 바다
+  const ex = FW - 2, ey = mid(FW - 3), zx = 2, zy = mid(3); t[I(ex, ey)] = 'x'; t[I(zx, zy)] = 'z';
+  const G = GROVES['road_' + dest];
+  for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) {
+    if (t[I(x, y)] !== 'g' || Math.hypot(x - ex, y - ey) < 3 || x <= zx + 1) continue;
+    const r = h(x, y, 9); let acc = 0;
+    // 길가 바위 칸 가운데 일부는 광석 바위
+    if (r > .955 && Math.abs(y - mid(x)) >= 2) { t[I(x, y)] = 'm'; continue; }
+    for (const [k, p2] of Object.entries(G.items)) { acc += p2; if (r < acc) { it[x + ',' + y] = k; break; } }
+  }
+  return { day, t, it, seen: Array(FW * FH).fill(0), ex, ey, hx: ex - 1, hy: ey, zx, zy, steps: 0, grove: 'road_' + dest, road: dest };
+}
+function enterRoad(dest) {
+  hideSheet(); const f = S.forest && !S.forest.road && !S.forest.grove ? S.forest : null;
+  S.forestMain = f || S.forestMain || null;
+  S.forest = genRoad(dest, S.day); parts2 = []; fade = 1.2; SFX.stairs(); toast(GROVES['road_' + dest].n); enterForest();
+}
+function roadArrive() {
+  const dest = S.forest.road; S.forest = S.forestMain || S.forest; S.forestMain = null;
+  if (S.forest && S.forest.road) S.forest = null;
+  fade = 1.2; SFX.fanfare(); enterTown(dest, 'road');
+}
+function roadBack() {
+  S.forest = S.forestMain; S.forestMain = null; S.loc = 'home';
+  unpack(); scene = 'village'; S.screen = 'village'; FLAT = false; fade = .8;
+  hero.x = GATE[0]; hero.y = 0; hero.path = []; hero.goal = null; follow = true; snapCam(); save(); renderHud(); renderDock();
 }
 function enterGrove(kind) {
   const f = S.forest; f.hx = Math.round(hero.x); f.hy = Math.round(hero.y);
@@ -2332,6 +2370,12 @@ const fT = (x, y) => (fIn(x, y) ? S.forest.t[fI(x, y)] : 't');
 // 숲 깊은 곳 큰 바위 깨기
 // 숲에서 옆 칸에 하는 일: 가시덤불 치기, 낚시
 function forestAct([x, y, t]) {
+  if (t === 'm') {
+    if (carryN() >= bagCap()) { toast(`${ico('ic_bag')}가득`); SFX.deny(); return; }
+    const o = pickFrom(GROVES[S.forest.grove].ores, Math.random()); S.forest.t[fI(x, y)] = 'g'; addItem(o, 1); mswing = 1; SFX.dig(); SFX.ore(1);
+    toast(`<span class="ore ${o}"></span>${ORES[o].name} +1`); for (let i = 0; i < 10; i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .3, y: y + .5 + Math.sin(a) * .3, z: .4, life: .8, col: ORES[o].light }); }
+    if (spend(2)) { save(); renderHud(); renderDock(); } return;
+  }
   if (t === 'q') { if (!spend(2)) return; S.forest.t[fI(x, y)] = 'g'; SFX.dig(); mswing = 1; for (let i = 0; i < 10; i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .3, y: y + .5 + Math.sin(a) * .3, z: .3, life: .8, col: '#7aa04a' }); } save(); renderHud(); return; }
   if (t === 'w') startFish(true);
 }
@@ -2349,7 +2393,7 @@ function forestSee() {
 }
 function fBlocked(x, y) {
   if (!fIn(x, y)) return true;
-  if (S.forest.t[fI(x, y)] === 'w' || S.forest.t[fI(x, y)] === 'q') return true;   // 물과 가시덤불
+  if ('wqm'.includes(S.forest.t[fI(x, y)])) return true;   // 물, 가시덤불, 광석 바위
   if (S.forest.t[fI(x, y)] === 'v') return false;
   if (S.forest.t[fI(x, y)] === 'B') return true;   // 큰 바위는 보이기 전에도 못 지나감
   const i = fI(x, y), t = S.forest.t[i];
@@ -2373,7 +2417,7 @@ function forestTapCell(x, y) {
   const f = S.forest, seen = f.seen[fI(x, y)];
   hero.goal = null; hero.dig = null; hero.breakAt = null;
   const tt = f.t[fI(x, y)];
-  if (seen && (tt === 'q' || (tt === 'w' && S.rod))) {   // 가시덤불은 낫으로 침, 물가에선 낚시
+  if (seen && (tt === 'q' || tt === 'm' || (tt === 'w' && S.rod))) {   // 가시덤불은 낫으로 침, 길가 광석 바위는 캠, 물가에선 낚시
     if (tt === 'q' && !S.sickle) { toast('낫 필요'); SFX.deny(); mark(x, y, '235,95,80'); return; }
     const hx = Math.round(hero.x), hy = Math.round(hero.y), act = [x, y, tt];
     if (Math.abs(hx - x) + Math.abs(hy - y) === 1) { forestAct(act); return; }
@@ -2428,7 +2472,8 @@ function forestArrive() {
   if (!f.grove && f.zone !== fZone(x)) { if (f.zone !== undefined && fZone(x) > f.zone) toast(F_ZONES[fZone(x)].n); f.zone = fZone(x); renderDock(); }
   const goal = hero.goal && hero.goal[0] === x && hero.goal[1] === y; hero.goal = null;
   if (f.it[x + ',' + y]) gather(x, y);
-  if (goal && t === 'x') { if (f.grove) leaveGrove(); else leaveForest(); return; }
+  if (goal && t === 'x') { if (f.road) roadBack(); else if (f.grove) leaveGrove(); else leaveForest(); return; }
+  if (goal && t === 'z' && f.road) { roadArrive(); return; }
   if (goal && t === 'v') { enterCave(); return; }
   save();
 }
@@ -2460,7 +2505,7 @@ function drawForestMap(c) {
     if (!f.seen[fI(x, y)]) continue; const t = f.t[fI(x, y)];
     const dx = x - hero.x, dy = y - hero.y, px = mx + mw / 2 + (dx - dy) * sc * .75, py = my + mh / 2 + (dx + dy) * sc * .375;
     if (px < mx - sc || px > mx + mw + sc || py < my - sc || py > my + mh + sc) continue;
-    c.fillStyle = t === 't' ? '#2f5a2a' : t === 'k' ? '#857d70' : t === 's' ? '#3f7a35' : t === 'B' ? '#e0d4bc' : t === 'v' ? '#140d08' : t === 'x' ? '#d2b98e' : t === 'w' ? '#5aa6d6' : t === 'o' ? '#f2c230' : t === 'q' ? '#7a3a2a' : fGround(x)[1];
+    c.fillStyle = t === 't' ? '#2f5a2a' : t === 'k' ? '#857d70' : t === 's' ? '#3f7a35' : t === 'B' ? '#e0d4bc' : t === 'v' ? '#140d08' : t === 'x' ? '#d2b98e' : t === 'w' ? '#5aa6d6' : t === 'o' ? '#f2c230' : t === 'q' ? '#7a3a2a' : t === 'm' ? '#c8a24a' : t === 'z' ? '#f2c230' : fGround(x)[1];
     c.beginPath(); c.moveTo(px, py - sc * .375); c.lineTo(px + sc * .75, py); c.lineTo(px, py + sc * .375); c.lineTo(px - sc * .75, py); c.closePath(); c.fill();
     const it = f.it[x + ',' + y]; if (it === 'chest' || it === 'sparkle') { c.fillStyle = '#ffe27a'; c.fillRect(px - z, py - z, 2 * z, 2 * z); }
   }
@@ -2535,7 +2580,7 @@ function drawForest(c, dt) {
       const y = s - x, i = fI(x, y);
       if (!f.seen[i]) { tileTop(c, x, y, 0, fGround(x)[0]); continue; }
       forestGround(c, x, y, i);
-      if (f.t[i] === 'x') tileTop(c, x, y, 0, '#d2b98e');
+      if (f.t[i] === 'x' || f.t[i] === 'z') tileTop(c, x, y, 0, f.t[i] === 'z' ? '#f2d38a' : '#d2b98e');
       const what = f.it[x + ',' + y]; if (what) gatherAt(c, x, y, what);
     }
   }
@@ -2564,12 +2609,14 @@ function drawForest(c, dt) {
   for (let s = Math.max(0, vr.x0 + vr.y0); s <= Math.min(FW + FH - 2, vr.x1 + vr.y1); s++) {
     for (let x = Math.max(0, s - FH + 1); x <= Math.min(FW - 1, s); x++) {
       const y = s - x, i = fI(x, y), t = f.t[i];
-      if (!f.seen[i] || t === 'g' || t === 'x' || t === 'w') continue;
+      if (!f.seen[i] || t === 'g' || t === 'x' || t === 'w' || t === 'z') continue;
       if (t === 'v') { if ((x >= hero.x + .8 || y >= hero.y + .8) === (pass === 1)) caveMouth(c, x, y); continue; }
       if ((x >= hero.x + .8 || y >= hero.y + .8) !== (pass === 1)) continue;
       const front = s > hero.x + hero.y + .5 && s <= hero.x + hero.y + 3 && Math.abs((x - y) - (hero.x - hero.y)) < 1.8 && t === 't';
       if (front) c.globalAlpha = .4;
-      if (t === 't') treeAt(c, x, y); else if (t === 'k') rockAt(c, x, y); else if (t === 's') bushAt(c, x, y); else if (t === 'B') boulderAt(c, x, y);
+      if (t === 't' && f.road === 'volcano') deadTreeAt(c, x, y); else if (t === 't') { treeAt(c, x, y); if (f.road === 'mtn') { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .62, TW * .2, TH * .12, 'rgba(250,252,255,.9)'); } }
+      else if (t === 'm') { rockAt(c, x, y); const q = iso(x + .5, y + .5, 0), o = GROVES[f.grove].ores[0][0]; for (let k = 0; k < 4; k++) Cc(c, q[0] + (k - 1.5) * TW * .07, q[1] - TW * (.1 + (k % 2) * .06), TW * .03, k % 2 ? ORES[o].light : ORES[o].color); }
+      else if (t === 'k') rockAt(c, x, y); else if (t === 's') bushAt(c, x, y); else if (t === 'B') boulderAt(c, x, y);
       else if (t === 'q') thornAt(c, x, y); else if (t === 'o') groveGate(c, x, y);
       c.globalAlpha = 1;
     }
@@ -2578,7 +2625,8 @@ function drawForest(c, dt) {
   outs.forEach(([x, y]) => { if (x + y >= hero.x + hero.y) treeAt(c, x, y); });   // 광부 앞쪽 나무
   wind.forEach(w => { w.z += dt * .8; const p = iso(w.x, w.y, w.z); c.globalAlpha = Math.min(1, w.life * 1.5); Cc(c, p[0], p[1], TW * .03, w.col || '#eef6ff'); }); c.globalAlpha = 1;
   { const p = iso(f.ex + .5, f.ey + .5, 0); label(c, '마을', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); }
-  { const vx = f.ex - 5, vy = f.ey - 3; if (f.seen[fI(vx, vy)]) { const p = iso(vx + .5, vy + .5, 0); label(c, '동굴', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); } }
+  if (f.road) { const p = iso(f.zx + .5, f.zy + .5, 0); label(c, TOWNS[f.road].short, p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#ffe27a', 'rgba(20,14,9,.75)'); }
+  { const vx = f.ex - 5, vy = f.ey - 3; if (f.t[fI(vx, vy)] === 'v' && f.seen[fI(vx, vy)]) { const p = iso(vx + .5, vy + .5, 0); label(c, '동굴', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); } }
   marks = marks.filter(k => (k.life -= 1 / 40) > 0);
   marks.forEach(k => { const sz = .5 + (1 - k.life) * .5, cx = k.x + .5, cy = k.y + .5; const pts = [iso(cx - sz / 2, cy - sz / 2, 0), iso(cx + sz / 2, cy - sz / 2, 0), iso(cx + sz / 2, cy + sz / 2, 0), iso(cx - sz / 2, cy + sz / 2, 0)]; c.beginPath(); pts.forEach(([a, b], j) => j ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.strokeStyle = `rgba(${k.col},${k.life})`; c.lineWidth = TW * .05; c.stroke(); });
   if (hero.path.length) { const [ex, ey] = hero.path[hero.path.length - 1], k = .55 + .1 * Math.sin(tnow * 6), cx = ex + .5, cy = ey + .5; P(c, [iso(cx - k / 2, cy - k / 2, 0), iso(cx + k / 2, cy - k / 2, 0), iso(cx + k / 2, cy + k / 2, 0), iso(cx - k / 2, cy + k / 2, 0)], 'rgba(255,255,255,.28)'); }
@@ -2876,7 +2924,11 @@ function showWorld() {
   const room = bagCap() - carryN();
   const pack = here === 'home' ? ORE_ORDER.filter(o => S.inv[o]).map(o => `<button class="chip" data-a="pack" data-o="${o}" ${room > 0 ? '' : 'disabled'}><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o]}</small></button>`).join('') : '';
   const bag = ORE_ORDER.filter(o => (S.carry || {})[o]).map(o => `<button class="chip on" data-a="unpack1" data-o="${o}" ${here === 'home' ? '' : 'disabled'}><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.carry[o]}</small></button>`).join('');
-  const dests = (here === 'home' ? ok : ['home']).map(k => { const c2 = travelCost(k); return `<button class="btn ${k === 'home' || here === 'home' ? 'primary' : ''}" data-a="travel" data-o="${k}" ${S.energy > c2 ? '' : 'disabled'}>${k === 'home' ? '마을' : TOWNS[k].short} ${PWR}${c2}</button>`; }).join('');
+  const dests = (here === 'home' ? ok : ['home']).map(k => {
+    if (k !== 'home' && !vis[k]) return `<button class="btn primary" data-a="walk" data-o="${k}">${ico('ic_boot')}${TOWNS[k].short}</button>`;   // 처음은 걸어서
+    const c2 = travelCost(k);
+    return `<button class="btn primary" data-a="travel" data-o="${k}" ${S.energy > c2 ? '' : 'disabled'}>${k === 'home' ? '마을' : TOWNS[k].short} ${PWR}${c2}</button>` + (k !== 'home' ? `<button class="btn" data-a="walk" data-o="${k}" aria-label="걸어가기">${ico('ic_boot')}</button>` : '');
+  }).join('');
   const railRow = !S.rail && here === 'home' && Object.keys(TOWNS).every(k => vis[k]) ? `<p class="dim" style="margin-top:8px">${ico('ic_rail')}광차 철길 <small class="eff">길 기력 0</small></p><div class="rows"><div class="rowi"><span class="nm">${needHtml(RAIL.need, RAIL.gold)}</span><button class="btn small" data-a="rail" ${hasAll(RAIL.need) && S.gold >= RAIL.gold ? '' : 'disabled'}>놓기</button></div></div>` : '';
   openSheet(ico('ic_map') + '지도', svg + (here === 'home' ? `<p class="dim" style="margin-top:8px">짐 꾸리기</p><div class="chips">${pack || '<span class="dim">창고 빔</span>'}</div>` : '')
     + `<p class="dim" style="margin-top:8px">${ico('ic_bag')}가방 ${carryN()}/${bagCap()}</p><div class="chips">${bag}</div>` + railRow, dests);
@@ -2890,6 +2942,7 @@ function unpackItem(o) {
   S.inv[o] = (S.inv[o] || 0) + n; delete S.carry[o]; SFX.tap(); save(); showWorld();
 }
 function travel(dest) {
+  if (dest !== 'home' && !(S.visited || {})[dest]) { enterRoad(dest); return; }
   const c2 = travelCost(dest);
   if (S.energy <= c2) return;
   if (c2 && !spend(c2)) return;
@@ -3035,8 +3088,8 @@ function deadTreeAt(c, x, y) {
   if (n > .6) Cc(c, q[0] + u * 3, q[1] - u * 74, u * 3, `rgba(255,140,60,${.5 + .4 * Math.sin(tnow * 4 + n * 9)})`);
 }
 // 화면 위 날씨: 산마을 눈, 화산 마을 불티, 항구 갈매기
-function drawSnow(c, dt) {
-  const fx = (townHere() || {}).fx;
+function drawSnow(c, dt, fxIn) {
+  const fx = fxIn || (townHere() || {}).fx;
   if (fx === 'gull') {
     while (parts2.length < 3) parts2.push({ x: Math.random() * W, y: H * (.15 + Math.random() * .3), v: 30 + Math.random() * 30, w: Math.random() * 6 });
     parts2.forEach(g => { g.x += g.v * dt; if (g.x > W + 30) { g.x = -30; g.y = H * (.15 + Math.random() * .3); } const f = Math.sin(tnow * 8 + g.w) * 5; c.strokeStyle = '#f6f6f6'; c.lineWidth = 2.4; c.beginPath(); c.moveTo(g.x - 10, g.y - f); c.quadraticCurveTo(g.x - 5, g.y - 6, g.x, g.y); c.quadraticCurveTo(g.x + 5, g.y - 6, g.x + 10, g.y - f); c.stroke(); });
@@ -3329,7 +3382,7 @@ function ambience(song, t, e) {
 const bgm = { mood: null, t0: 0, i: 0, loop: 0, timer: 0, want: null, ev: {} };
 function bgmMood() {
   if (scene === 'mine') return 'mine';
-  if (scene === 'forest') return 'forest';
+  if (scene === 'forest') return S.forest && S.forest.road ? TOWNS[S.forest.road].music : 'forest';
   if (scene === 'hunt') return 'hunt';
   if (scene === 'town') return (townHere() || {}).music || 'night';
   return phaseIndex() >= 2 ? 'night' : 'day';
@@ -3859,6 +3912,7 @@ document.addEventListener('click', e => {
   else if (a === 'sharp') sharpen();
   else if (a === 'world') showWorld();
   else if (a === 'travel') travel(b.dataset.o);
+  else if (a === 'walk') enterRoad(b.dataset.o);
   else if (a === 'pack') packItem(b.dataset.o);
   else if (a === 'unpack1') unpackItem(b.dataset.o);
   else if (a === 'tsell') townSell(b.dataset.o);
@@ -3957,6 +4011,7 @@ function frame(ms) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0); R(ctx, 0, 0, W, H, '#1a2b1a');
     ctx.setTransform(DPR * cam.s, 0, 0, DPR * cam.s, DPR * (W / 2 - cam.fx * cam.s), DPR * (H / 2 - cam.fy * cam.s));
     drawForest(ctx, dt);
+    if (S.forest.road) { ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); drawSnow(ctx, dt, TOWNS[S.forest.road].fx); ctx.restore(); }
     forestFog(ctx);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0); if (SKY[phase].tint) R(ctx, 0, 0, W, H, SKY[phase].tint);
     const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,20,8,.4)'); R(ctx, 0, 0, W, H, v);
