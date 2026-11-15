@@ -494,6 +494,7 @@ const ICONS = {
   ic_cart: [['M3 9h14l-1.6 7H4.6Z', '#a8703a'], ['M3 9h14', 'none', 1.6, '#2b1a12'], ['M17 9l3.6-3', 'none', 2, '#6b4424'], ['M6.6 18.6a1.9 1.9 0 1 0 .01 0Z', '#6b6f78'], ['M13.6 18.6a1.9 1.9 0 1 0 .01 0Z', '#6b6f78'], ['M5.6 12h9.4', 'none', 1, '#7a5530']],
   ic_donkey: [['M5 12.6c0-2.4 2.2-3.6 5-3.6h4.6l2.4-3 1.6.4-.4 2.6c1.6.6 2.4 1.8 2.4 3.2l-1.6 1-2.4-.6v5.4h-1.8l-.4-4H8.6l-.4 4H6.4l-.2-4.6C5.4 14 5 13.4 5 12.6Z', '#9a8e80'], ['M16.4 5.4 15.6 2.4l1.6.4.6 2.8Z', '#9a8e80'], ['M16.9 9.2a.7 .7 0 1 0 1.4 0a.7 .7 0 1 0-1.4 0Z', '#2b1a12', 0], ['M5 11.6 3.2 13', 'none', 1.4, '#2b1a12'], ['M8 9.4h6.6v2.4H8Z', '#d4473a', .9]],
   ic_rail: [['M7 3 4.6 21M17 3l2.4 18', 'none', 2, '#5a5f68'], ['M5.6 7h12.8M5.2 11h13.6M4.8 15h14.4M4.4 19h15.2', 'none', 2.2, '#8a5a32']],
+  ic_skip: [['M4 5.5 12 12 4 18.5Z', '#f6ecdd'], ['M12 5.5l8 6.5-8 6.5Z', '#f6ecdd']],
   ic_map: [['M3 6.5 8.6 4l6.8 2.6L21 4v13.5l-5.6 2.5-6.8-2.6L3 20Z', '#e8dcc0'], ['M8.6 4v13.4M15.4 6.6V20', 'none', 1.2, '#2b1a12'], ['M5.6 14c2-1 3.6-.6 5 .4s3.2 1.4 5.2.2', 'none', 1.3, '#d4473a'], ['M17.6 9.4l1.4 1.4M19 9.4l-1.4 1.4', 'none', 1.3, '#d4473a']],
   ic_stat: [['M3.5 20.5h17', 'none', 1.8, '#2b1a12'], ['M5 13h3.4v7.5H5Z', '#5fc9e0'], ['M10.3 8.5h3.4v12H10.3Z', '#e9b04f'], ['M15.6 4h3.4v16.5h-3.4Z', '#8fe08a']],
   ic_note: [['M9 17.5V5.5l10-2v12', 'none', 1.8, '#2b1a12'], ['M3.8 17.6a2.8 2.2 0 1 0 5.6 0a2.8 2.2 0 1 0-5.6 0Z', '#e9b04f'], ['M13.8 15.6a2.8 2.2 0 1 0 5.6 0a2.8 2.2 0 1 0-5.6 0Z', '#e9b04f'], ['M9 5.5l10-2v3l-10 2Z', '#e9b04f', 1.2]],
@@ -1559,6 +1560,7 @@ function arrive(o) {
 function inPoly(px, py, pts) { let r = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) r = !r; } return r; }
 function screenToWorld(px, py) { return [(px - W / 2) / cam.s + cam.fx, (py - H / 2) / cam.s + cam.fy]; }
 function tap(px, py) {
+  if (trip) { endTrip(); return; }
   if (scene === 'mine') { mineTap(px, py); return; }
   if (scene === 'forest') { if (!cam.to) forestTap(px, py); return; }
   if (scene === 'hunt') { if (!cam.to) huntTap(px, py); return; }
@@ -2946,8 +2948,53 @@ function travel(dest) {
   const c2 = travelCost(dest);
   if (S.energy <= c2) return;
   if (c2 && !spend(c2)) return;
-  hideSheet(); fade = 1.2; SFX.stairs();
-  if (dest === 'home') homeFromTown(); else enterTown(dest, 'road');
+  hideSheet(); SFX.stairs();
+  trip = { dest, mode: S.rail ? 'train' : S.donkey ? 'donkey' : S.cart ? 'cart' : 'walk', t: 0 };
+  trip.dur = { walk: 3, cart: 2.6, donkey: 2.2, train: 2.4 }[trip.mode];
+}
+/* ===== 이동 장면 (기획 51번): 바로 가기 때 2~3초. 걷기, 손수레, 당나귀 수레, 열차가 다르게 보임. 화면을 누르면 바로 도착 ===== */
+let trip = null;
+function endTrip() {
+  if (!trip) return; const d = trip.dest; trip = null; fade = 1.2;
+  if (d === 'home') homeFromTown(); else enterTown(d, 'road');
+}
+const TRIP_SKY = { home: ['#9fd0f0', '#d8ecc8', '#7fb05a'], mtn: ['#b8cce0', '#eef3f8', '#dfe8f0'], volcano: ['#6a4a52', '#c8806a', '#7a6a62'], port: ['#8cc8ec', '#e8f4fa', '#ecdcae'] };
+function drawTrip(c, dt) {
+  trip.t += dt; if (trip.t >= trip.dur) { endTrip(); return; }
+  const [top, bot, gnd] = TRIP_SKY[trip.dest], z = UIZ, gy = H * .66, sp = { walk: 60, cart: 90, donkey: 150, train: 320 }[trip.mode] * z, off = trip.t * sp;
+  const g = c.createLinearGradient(0, 0, 0, gy); g.addColorStop(0, top); g.addColorStop(1, bot); R(c, 0, 0, W, gy, g);
+  // 먼 산 (느리게), 가까운 나무 (빠르게)
+  c.fillStyle = 'rgba(90,110,130,.35)'; c.beginPath(); c.moveTo(0, gy);
+  for (let x = 0; x <= W + 40; x += 40) c.lineTo(x, gy - 60 * z - 40 * z * Math.abs(Math.sin((x + off * .2) / 120)));
+  c.lineTo(W, gy); c.closePath(); c.fill();
+  R(c, 0, gy, W, H - gy, gnd);
+  for (let k = 0; k < 8; k++) { const x = ((k * 170 - off * .9) % (W + 200) + W + 200) % (W + 200) - 100, y = gy + 4 * z; c.save(); c.translate(x, y); c.scale(z * 1.2, z * 1.2);
+    if (trip.dest === 'volcano') { L(c, 0, 0, 0, -50, '#4a3a32', 5); L(c, 0, -30, 12, -42, '#4a3a32', 3); } else { L(c, 0, 0, 0, -26, '#7a5530', 6); Cc(c, 0, -40, 20, trip.dest === 'port' ? '#5fae54' : '#4f9a45'); if (trip.dest === 'mtn') E(c, 0, -52, 14, 6, '#ffffff'); } c.restore(); }
+  // 길 (열차면 철길)
+  const ry = gy + 46 * z;
+  if (trip.mode === 'train') { for (let x = -((off) % (24 * z)); x < W; x += 24 * z) R(c, x, ry - 3 * z, 8 * z, 10 * z, '#7a5530'); L(c, 0, ry, W, ry, '#5a5f68', 3 * z); L(c, 0, ry + 6 * z, W, ry + 6 * z, '#5a5f68', 3 * z); }
+  else { R(c, 0, ry - 10 * z, W, 22 * z, 'rgba(160,130,90,.45)'); }
+  // 이동수단과 광부
+  const cx = W * .45, bob = Math.sin(trip.t * 14) * 2 * z;
+  hero.walk += dt * 14; const pFx = hero.fx, pBack = hero.back, pPath = hero.path; hero.fx = 1; hero.back = false; hero.path = trip.mode === 'walk' || trip.mode === 'cart' ? [[0, 0]] : [];
+  if (trip.mode === 'walk') person(c, cx, ry + 4 * z, 1.6 * z, '#3d6fa8', true, 0, false);
+  else if (trip.mode === 'cart') { person(c, cx - 30 * z, ry + 4 * z, 1.6 * z, '#3d6fa8', true, 0, false); c.save(); c.translate(cx + 30 * z, ry); c.scale(z, z); inkPoly(c, [[-28, -30], [28, -30], [22, -6], [-22, -6]], '#a8703a', 2.4); Cc(c, -14, 0, 8, '#6b6f78'); Cc(c, 14, 0, 8, '#6b6f78'); L(c, -28, -26, -46, -20, '#6b4424', 4); blobs(c, [[-8, -36, 8], [8, -38, 9]], '#9aa4b0', 1.6); c.restore(); }
+  else if (trip.mode === 'donkey') { c.save(); c.translate(cx + 60 * z, ry + bob * .5); c.scale(z * 1.3, z * 1.3); emo(c, 'ic_donkey', 4, -30, 64); c.restore(); c.save(); c.translate(cx - 10 * z, ry); c.scale(z, z); inkPoly(c, [[-34, -26], [30, -26], [26, -6], [-30, -6]], '#a8703a', 2.4); Cc(c, -18, 0, 9, '#6b6f78'); Cc(c, 16, 0, 9, '#6b6f78'); L(c, 30, -20, 52, -18, '#6b4424', 3); c.restore(); person(c, cx - 14 * z, ry - 22 * z + bob, 1.4 * z, '#3d6fa8', true, 0, false); }
+  else {   // 열차: 기관차와 객차 둘, 연기
+    c.save(); c.translate(cx, ry - 4 * z + bob * .3); c.scale(z, z);
+    [[-150, '#3f7fb0'], [-80, '#3f7fb0']].forEach(([x, col]) => { inkPoly(c, [[x - 30, -48], [x + 30, -48], [x + 30, -6], [x - 30, -6]], col, 2.4); R(c, x - 20, -40, 16, 14, '#fff2c0'); R(c, x + 4, -40, 16, 14, '#fff2c0'); Cc(c, x - 18, 0, 7, '#3a3a40'); Cc(c, x + 18, 0, 7, '#3a3a40'); });
+    Cc(c, -82, -33, 6, '#f0c79c'); c.beginPath(); c.arc(-82, -35, 6.5, Math.PI, 0); c.fillStyle = '#f2c230'; c.fill();   // 창밖을 보는 광부
+    inkPoly(c, [[-40, -40], [30, -40], [44, -20], [44, -6], [-40, -6]], '#d4473a', 2.4); inkPoly(c, [[-40, -64], [-6, -64], [-6, -40], [-40, -40]], '#b03a30', 2.4); R(c, -34, -58, 22, 12, '#fff2c0'); inkPoly(c, [[10, -62], [22, -62], [22, -40], [10, -40]], '#3a3a40', 2);
+    Cc(c, -24, 0, 9, '#3a3a40'); Cc(c, 4, 0, 9, '#3a3a40'); Cc(c, 30, 0, 7, '#3a3a40');
+    for (let k = 0; k < 4; k++) { const tt = (trip.t * 2 + k * .25) % 1; c.globalAlpha = 1 - tt; Cc(c, 16 - tt * 70, -66 - tt * 40, 8 + tt * 14, '#eeeeee'); } c.globalAlpha = 1;
+    c.restore();
+  }
+  hero.fx = pFx; hero.back = pBack; hero.path = pPath;
+  // 위쪽 이름과 진행 막대
+  const name = trip.dest === 'home' ? '마을' : TOWNS[trip.dest].n;
+  label(c, name, W / 2, hudH() + 70 * z, Math.max(14, 18 * z), '#f6ecdd', 'rgba(20,14,9,.75)');
+  R(c, W * .25, hudH() + 92 * z, W * .5, 6 * z, 'rgba(0,0,0,.25)'); R(c, W * .25, hudH() + 92 * z, W * .5 * trip.t / trip.dur, 6 * z, '#ffd27a');
+  emo(c, 'ic_skip', W - 30 * z, H * .66 - 30 * z, 26 * z);
 }
 function enterTown(id, at) {
   S.loc = id; S.visited = S.visited || {}; S.visited[id] = 1;
@@ -3075,7 +3122,8 @@ function drawTown(c, dt) {
   list.push([8 + 11 + 3, () => { const o = TOWN_OBJ[2]; prism(c, o.gx + .1, o.gy + .1, o.w - .2, o.d - .2, 0, 1.4, T.wall[0], T.wall[1], T.wall[2]); prism(c, o.gx + .1, o.gy + .1, o.w - .2, o.d - .2, 1.4, .25, T.roof[0], T.roof[1], T.roof[2]); const q = iso(o.gx + 1.5, o.gy + o.d - .05, 0), u = TW / 100; c.beginPath(); c.moveTo(q[0] - u * 26, q[1]); c.lineTo(q[0] - u * 26, q[1] - u * 40); c.quadraticCurveTo(q[0], q[1] - u * 64, q[0] + u * 26, q[1] - u * 40); c.lineTo(q[0] + u * 26, q[1]); c.closePath(); c.fillStyle = '#140d08'; c.fill(); c.lineWidth = Math.max(1.4, TW * .02); c.strokeStyle = OUT; c.stroke(); L(c, q[0] - u * 32, q[1] - u * 46, q[0] + u * 32, q[1] - u * 46, '#8a5a32', u * 6); const p = iso(o.gx + o.w / 2, o.gy + o.d / 2, 2.6); label(c, `${T.mine} 광산`, p[0], p[1], Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.75)'); }]);
   list.push([hero.x + hero.y + 1.02, () => { const p = iso(hero.x + .5, hero.y + .5, 0); person(c, p[0], p[1], TW / 44, '#3d6fa8', true, 0, false); }]);
   list.sort((a, b) => a[0] - b[0]).forEach(([, f]) => f());
-  { const p = iso(TWW - 2 + .5, 9.5, 0); label(c, '길', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); }
+  if (S.rail) { const a = iso(TWW - 4, 8.7, 0), b = iso(TWW, 8.7, 0), a2 = iso(TWW - 4, 9.3, 0), b2 = iso(TWW, 9.3, 0); L(c, a[0], a[1], b[0], b[1], '#5a5f68', TW * .04); L(c, a2[0], a2[1], b2[0], b2[1], '#5a5f68', TW * .04); prism(c, TWW - 3.2, 7.2, 1.4, .8, 0, .9, '#c8a06a', '#a8804a', '#8a6a3a'); prism(c, TWW - 3.3, 7.1, 1.6, 1, .9, .15, T.roof[0], T.roof[1], T.roof[2]); }
+  { const p = iso(TWW - 2 + .5, 9.5, 0); label(c, S.rail ? '역' : '길', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); }
   marks = marks.filter(k => (k.life -= 1 / 40) > 0);
   marks.forEach(k => { const w = k.w || 1, d = k.d || 1, pts = [iso(k.x, k.y, 0), iso(k.x + w, k.y, 0), iso(k.x + w, k.y + d, 0), iso(k.x, k.y + d, 0)]; c.beginPath(); pts.forEach(([a, b], j) => j ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.strokeStyle = `rgba(${k.col},${k.life})`; c.lineWidth = TW * .05; c.stroke(); });
 }
@@ -4036,6 +4084,7 @@ function frame(ms) {
     const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(20,10,0,.3)'); R(ctx, 0, 0, W, H, v);
     drawBubble(ctx);
   }
+  if (trip) { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); drawTrip(ctx, dt); }
   if (efloats.length) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     const hp = iso(hero.x + .5, hero.y + .5, heroZ()), hx = (hp[0] - cam.fx) * cam.s + W / 2, hy = (hp[1] - cam.fy) * cam.s + H / 2 - TW * cam.s * 1.05;
@@ -4109,6 +4158,7 @@ window.MinerDiary = {
   bgm: () => bgm.mood,
   combo: () => combo.n,
   mfloats: () => mfloats.map(f => f.text),
+  trip: () => (trip ? trip.mode : null),
   townSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, 0); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
   fcell: (x, y) => S.forest.t[fI(x, y)], power: () => pickPower(), fishBite: () => { if (fishing) fishing.t0 = performance.now() - fishing.bite - 100; },
   huntSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, 0); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
