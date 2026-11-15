@@ -406,7 +406,7 @@ function questEvent(type, n) {
 /* ===== 상태와 저장 ===== */
 let S;
 function freshState() {
-  return { v: 3, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], farm: {}, home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0, vol: { sfx: .8, bgm: .5 },
+  return { v: 3, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], farm: {}, home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0, vol: { master: 1, sfx: .8, bgm: .5 },
     deep: { seed: (Math.random() * 1e6) | 0, L: 1, x: 0, y: 1, dug: {}, seen: {}, ups: {}, camps: [], lastCamp: null, steps: 0 } };
 }
 function load() {
@@ -526,7 +526,9 @@ const ICONS = {
   ic_settings: [[gearPath(), '#b9c0c8'], ['M12 8.6a3.4 3.4 0 1 0 .01 0Z', '#5a6068']],
   ic_sound: [['M3.5 9h4l5-4v14l-5-4h-4Z', '#b9c0c8'], ['M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12', 'none', 1.8]],
   ic_mute: [['M3.5 9h4l5-4v14l-5-4h-4Z', '#b9c0c8'], ['M15.5 9l5.5 6M21 9l-5.5 6', 'none', 2, '#d9583c']],
-  ic_pick: [['M5 20.5 15.5 7.8', 'none', 3.2, '#9a6232'], ['M6.5 7.2C11 3.2 17 3 21 7.5 17.4 6 13.6 5.8 10.5 7.4Z', '#b9c0c8']],
+  ic_pick: [['M4.6 21 14.6 7.4', 'none', 4.8, '#2b1a12'], ['M4.6 21 14.6 7.4', 'none', 3, '#b47a44'], ['M5.8 19.4l2.2-3', 'none', 3, '#7a4c28'],
+    ['M1.6 10.2C4.4 5 9.4 2.6 13.4 3.2 17.6 2.8 21 5.2 22.6 9.8 20 8.4 17.2 7.8 14.8 8 L12.6 8C9 7.8 5 8.6 1.6 10.2Z', '#c3ccd6', 1.4],
+    ['M4.6 7.6C7.2 5.4 10.4 4.4 13.4 4.6 16 4.4 18.4 5.4 20 7', 'none', 1.1, '#f4f7fa'], ['M11.6 3.6h3.6l.4 4.6h-4.4Z', '#7d8792', 1.2]],
   ic_shop: [['M4 10.5h16v9.5H4Z', '#c09060'], ['M3 6h18l-1 4.5H4Z', '#e04a3a'], ['M7.5 6h3l-.4 4.5h-2.6ZM13.5 6h3l.4 4.5h-2.6Z', '#fff4e6', 0], ['M7 14h4v6H7Z', '#7a4a2a']],
   ic_village: [['M5.5 11h13v9.5h-13Z', '#e8c99a'], ['M2.5 11.8 12 3.5l9.5 8.3Z', '#d4473a'], ['M10 14.5h4v6h-4Z', '#8a5a32']],
   ic_tree: [['M10.6 15h2.8v6.5h-2.8Z', '#8a5a32'], ['M12 2.5c4.4 0 7.5 3.2 7.5 6.8 0 3.9-3.3 6.4-7.5 6.4s-7.5-2.5-7.5-6.4C4.5 5.7 7.6 2.5 12 2.5Z', '#4f9a45'], ['M9 6.5a2.2 2.2 0 1 0 .01 0Z', '#8fd07a', 0]],
@@ -856,20 +858,14 @@ function chibi(c, X, Y, s, o) {
   E(c, 0, 0, 20, 6.5, 'rgba(0,0,0,.22)');
   c.translate(0, -bob);
   const leftSide = back ? -1 : 1, rs = back ? 1 : -1;      // 몸 기준 왼쪽과 오른쪽이 화면에서 놓이는 쪽
-  // 뼈대: 엉덩이-무릎-발목, 어깨-팔꿈치-손. 관절 위치는 두 마디 길이로 풀어서(역운동학) 무릎은 앞으로, 팔꿈치는 뒤로 굽음
+  // 팔다리는 관절 없이 곧은 막대 (서 있으면 곧게, 걸으면 진자처럼 흔들림)
   // 걷는 쪽 F: 화면에서 몸이 향한 방향 (얼굴이 보이면 아래쪽, 등이 보이면 위쪽)
   const Fx = fx * .9, Fy = back ? -.45 : .45, far = back ? -fx : fx;
-  const ik = (ax, ay, bx, by, l1, l2, bx2, by2) => {
-    const dx = bx - ax, dy = by - ay, d0 = Math.hypot(dx, dy) || 1, d = Math.min(d0, l1 + l2 - .01), a = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
-    const ux = dx / d0, uy = dy / d0; let px = -uy, py = ux; if (px * bx2 + py * by2 < 0) { px = -px; py = -py; }
-    return [ax + ux * a + px * h, ay + uy * a + py * h];
-  };
   // 다리: p는 걸음 박자. 발은 F 쪽으로 나갔다 들어오고, 앞으로 옮기는 동안 들림
   const leg = (side, p) => {
     const st = Math.sin(p) * mv, lift = mv ? Math.max(0, Math.cos(p)) * 6 : 0;
-    const hx = side * (side === far ? 5 : 7), hy = -25, ax = hx + Fx * st * 10, ay = -7 + bob + Fy * st * 6 - lift;
-    const [kx, ky] = ik(hx, hy, ax, ay, 10.5, 10.5, Fx, -.15);
-    limb(c, hx, hy, kx, ky, L.legs, 11); limb(c, kx, ky, ax, ay, L.legs, 10);
+    const hx = side * (side === far ? 5 : 7), hy = -25, ax = hx + Fx * st * 9, ay = -6 + bob + Fy * st * 5 - lift;
+    limb(c, hx, hy, ax, ay, L.legs, 11);   // 관절 없이 곧은 다리
     shape(c, () => c.ellipse(ax + Fx * 3, ay + 3.5, 8.5, 6, 0, 0, 7), L.boot, 3);
   };
   // 그리는 순서는 걷는 중에도 바뀌지 않음 (뒤에서 앞으로):
@@ -881,7 +877,9 @@ function chibi(c, X, Y, s, o) {
   if (L.pack && !back) pack();
   // 곡괭이 (얼굴이 보이면 몸 뒤에 그림)
   const swing = o.swing || 0, t = 1 - swing;
-  const ang = swing > 0 ? (t < .3 ? -.55 * t / .3 : -.55 + 3.1 * (t - .3) / .7) * -rs : 0;
+  const ez = v => 1 - (1 - v) * (1 - v), ein = v => v * v;
+  const curve = swing <= 0 ? 0 : t < .35 ? -1.25 * ez(t / .35) : t < .55 ? -1.25 + 2.2 * ein((t - .35) / .2) : .95 * (1 - ez((t - .55) / .45));
+  const ang = curve * -rs;
   const pickaxe = () => {
     c.save(); c.translate(rs * 16, -48); c.rotate(ang); c.translate(-rs * 16, 48);
     limb(c, rs * 6, -26, rs * 23, -84, '#a8703a', 5.5);
@@ -902,8 +900,7 @@ function chibi(c, X, Y, s, o) {
   const arm = (side, p, hold) => {
     if (hold) return;
     const inn = side === far ? .8 : 1, st = Math.sin(p) * mv, sx = side * 15 * inn, sy = -49, hx = side * 18 * inn + Fx * st * 8, hy = -32 + Fy * st * 5;
-    const [ex, ey] = ik(sx, sy, hx, hy, 9, 9, -Fx + side * .3, .2);
-    limb(c, sx, sy, ex, ey, L.sleeve, 9); limb(c, ex, ey, hx, hy, L.sleeve, 8.5);
+    limb(c, sx, sy, hx, hy, L.sleeve, 9);   // 관절 없이 곧은 팔
     shape(c, () => c.arc(hx, hy, 6.5, 0, 7), L.glove, 3);
   };
   const arms = [[-rs, ph + Math.PI, false], [rs, ph, !!L.pick || !!L.cane]];
@@ -3314,7 +3311,7 @@ const PWR = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M1
 
 /* ===== 소리 (기기 소리 합성, 파일 없음). 효과음과 배경음은 따로 크기를 조절 (S.vol) ===== */
 let AC = null, SFX_BUS = null, BGM_BUS = null;
-const vol = k => (S.mute ? 0 : (S.vol ? S.vol[k] : k === 'sfx' ? .8 : .5));
+const vol = k => (S.mute ? 0 : (S.vol ? S.vol[k] * (S.vol.master == null ? 1 : S.vol.master) : k === 'sfx' ? .8 : .5));   // 전체 음량을 곱함
 function audio() {
   if (!AC) {
     AC = new (window.AudioContext || window.webkitAudioContext)();
@@ -3644,7 +3641,8 @@ function showBag() {
 }
 function showMenu() {
   const sl = (k, ic, name) => { const v = Math.round(S.vol[k] * 100); return `<div class="rowi vol"><span class="nm">${ico(ic)}${name}</span><input type="range" min="0" max="100" step="5" value="${v}" data-vol="${k}" aria-label="${name}"><small>${v}</small></div>`; };
-  openSheet(ico('ic_settings') + '설정', `<div class="rows">${sl('sfx', 'ic_sound', '효과음')}${sl('bgm', 'ic_note', '배경음')}</div>`, `<button class="btn" data-a="mute">${S.mute ? ico('ic_mute') + '소리 꺼짐' : ico('ic_sound') + '소리 켜짐'}</button><button class="btn" data-a="resetAsk">처음부터</button>`);
+  if (S.vol.master == null) S.vol.master = 1;
+  openSheet(ico('ic_settings') + '설정', `<div class="rows">${sl('master', 'ic_sound', '전체')}${sl('sfx', 'ic_sound', '효과음')}${sl('bgm', 'ic_note', '배경음')}</div>`, `<button class="btn" data-a="mute">${S.mute ? ico('ic_mute') + '소리 꺼짐' : ico('ic_sound') + '소리 켜짐'}</button><button class="btn" data-a="resetAsk">처음부터</button>`);
 }
 /* ===== 시설 고치기: 값(돈과 재료)을 내면 고쳐지고, 그 시설의 퀘스트 차례가 와야 고칠 수 있음 ===== */
 const RESTORE = {
@@ -4001,7 +3999,7 @@ document.addEventListener('input', e => {
   S.vol[k] = +e.target.value / 100; e.target.nextElementSibling.textContent = e.target.value;
   startAudio(); setVolumes(); save();
 });
-document.addEventListener('change', e => { if (e.target.dataset && e.target.dataset.vol === 'sfx') SFX.coin(); });
+document.addEventListener('change', e => { if (e.target.dataset && (e.target.dataset.vol === 'sfx' || e.target.dataset.vol === 'master')) SFX.coin(); });
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
   const a = b.dataset.a, n = +b.dataset.n;
@@ -4117,7 +4115,7 @@ function frame(ms) {
   OBJ.forEach(o => { if (o.done && o.grow < 1) o.grow = Math.min(1, o.grow + dt * 1.6); });
   if (scene === 'mine' && S.mine) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0); R(ctx, 0, 0, W, H, rgbk(ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].rock, -118));
-    mshake = Math.max(0, mshake - dt * 30); mswing = Math.max(0, mswing - dt * 5);
+    mshake = Math.max(0, mshake - dt * 30); mswing = Math.max(0, mswing - dt * 2.6);
     const sh = mshake > .2 ? [(Math.random() - .5) * mshake, (Math.random() - .5) * mshake] : [0, 0];
     ctx.setTransform(DPR * cam.s, 0, 0, DPR * cam.s, DPR * (W / 2 - cam.fx * cam.s + sh[0]), DPR * (H / 2 - cam.fy * cam.s + sh[1]));
     drawMine(ctx, dt);
@@ -4130,7 +4128,7 @@ function frame(ms) {
     drawSnow(ctx, dt);
     const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(40,50,70,.3)'); R(ctx, 0, 0, W, H, v);
   } else if (scene === 'hunt' && S.hunt) {
-    huntTick(dt); mswing = Math.max(0, mswing - dt * 4);
+    huntTick(dt); mswing = Math.max(0, mswing - dt * 2.6);
     if (scene === 'hunt') {
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0); R(ctx, 0, 0, W, H, '#2f4a24');
       const sk = (cam.shake || 0) > .2 ? [(Math.random() - .5) * cam.shake, (Math.random() - .5) * cam.shake] : [0, 0]; cam.shake = Math.max(0, (cam.shake || 0) - dt * 30);
