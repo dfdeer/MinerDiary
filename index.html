@@ -67,6 +67,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* 아래에서 올라오는 창 */
 #veil{position:fixed;inset:0;z-index:4;background:rgba(10,6,3,.28)}
+#skip{position:fixed;right:calc(16px * var(--z,1));bottom:calc(24px * var(--z,1) + env(safe-area-inset-bottom));z-index:6;width:calc(64px * var(--z,1));height:calc(64px * var(--z,1));border-radius:12px;display:grid;place-items:center;gap:0;font-size:calc(12px * var(--z,1))}
+#skip .ico{width:calc(26px * var(--z,1));height:calc(26px * var(--z,1));margin:0}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:5;max-width:620px;margin:0 auto;border-radius:20px 20px 0 0;border-bottom:0;padding:14px var(--sr) var(--sb) var(--sl);max-height:62vh;overflow:auto;touch-action:pan-y;overscroll-behavior:contain;animation:up .18s ease-out}
 @keyframes up{from{transform:translateY(24px);opacity:0}}
 .sheet header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
@@ -125,6 +127,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 <div class="dock" id="dock"></div>
 <div class="minebar plate" id="minebar" hidden></div>
 <div id="veil" hidden></div>
+<button id="skip" class="plate" data-a="skiptrip" aria-label="건너뛰기" hidden></button>
 <div class="sheet plate" id="sheet" hidden></div>
 <div class="toast plate" id="toast" hidden></div>
 <div id="loading"><b>광부일기</b><div class="lbar"><i></i></div></div>
@@ -1560,7 +1563,7 @@ function arrive(o) {
 function inPoly(px, py, pts) { let r = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) r = !r; } return r; }
 function screenToWorld(px, py) { return [(px - W / 2) / cam.s + cam.fx, (py - H / 2) / cam.s + cam.fy]; }
 function tap(px, py) {
-  if (trip) { endTrip(); return; }
+  if (trip) return;   // 이동 중엔 건너뛰기 단추로만
   if (scene === 'mine') { mineTap(px, py); return; }
   if (scene === 'forest') { if (!cam.to) forestTap(px, py); return; }
   if (scene === 'hunt') { if (!cam.to) huntTap(px, py); return; }
@@ -2900,7 +2903,23 @@ const TOWNS = {
 const travelOpen = () => TOWNS.mtn.open();
 const townHere = () => TOWNS[S.loc] || null;
 const townPrice = o => Math.round(ORES[o].price * ((((townHere() || {}).price) || {})[o] || 1));
-const travelCost = dest => { if (S.rail) return 0; const base = dest === 'home' ? TOWNS[S.loc].cost : TOWNS[dest].cost; return Math.round(base * (S.donkey ? .2 : S.cart ? .6 : 1)); };   // 걸어서 그대로, 손수레 6할, 당나귀 수레 2할, 철길이면 0
+// 바로 가기 기력 (기획 52번): 그 길을 가장 짧게 걸었을 때 드는 걸음 기력. 손수레 6할, 당나귀 수레 2할, 철길이면 0
+const roadCache = {};
+function roadSteps(dest) {
+  const k = S.day + ':' + dest;
+  if (roadCache[k] == null) {
+    const r = genRoad(dest, S.day), ok = (x, y) => x >= 0 && y >= 0 && x < FW && y < FH && 'gxz'.includes(r.t[y * FW + x]);
+    const seen = new Set([r.ex + ',' + r.ey]); let q = [[r.ex, r.ey]], d = 0, found = -1;
+    while (q.length && found < 0) { const nq = []; for (const [x, y] of q) { if (x === r.zx && y === r.zy) { found = d; break; } for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, kk = nx + ',' + ny; if (!seen.has(kk) && ok(nx, ny)) { seen.add(kk); nq.push([nx, ny]); } } } q = nq; d++; }
+    roadCache[k] = found < 0 ? 60 : found;
+  }
+  return roadCache[k];
+}
+const travelCost = dest => {
+  if (S.rail || accEff('forestFree')) return 0;   // 이끼 깔창을 끼면 길 걸음도 기력이 안 듦
+  const walk = Math.ceil(roadSteps(dest === 'home' ? S.loc : dest) / F_STEP);
+  return Math.ceil(walk * (S.donkey ? .2 : S.cart ? .6 : 1));
+};
 const DONKEY_GOLD = 3000;
 const RAIL = { need: { ironBar: 20, oldwood: 20 }, gold: 5000 };
 function buyDonkey() {
@@ -2950,12 +2969,14 @@ function travel(dest) {
   if (c2 && !spend(c2)) return;
   hideSheet(); SFX.stairs();
   trip = { dest, mode: S.rail ? 'train' : S.donkey ? 'donkey' : S.cart ? 'cart' : 'walk', t: 0 };
-  trip.dur = { walk: 3, cart: 2.6, donkey: 2.2, train: 2.4 }[trip.mode];
+  trip.dur = 2;
+  const sk = document.getElementById('skip'); sk.innerHTML = `${ico('ic_skip')}<small>건너뛰기</small>`; sk.hidden = false;
+  renderHud(); renderDock();
 }
 /* ===== 이동 장면 (기획 51번): 바로 가기 때 2~3초. 걷기, 손수레, 당나귀 수레, 열차가 다르게 보임. 화면을 누르면 바로 도착 ===== */
 let trip = null;
 function endTrip() {
-  if (!trip) return; const d = trip.dest; trip = null; fade = 1.2;
+  if (!trip) return; const d = trip.dest; trip = null; fade = 1.2; document.getElementById('skip').hidden = true;
   if (d === 'home') homeFromTown(); else enterTown(d, 'road');
 }
 const TRIP_SKY = { home: ['#9fd0f0', '#d8ecc8', '#7fb05a'], mtn: ['#b8cce0', '#eef3f8', '#dfe8f0'], volcano: ['#6a4a52', '#c8806a', '#7a6a62'], port: ['#8cc8ec', '#e8f4fa', '#ecdcae'] };
@@ -2992,9 +3013,9 @@ function drawTrip(c, dt) {
   hero.fx = pFx; hero.back = pBack; hero.path = pPath;
   // 위쪽 이름과 진행 막대
   const name = trip.dest === 'home' ? '마을' : TOWNS[trip.dest].n;
-  label(c, name, W / 2, hudH() + 70 * z, Math.max(14, 18 * z), '#f6ecdd', 'rgba(20,14,9,.75)');
-  R(c, W * .25, hudH() + 92 * z, W * .5, 6 * z, 'rgba(0,0,0,.25)'); R(c, W * .25, hudH() + 92 * z, W * .5 * trip.t / trip.dur, 6 * z, '#ffd27a');
-  emo(c, 'ic_skip', W - 30 * z, H * .66 - 30 * z, 26 * z);
+  label(c, '이동 중', W / 2, hudH() + 64 * z, Math.max(15, 20 * z), '#ffe27a', 'rgba(20,14,9,.8)');
+  label(c, name, W / 2, hudH() + 112 * z, Math.max(12, 14 * z), '#f6ecdd', 'rgba(20,14,9,.65)');
+  R(c, W * .25, hudH() + 86 * z, W * .5, 6 * z, 'rgba(0,0,0,.25)'); R(c, W * .25, hudH() + 86 * z, W * .5 * trip.t / trip.dur, 6 * z, '#ffd27a');
 }
 function enterTown(id, at) {
   S.loc = id; S.visited = S.visited || {}; S.visited[id] = 1;
@@ -3504,8 +3525,8 @@ const bagCount = () => ORE_ORDER.reduce((a, o) => a + (S.inv[o] || 0), 0);
 const oreRow = src => ORE_ORDER.filter(o => src[o]).map(o => `<span><span class="ore ${o}"></span>${src[o]}</span>`).join('');
 function renderDock() {
   const mine = scene === 'mine' || scene === 'forest' || scene === 'hunt' || scene === 'town';
-  minebar.hidden = !mine;
-  dock.hidden = mine || !sheet.hidden;
+  minebar.hidden = !mine || !!trip;   // 이동 장면 동안엔 아래 단추를 숨김
+  dock.hidden = mine || !sheet.hidden || !!trip;
   if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate" data-a="bag" aria-label="가방">${ico('ic_bag')}${bagCount()}</button>`;
   const bagBtn = `<button class="btn small" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
   if (scene === 'town') minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button><b>${ico('ic_village')}${(townHere() || TOWNS.mtn).n}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
@@ -3961,6 +3982,7 @@ document.addEventListener('click', e => {
   else if (a === 'world') showWorld();
   else if (a === 'travel') travel(b.dataset.o);
   else if (a === 'walk') enterRoad(b.dataset.o);
+  else if (a === 'skiptrip') endTrip();
   else if (a === 'pack') packItem(b.dataset.o);
   else if (a === 'unpack1') unpackItem(b.dataset.o);
   else if (a === 'tsell') townSell(b.dataset.o);
