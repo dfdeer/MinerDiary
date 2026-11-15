@@ -122,7 +122,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .slots{display:flex;gap:8px;margin:2px 0 8px}.slot{flex:1;min-height:52px;border-radius:12px;border:2px dashed rgba(255,255,255,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
 .slot.on{border:2px solid #e9b04f;background:rgba(233,176,79,.15)}.slot .ico{width:22px;height:22px}
 .slot.lock{border:2px solid rgba(255,255,255,.12);background:rgba(0,0,0,.25);color:var(--dim);opacity:.8}.rowi.tap{cursor:pointer}
-.btn.full{border-color:#e0604a;box-shadow:0 0 0 2px rgba(224,96,74,.55);animation:fullp 1s ease-in-out infinite}@keyframes fullp{50%{box-shadow:0 0 0 4px rgba(224,96,74,.25)}}
+.btn.full,.bag.full{border-color:#e0604a;box-shadow:0 0 0 2px rgba(224,96,74,.55);animation:fullp 1s ease-in-out infinite}@keyframes fullp{50%{box-shadow:0 0 0 4px rgba(224,96,74,.25)}}
 .drop{display:flex;align-items:center;gap:10px;margin:10px 0}.drop input{flex:1;accent-color:#e9b04f}.drop b{min-width:44px;text-align:right}
 .nd{display:inline-flex;align-items:center;gap:3px;font-size:12px;margin-left:6px}.nd.lack,.lack{color:#e68a7a}
 .fishing{height:110px;border-radius:14px;background:linear-gradient(#4f9fd8,#3f7fb0);position:relative;overflow:hidden;margin-bottom:6px}.fishing .bob{position:absolute;left:50%;top:44px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#fff 0 30%,#e04a3a 31%);border:2px solid #2b1a12;transition:transform .1s}.fishing .bob.bite{transform:translateY(10px) scale(.9)}.fishing .say{position:absolute;left:0;right:0;top:8px;text-align:center;font-size:22px;color:#fff;text-shadow:0 2px 0 #2b1a12}
@@ -331,6 +331,7 @@ const INTRO = [
   '돈이 조금 모이면 광산 입구부터 고쳐요. 진짜 광산은 끝도 없이 깊거든요. 기력이 다 떨어지기 전엔 집에 가서 자요.',
 ];
 const CHIEF_TIPS = [
+  '가방이 무거우면 집 창고에 넣어 둬요. 창고 것은 마을 안이라면 어디서든 쓸 수 있어요. 마을 밖으로 가져가려면 다시 꺼내 가방에 담아야 하고요.',
   '반짝이는 틈이 보이면 그 벽을 파 봐요. 안쪽에 광석이 숨어 있거든요.',
   '숲 동굴은 사흘쯤 지나면 광석이 다시 차올라요. 바쁠 땐 가볍게 들러 봐요.',
   '바위 틈이 금빛으로 반짝이면 그 너머에 숨은 방이 있어요. 옛 광부들이 숨겨 둔 상자가 남아 있대요.',
@@ -409,7 +410,7 @@ function questEvent(type, n) {
 /* ===== 상태와 저장 ===== */
 let S;
 function freshState() {
-  return { v: 3, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], farm: {}, home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0, vol: { master: 1, sfx: .8, bgm: .5 },
+  return { v: 4, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], farm: {}, home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0, vol: { master: 1, sfx: .8, bgm: .5 }, stash: {},
     deep: { seed: (Math.random() * 1e6) | 0, L: 1, x: 0, y: 1, dug: {}, seen: {}, ups: {}, camps: [], lastCamp: null, steps: 0 } };
 }
 function load() {
@@ -417,7 +418,7 @@ function load() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const d = JSON.parse(raw);
-      if (d && d.v === 3) return Object.assign(freshState(), d);   // 저장 구조가 바뀌면 예전 기록은 새로 시작 (11/14 사용자 결정)
+      if (d && d.v === 4) return Object.assign(freshState(), d);   // 저장 구조가 바뀌면 예전 기록은 새로 시작 (11/14 사용자 결정)
     }
   } catch (e) { /* 저장소를 못 쓰면 새로 시작 */ }
   return freshState();
@@ -452,7 +453,7 @@ function spend(n) {
   if (after !== before) { const p = PHASES[after]; toast(p.name); }
   return true;
 }
-function addItem(o, n) { const to = scene === 'village' ? S.inv : S.carry; to[o] = (to[o] || 0) + n; S.today[o] = (S.today[o] || 0) + n; questEvent('ore', n); }
+function addItem(o, n) { if (storeHere()) give(o, n); else S.carry[o] = (S.carry[o] || 0) + n; S.today[o] = (S.today[o] || 0) + n; questEvent('ore', n); }
 function newDay(kind) {
   let smelted = null;
   if (S.deep && (S.day + 1) % 3 === 0) Object.keys(S.deep.dug).forEach(k => { if (k.startsWith('0,')) delete S.deep.dug[k]; });   // 숲 동굴은 사흘마다 다시 채워짐
@@ -480,7 +481,6 @@ function countUp(val) {
 }
 function sleep(camp) {
   const ph = phaseIndex(), kind = ph === 3 ? 'late' : ph <= 1 && !camp ? 'early' : 'normal', sum = daySummary();
-  if (!camp) unpack();
   const sm = newDay(kind);
   if (camp) { S.energy = Math.min(S.max + 20, S.energy + accEff('rest')); S.minE = S.dayStart = S.energy; startDeep(camp[0], camp[1], camp[2]); }   // 야영지에서 잤으면 거기서 이어 감
   questEvent('sleep'); save(); renderHud();
@@ -492,7 +492,6 @@ function faint() {
   S.loc = 'home';
   const lost = {};   // 가방에 든 것 일부를 잃고 나머지는 집으로
   Object.keys(S.carry || {}).forEach(o => { const n = Math.floor(S.carry[o] * FAINT_LOSS); if (n > 0) { S.carry[o] -= n; lost[o] = n; } });
-  unpack();
   const sm = newDay('faint'); save(); renderHud();
   const ls = ORE_ORDER.filter(o => lost[o]).map(o => `<span><span class="ore ${o}"></span> -${lost[o]}</span>`).join(' ');
   openSheet(ico('ic_warn') + '쓰러짐', `<p>${S.day}일차 아침 ${PWR}${S.energy}/${S.max}</p>` + (ls ? `<p class="warn">${ls}</p>` : '') + sm);
@@ -525,6 +524,7 @@ const ICONS = {
   ic_moon: [['M15.5 3.2A9 9 0 1 0 20.8 15 7 7 0 0 1 15.5 3.2Z', '#f2e6a8']],
   ic_sword: [['M16.8 3.2h4v4L10.5 17.5l-4-4Z', '#dfe6ee'], ['M5 12.5l6.5 6.5-1.6 1.6-6.5-6.5Z', '#8a5a32'], ['M4.2 17.8l2 2-2.6 2.6-2-2Z', '#e9b04f']],
   ic_warn: [['M12 2.8 22 20.5H2Z', '#f2c230'], ['M10.9 8.5h2.2l-.4 6.3h-1.4Z', '#2b1a12', 0], ['M12 16.4a1.3 1.3 0 1 0 .01 0Z', '#2b1a12', 0]],
+  ic_box: [['M3.5 8.5h17v11.5h-17Z', '#b47a44'], ['M3.5 8.5 6 4.5h12l2.5 4Z', '#d39a5a'], ['M3.5 12.5h17M12 8.5v11.5', 'none', 1.4], ['M10.6 11.4h2.8v2.6h-2.8Z', '#f2c230', 1.2]],
   ic_trash: [['M4.5 6.5h15', 'none', 2], ['M9.5 6V4h5v2', 'none', 1.8], ['M6 7.5h12l-1.2 13H7.2Z', '#9aa4ae'], ['M10 10.5v7M14 10.5v7', 'none', 1.4]],
   ic_bag: [['M8.5 6.5a3.5 3.5 0 0 1 7 0', 'none', 1.8], ['M4.5 7.5h15l-1.4 13H5.9Z', '#a8723f'], ['M4.5 7.5h15v3.5H4.5Z', '#8a5a2e'], ['M10.5 12h3v2.5h-3Z', '#f2c230']],
   ic_settings: [[gearPath(), '#b9c0c8'], ['M12 8.6a3.4 3.4 0 1 0 .01 0Z', '#5a6068']],
@@ -1758,13 +1758,46 @@ function glintDir(x, y) {
   return out;
 }
 let mparts = [], mfloats = [], mbumps = [], mswing = 0, mshake = 0;
-// 가방: 땅속과 숲에서 주운 것은 가방(S.carry)에 담기고, 마을에 오면 집 창고(S.inv)로 옮겨짐
+// 가방(S.carry)은 늘 들고 다님. 창고는 마을마다 숙소에 하나(처음 마을은 집 S.inv, 다른 마을은 여관 S.stash[마을])
+// 어느 마을 안에서는 가방과 그 마을 창고를 함께 씀(쓸 때는 가방부터). 마을 밖이나 다른 마을에서는 가방만
 const BAG_BASE = 20;
 // 이동수단 (기획 48번): 손수레는 가방 +10, 당나귀 수레는 가방 +20 (둘 중 좋은 것 하나)
 const rideBag = () => (S.donkey ? 20 : S.cart ? 10 : 0);
 const bagCap = () => BAG_BASE + accEff('bag') + rideBag();
 const carryN = () => Object.values(S.carry || {}).reduce((a, n) => a + n, 0);
-function unpack() { if (!S.carry) return; Object.entries(S.carry).forEach(([k, n]) => { S.inv[k] = (S.inv[k] || 0) + n; }); S.carry = {}; }
+function storeHere() {
+  if (scene === 'village') return S.inv;
+  if (scene === 'town' && S.loc && S.loc !== 'home') { S.stash = S.stash || {}; return (S.stash[S.loc] = S.stash[S.loc] || {}); }
+  return null;
+}
+const have = k => ((S.carry || {})[k] || 0) + ((storeHere() || {})[k] || 0);
+function take(k, n) {
+  const c = S.carry[k] || 0, a = Math.min(c, n);
+  if (a) { S.carry[k] = c - a; if (!S.carry[k]) delete S.carry[k]; }
+  const st = storeHere(); if (n - a > 0 && st) { st[k] = (st[k] || 0) - (n - a); if (st[k] <= 0) delete st[k]; }
+}
+function give(k, n) {   // 가방부터 채우고, 마을 안에서 가방이 가득이면 그 마을 창고로
+  const st = storeHere(), a = st ? Math.min(n, Math.max(0, bagCap() - carryN())) : n;
+  if (a) S.carry[k] = (S.carry[k] || 0) + a;
+  if (n - a > 0) { st[k] = (st[k] || 0) + (n - a); toast(`${ico('ic_bag')}가방이 가득해 창고로`); }
+}
+const storeName = () => (scene === 'town' ? '여관 창고' : '집 창고');
+// 창고 창: 가방에서 넣기, 창고에서 꺼내기 (그 마을 안에서만)
+function showStore() {
+  const st = storeHere(); if (!st) return;
+  const room = bagCap() - carryN();
+  const bag = ORE_ORDER.filter(o => S.carry[o]).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name}</span><span>×${S.carry[o]}</span><button class="btn small" data-a="stIn" data-o="${o}">넣기</button></div>`).join('');
+  const box = ORE_ORDER.filter(o => st[o]).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name}</span><span>×${st[o]}</span><button class="btn small" data-a="stOut" data-o="${o}" ${room > 0 ? '' : 'disabled'}>꺼내기</button></div>`).join('');
+  openSheet(ico('ic_box') + storeName(), `<p class="dim">${ico('ic_bag')}가방 ${carryN()}/${bagCap()}</p>` + (bag ? `<div class="rows">${bag}</div>` : '<p class="dim">빈 가방</p>')
+    + `<p class="dim" style="margin-top:10px">${ico('ic_box')}창고</p>` + (box ? `<div class="rows">${box}</div>` : '<p class="dim">빈 창고</p>'),
+    bag ? `<button class="btn primary" data-a="stAll">모두 넣기</button>` : '');
+}
+function storeIn(o) { const st = storeHere(), n = S.carry[o] || 0; if (!st || !n) return; st[o] = (st[o] || 0) + n; delete S.carry[o]; SFX.tap(); save(); renderDock(); showStore(); }
+function storeAll() { const st = storeHere(); if (!st) return; Object.keys(S.carry).forEach(o => { st[o] = (st[o] || 0) + S.carry[o]; }); S.carry = {}; SFX.tap(); save(); renderDock(); showStore(); }
+function storeOut(o) {
+  const st = storeHere(), n = Math.min((st || {})[o] || 0, bagCap() - carryN()); if (!st || n <= 0) return;
+  st[o] -= n; if (!st[o]) delete st[o]; S.carry[o] = (S.carry[o] || 0) + n; SFX.tap(); save(); renderDock(); showStore();
+}
 /* ===== 옛 광부의 갱도 (기획 40번): 깊이 5, 8, 12에 처음 내려가면 가까운 곳에 무너진 옛 갱도 방이 생김 =====
    일지(J)를 읽으면 마을이 무너진 이야기가 조금씩 풀리고, 옆 상자(T)에 큰 보상. 방까지 화살표가 늘 보임 */
 const LORE = {
@@ -1817,7 +1850,7 @@ function enterMine() {
 function toVillage(at) {
   restoreHomeDeep();
   S.loc = 'home';
-  unpack(); S.mine = null; S.screen = 'village'; scene = 'village'; FLAT = false; fade = .8; S.exiting = false;
+  S.mine = null; S.screen = 'village'; scene = 'village'; FLAT = false; fade = .8; S.exiting = false;
   hero.path = []; hero.dig = null; hero.goal = null;
   if (at === 'mine') {
     const d = OBJ.find(o => o.id === 'mine').door; hero.x = d[0]; hero.y = d[1];
@@ -2344,7 +2377,7 @@ function roadArrive() {
 }
 function roadBack() {
   S.forest = S.forestMain; S.forestMain = null; S.loc = 'home';
-  unpack(); scene = 'village'; S.screen = 'village'; FLAT = false; fade = .8;
+  scene = 'village'; S.screen = 'village'; FLAT = false; fade = .8;
   hero.x = GATE[0]; hero.y = 0; hero.path = []; hero.goal = null; follow = true; snapCam(); save(); renderHud(); renderDock();
 }
 function enterGrove(kind) {
@@ -2461,7 +2494,7 @@ function enterForest() {
   save(); renderHud(); renderDock();
 }
 function leaveForest() {
-  unpack(); S.screen = 'village'; scene = 'village'; FLAT = false; fade = .8;
+  S.screen = 'village'; scene = 'village'; FLAT = false; fade = .8;
   const o = OBJ.find(v => v.id === 'forest'); hero.x = o.gx + 1; hero.y = o.gy; hero.path = []; hero.goal = null;
   follow = true; snapCam(); save(); renderHud(); renderDock();
 }
@@ -2734,7 +2767,7 @@ function enterHunt() {
   save(); renderHud(); renderDock();
 }
 function leaveHunt() {
-  unpack(); S.screen = 'village'; scene = 'village'; FLAT = false; fade = .8; S.hunt = null;
+  S.screen = 'village'; scene = 'village'; FLAT = false; fade = .8; S.hunt = null;
   hero.x = GATE[0]; hero.y = 0; hero.path = []; hero.goal = null; hero.atk = null;
   follow = true; snapCam(); save(); renderHud(); renderDock();
 }
@@ -2857,12 +2890,12 @@ function drawHunt(c, dt) {
 }
 function sharpen() {
   const sh = SHARP[S.sharp || 0]; if (!sh || !hasAll(sh.need) || S.gold < sh.gold) return;
-  Object.entries(sh.need).forEach(([k, n]) => { S.inv[k] -= n; }); S.gold -= sh.gold; S.sharp = (S.sharp || 0) + 1;
+  Object.entries(sh.need).forEach(([k, n]) => { take(k, n); }); S.gold -= sh.gold; S.sharp = (S.sharp || 0) + 1;
   SFX.stairs(); toast(`${ico('ic_pick')}파워 ${pickPower()}`); save(); renderHud(); showSmithy();
 }
 function makeSword() {
   const next = SWORDS[(S.sword || 0) + 1]; if (!next || !hasAll(next.need) || S.gold < next.gold) return;
-  Object.entries(next.need).forEach(([k, n]) => { S.inv[k] -= n; }); S.gold -= next.gold; S.sword = (S.sword || 0) + 1;
+  Object.entries(next.need).forEach(([k, n]) => { take(k, n); }); S.gold -= next.gold; S.sword = (S.sword || 0) + 1;
   SFX.stairs(); toast(`${ico('ic_sword')}${next.name}`); save(); renderHud(); showSmithy();
 }
 
@@ -2882,7 +2915,7 @@ function nightHtml() {
   if (phaseIndex() < 2) return `<p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장 저녁부터</p>`;
   const N = nightToday();
   const sell = N.sell.map((s2, i) => `<div class="rowi"><span class="nm">${accIco(s2.id)}${(ACC[s2.id] || ITEMS[s2.id]).n}</span><button class="btn small" data-a="nbuy" data-n="${i}" ${s2.sold || S.gold < s2.gold ? 'disabled' : ''}>${s2.sold ? '팔림' : GOLD + s2.gold}</button></div>`).join('');
-  const buy = N.buy.map((b, i) => `<div class="rowi"><span class="nm"><span class="ore ${b.item}"></span>${ORES[b.item].name} <small>${Math.min(S.inv[b.item] || 0, b.n)}/${b.n}</small></span><button class="btn small primary" data-a="nsell" data-n="${i}" ${b.done || (S.inv[b.item] || 0) < b.n ? 'disabled' : ''}>${b.done ? '끝' : GOLD + b.gold}</button></div>`).join('');
+  const buy = N.buy.map((b, i) => `<div class="rowi"><span class="nm"><span class="ore ${b.item}"></span>${ORES[b.item].name} <small>${Math.min(have(b.item), b.n)}/${b.n}</small></span><button class="btn small primary" data-a="nsell" data-n="${i}" ${b.done || have(b.item) < b.n ? 'disabled' : ''}>${b.done ? '끝' : GOLD + b.gold}</button></div>`).join('');
   return `<p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장 사기</p><div class="rows">${sell}</div><p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장 팔기</p><div class="rows">${buy}</div>`;
 }
 function nightBuy(i) {
@@ -2891,8 +2924,8 @@ function nightBuy(i) {
   SFX.coin(); toast(`${accIco(s2.id)}${(ACC[s2.id] || ITEMS[s2.id]).n}`); questEvent('night'); save(); renderHud(); showMarket();
 }
 function nightSell(i) {
-  const b = nightToday().buy[i]; if (!b || b.done || (S.inv[b.item] || 0) < b.n || phaseIndex() < 2) return;
-  S.inv[b.item] -= b.n; b.done = true; S.gold += b.gold;
+  const b = nightToday().buy[i]; if (!b || b.done || have(b.item) < b.n || phaseIndex() < 2) return;
+  take(b.item, b.n); b.done = true; S.gold += b.gold;
   SFX.coin(); toast(`${GOLD}+${b.gold}`); questEvent('night'); save(); renderHud(); showMarket();
 }
 
@@ -2901,13 +2934,13 @@ const MUSEUM_GOALS = [[10, 500], [20, 1500], [30, 3000]];
 function showMuseum() {
   const got = S.museum || [], all = ORE_ORDER.length;
   const goals = MUSEUM_GOALS.map(([n, g]) => `<span class="nd ${got.length >= n ? '' : 'lack'}">${n} ${GOLD}${g}</span>`).join(' ');
-  const cells = ORE_ORDER.map(o => got.includes(o) ? `<span class="chip on"><span class="ore ${o}"></span>${ORES[o].name}</span>` : S.inv[o] ? `<button class="chip" data-a="donate" data-o="${o}"><span class="ore ${o}"></span>${ORES[o].name}</button>` : '<span class="chip off">?</span>').join('');
+  const cells = ORE_ORDER.map(o => got.includes(o) ? `<span class="chip on"><span class="ore ${o}"></span>${ORES[o].name}</span>` : have(o) ? `<button class="chip" data-a="donate" data-o="${o}"><span class="ore ${o}"></span>${ORES[o].name}</button>` : '<span class="chip off">?</span>').join('');
   openSheet(ico('ic_treasure') + '박물관', `<p>${got.length}/${all} ${goals}</p><div class="chips">${cells}</div>`);
 }
 function donate(o) {
   S.museum = S.museum || [];
-  if (S.museum.includes(o) || !(S.inv[o] > 0)) return;
-  S.inv[o]--; S.museum.push(o);
+  if (S.museum.includes(o) || !(have(o) > 0)) return;
+  take(o, 1); S.museum.push(o);
   const g = MUSEUM_GOALS.find(([n]) => n === S.museum.length);
   if (g) { S.gold += g[1]; toast(`${ico('ic_treasure')}${g[0]} ${GOLD}+${g[1]}`); } else toast(`<span class="ore ${o}"></span>${ORES[o].name}`);
   if (S.museum.length === ORE_ORDER.length) toast(`${ico('ic_treasure')}도감 완성`);
@@ -2977,7 +3010,7 @@ function buyDonkey() {
 function buildRail() {
   const vis = S.visited || {};
   if (S.rail || !Object.keys(TOWNS).every(k => vis[k]) || !hasAll(RAIL.need) || S.gold < RAIL.gold) return;
-  Object.entries(RAIL.need).forEach(([k, n]) => { S.inv[k] -= n; }); S.gold -= RAIL.gold; S.rail = 1;
+  Object.entries(RAIL.need).forEach(([k, n]) => { take(k, n); }); S.gold -= RAIL.gold; S.rail = 1;
   SFX.fanfare(); toast(`${ico('ic_rail')}광차 철길`); questEvent('rail'); save(); renderHud(); showWorld();
 }
 // 세계 지도: 갈 수 있는 곳과 짐 꾸리기
@@ -2990,24 +3023,15 @@ function showWorld() {
     ${node('home', home, '#c8a070')}${ok.map(k => node(k, TOWNS[k].at, k === 'mtn' ? '#c8d4e0' : k === 'volcano' ? '#d4705a' : '#7fc6e8')).join('')}
     <text x="${home[0]}" y="${home[1] + 26}" text-anchor="middle" font-size="13" fill="#5a3a22">마을</text>${ok.map(k => `<text x="${Math.min(268, TOWNS[k].at[0])}" y="${TOWNS[k].at[1] > 80 ? TOWNS[k].at[1] - 16 : TOWNS[k].at[1] + 24}" text-anchor="middle" font-size="13" fill="#5a3a22">${TOWNS[k].short}</text>`).join('')}</svg>`;
   const room = bagCap() - carryN();
-  const pack = here === 'home' ? ORE_ORDER.filter(o => S.inv[o]).map(o => `<button class="chip" data-a="pack" data-o="${o}" ${room > 0 ? '' : 'disabled'}><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o]}</small></button>`).join('') : '';
-  const bag = ORE_ORDER.filter(o => (S.carry || {})[o]).map(o => `<button class="chip on" data-a="unpack1" data-o="${o}" ${here === 'home' ? '' : 'disabled'}><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.carry[o]}</small></button>`).join('');
+  const bag = ORE_ORDER.filter(o => (S.carry || {})[o]).map(o => `<span class="chip on"><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.carry[o]}</small></span>`).join('');
   const dests = (here === 'home' ? ok : ['home']).map(k => {
     if (k !== 'home' && !vis[k]) return `<button class="btn primary" data-a="walk" data-o="${k}">${ico('ic_boot')}${TOWNS[k].short}</button>`;   // 처음은 걸어서
     const c2 = travelCost(k);
     return `<button class="btn primary" data-a="travel" data-o="${k}" ${S.energy > c2 ? '' : 'disabled'}>${k === 'home' ? '마을' : TOWNS[k].short} ${PWR}${c2}</button>` + (k !== 'home' ? `<button class="btn" data-a="walk" data-o="${k}" aria-label="걸어가기">${ico('ic_boot')}</button>` : '');
   }).join('');
   const railRow = !S.rail && here === 'home' && Object.keys(TOWNS).every(k => vis[k]) ? `<p class="dim" style="margin-top:8px">${ico('ic_rail')}광차 철길 <small class="eff">길 기력 0</small></p><div class="rows"><div class="rowi"><span class="nm">${needHtml(RAIL.need, RAIL.gold)}</span><button class="btn small" data-a="rail" ${hasAll(RAIL.need) && S.gold >= RAIL.gold ? '' : 'disabled'}>놓기</button></div></div>` : '';
-  openSheet(ico('ic_map') + '지도', svg + (here === 'home' ? `<p class="dim" style="margin-top:8px">짐 꾸리기</p><div class="chips">${pack || '<span class="dim">창고 빔</span>'}</div>` : '')
+  openSheet(ico('ic_map') + '지도', svg
     + `<p class="dim" style="margin-top:8px">${ico('ic_bag')}가방 ${carryN()}/${bagCap()}</p><div class="chips">${bag}</div>` + railRow, dests);
-}
-function packItem(o) {
-  const n = Math.min(S.inv[o] || 0, bagCap() - carryN()); if (n <= 0) return;
-  S.inv[o] -= n; S.carry[o] = (S.carry[o] || 0) + n; SFX.tap(); save(); showWorld();
-}
-function unpackItem(o) {
-  const n = (S.carry || {})[o] || 0; if (!n) return;
-  S.inv[o] = (S.inv[o] || 0) + n; delete S.carry[o]; SFX.tap(); save(); showWorld();
 }
 function travel(dest) {
   if (dest !== 'home' && !(S.visited || {})[dest]) { enterRoad(dest); return; }
@@ -3073,7 +3097,7 @@ function enterTown(id, at) {
   questEvent(id); save(); renderHud(); renderDock();
 }
 function homeFromTown() {
-  S.loc = 'home'; unpack(); scene = 'village'; S.screen = 'village'; FLAT = false;
+  S.loc = 'home'; scene = 'village'; S.screen = 'village'; FLAT = false;
   hero.x = GATE[0]; hero.y = 0; hero.path = []; hero.goal = null; follow = true; snapCam();
   toast(`${ico('ic_village')}마을`); save(); renderHud(); renderDock();
 }
@@ -3091,9 +3115,9 @@ function showTownObj(o) {
   const T = townHere();
   if (o.id === 'inn') {
     const late = phaseIndex() === 3;
-    openSheet(ico('ic_village') + '여관', `<p>${T.greet}</p>` + (late ? '<p class="warn">새벽 취침</p>' : ''), `<button class="btn primary" data-a="inn" ${S.gold >= 50 ? '' : 'disabled'}>${GOLD}50</button>`);
+    openSheet(ico('ic_village') + '여관', `<p>${T.greet}</p>` + (late ? '<p class="warn">새벽 취침</p>' : ''), `<button class="btn" data-a="store">${ico('ic_box')}창고</button><button class="btn primary" data-a="inn" ${S.gold >= 50 ? '' : 'disabled'}>${GOLD}50</button>`);
   } else if (o.id === 'tmarket') {
-    const rows = ORE_ORDER.filter(k => (S.carry || {})[k]).map(k => { const m = T.price[k] || 1, cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${k}"></span>${ORES[k].name} <small>×${S.carry[k]}</small> <small class="${cls}">${GOLD}${townPrice(k)}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="tsell" data-o="${k}">${GOLD}${townPrice(k) * S.carry[k]}</button></div>`; }).join('');
+    const rows = ORE_ORDER.filter(k => have(k)).map(k => { const m = T.price[k] || 1, cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${k}"></span>${ORES[k].name} <small>×${have(k)}</small> <small class="${cls}">${GOLD}${townPrice(k)}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="tsell" data-o="${k}">${GOLD}${townPrice(k) * have(k)}</button></div>`; }).join('');
     const buy = S.donkey || S.loc !== 'mtn' ? '' : `<p class="dim" style="margin-top:10px">사기</p><div class="rows"><div class="rowi"><span class="nm">${ico('ic_donkey')}당나귀 수레 <small class="eff">길 기력 2할, 가방 +20칸</small></span><button class="btn small" data-a="donkey" ${S.gold >= DONKEY_GOLD ? '' : 'disabled'}>${GOLD}${DONKEY_GOLD}</button></div></div>`;
     const want = Object.entries(T.price).filter(([, m]) => m > 1.05).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => `<span class="ore ${k}"></span>`).join('');
     openSheet(ico('ic_shop') + `${T.short} 시장`, `<p class="dim">비싸게 삼 ${want}</p>` + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + buy);
@@ -3103,8 +3127,8 @@ function showTownObj(o) {
   }
 }
 function townSell(o) {
-  const n = (S.carry || {})[o] || 0; if (!n) return;
-  const g = townPrice(o) * n; delete S.carry[o]; S.gold += g; S.townSold = (S.townSold || 0) + g;
+  const n = have(o); if (!n) return;
+  const g = townPrice(o) * n; take(o, n); S.gold += g; S.townSold = (S.townSold || 0) + g;
   SFX.coin(); toast(`${GOLD}+${g}`); questEvent('trade'); save(); renderHud(); renderDock(); showTownObj(TOWN_OBJ[1]);
 }
 function innSleep() {
@@ -3290,12 +3314,12 @@ function loseAcc(id) { S.acc.have[id] = owned(id) - 1; if (freeOwned(id) < 0) S.
 function equip(id) { if (freeOwned(id) <= 0 || S.acc.eq.length >= S.acc.slots) return; S.acc.eq.push(id); SFX.tap(); holeCache = null; save(); afterEquip(); }
 function unequip(id) { const i = S.acc.eq.indexOf(id); if (i < 0) return; S.acc.eq.splice(i, 1); save(); afterEquip(); }
 function afterEquip() { if (scene === 'mine') mineSee(); else if (scene === 'forest') forestSee(); showBag(); renderDock(); }
-const hasAll = need => Object.entries(need).every(([k, n]) => (S.inv[k] || 0) >= n);
-const needHtml = (need, gold) => Object.entries(need).map(([k, n]) => `<span class="nd ${(S.inv[k] || 0) >= n ? '' : 'lack'}"><span class="ore ${k}"></span>${Math.min(S.inv[k] || 0, n)}/${n}</span>`).join('') + (gold ? ` <span class="nd ${S.gold >= gold ? '' : 'lack'}">${GOLD}${gold}</span>` : '');
+const hasAll = need => Object.entries(need).every(([k, n]) => have(k) >= n);
+const needHtml = (need, gold) => Object.entries(need).map(([k, n]) => `<span class="nd ${have(k) >= n ? '' : 'lack'}"><span class="ore ${k}"></span>${Math.min(have(k), n)}/${n}</span>`).join('') + (gold ? ` <span class="nd ${S.gold >= gold ? '' : 'lack'}">${GOLD}${gold}</span>` : '');
 function craft(id) {
   const r = CRAFTS.find(q => q.id === id); if (!r || !hasAll(r.need) || S.gold < r.gold) return;
   if (r.kind === 'slot' && S.acc.slots >= 2) return;
-  Object.entries(r.need).forEach(([k, n]) => { S.inv[k] -= n; }); S.gold -= r.gold;
+  Object.entries(r.need).forEach(([k, n]) => { take(k, n); }); S.gold -= r.gold;
   if (r.kind === 'tool' && S[id]) return;
   if (r.kind === 'item') S.items[id] = (S.items[id] || 0) + 1; else if (r.kind === 'acc') gainAcc(id); else if (r.kind === 'tool') S[id] = 1; else S.acc.slots = Math.max(S.acc.slots, 2);
   SFX.stairs(); toast(r.kind === 'slot' ? `${ico('ic_ring')}장착 칸 2` : `${accIco(id)}${(ACC[id] || ITEMS[id] || TOOLS[id]).n}`); save(); renderHud(); showSmithy();
@@ -3316,7 +3340,7 @@ function useItem(id) {
   if (ITEMS[id].eat) { const e = ITEMS[id].eat; S.items[id]--; S.energy = Math.min(S.max, S.energy + e); SFX.coin(); toast(`${accIco(id)}${PWR}+${e}`); save(); renderHud(); showBag(); return; }   // 먹어도 시간은 거꾸로 가지 않음
   if (id === 'tent') { pitchTent(); return; }
   if (id === 'recall') { if (scene === 'village') return; S.items.recall--; hideSheet(); SFX.stairs(); toVillage('home'); toast(`${ico('ic_scroll')}마을`); return; }
-  if (id === 'campRecall') { const lc = S.deep.lastCamp; if (!lc) return; S.items.campRecall--; hideSheet(); SFX.stairs(); fade = 1; unpack(); startDeep(lc[0], lc[1], lc[2]); return; }
+  if (id === 'campRecall') { const lc = S.deep.lastCamp; if (!lc) return; S.items.campRecall--; hideSheet(); SFX.stairs(); fade = 1; startDeep(lc[0], lc[1], lc[2]); return; }
 }
 
 /* ===== 글 속 아이콘 (위의 ICONS를 SVG로) ===== */
@@ -3575,13 +3599,13 @@ function questHtml() {
 }
 /* ===== 아래쪽 단추와 창 ===== */
 const sheet = document.getElementById('sheet'), dock = document.getElementById('dock'), minebar = document.getElementById('minebar');
-const bagCount = () => ORE_ORDER.reduce((a, o) => a + (S.inv[o] || 0), 0);
+
 const oreRow = src => ORE_ORDER.filter(o => src[o]).map(o => `<span><span class="ore ${o}"></span>${src[o]}</span>`).join('');
 function renderDock() {
   const mine = scene === 'mine' || scene === 'forest' || scene === 'hunt' || scene === 'town';
   minebar.hidden = !mine || !!trip;   // 이동 장면 동안엔 아래 단추를 숨김
   dock.hidden = mine || !sheet.hidden || !!trip;
-  if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate" data-a="bag" aria-label="가방">${ico('ic_bag')}${bagCount()}</button>`;
+  if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
   const bagBtn = `<button class="btn small${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
   if (scene === 'town') minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button><b>${ico('ic_village')}${(townHere() || TOWNS.mtn).n}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_sword')}성 밖</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
@@ -3640,18 +3664,18 @@ function showCard(o, msg) {
   } else openSheet(`${o.icon ? ico(o.icon) : ''}${o.name}`, '');
 }
 function showMerchant() {
-  const rows = ORE_ORDER.filter(o => S.inv[o]).map(o => { const n = S.inv[o], p = ORES[o].price; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${n}</small></span><button class="btn small" data-a="sell" data-o="${o}">${GOLD}${p * n}</button></div>`; }).join('');
-  const total = ORE_ORDER.reduce((a, o) => a + (S.inv[o] || 0) * ORES[o].price, 0);
+  const rows = ORE_ORDER.filter(o => have(o)).map(o => { const n = have(o), p = ORES[o].price; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${n}</small></span><button class="btn small" data-a="sell" data-o="${o}">${GOLD}${p * n}</button></div>`; }).join('');
+  const total = ORE_ORDER.reduce((a, o) => a + have(o) * ORES[o].price, 0);
   const shop = SHOP.map((it, i) => [it, i]).filter(([it]) => !it.farm || S.restored.includes('field')).map(([it, i]) => `<div class="rowi"><span class="nm">${accIco(it.id)}${(ACC[it.id] || ITEMS[it.id]).n}${it.kind === 'acc' ? ` <small class="eff">${accDesc(it.id)}</small>` : ''}${it.kind === 'acc' && owned(it.id) ? ' <small>있음</small>' : ''}</span><button class="btn small" data-a="buy" data-n="${i}" ${S.gold >= it.gold ? '' : 'disabled'}>${GOLD}${it.gold}</button></div>`).join('');
   openSheet(ico('ic_shop') + '떠돌이 상인', (rows ? `<p class="dim">팔기</p><div class="rows">${rows}</div>` : '<p>광석이라면 뭐든 사 갈게요.</p>') + `<p class="dim" style="margin-top:10px">사기</p><div class="rows">${shop}</div>`, total ? `<button class="btn primary" data-a="sellAll">전부 ${GOLD}${total}</button>` : '');
 }
 function showBag() {
-  const out = scene !== 'village', src = out ? S.carry : S.inv;
+  const out = scene !== 'village', src = S.carry;
   const rows = ORE_ORDER.filter(o => src[o]).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name}</span><span>×${src[o]}</span><small>${GOLD}${ORES[o].price * src[o]}</small></div>`).join('');
   const usable = id => (ITEMS[id].eat ? S.energy < S.max : id === 'tent' ? scene === 'mine' : id === 'recall' ? out : !!S.deep.lastCamp);
   const items = Object.keys(ITEMS).filter(id => S.items[id] > 0).map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small>×${S.items[id]}</small></span>${ITEMS[id].seed ? '' : `<button class="btn small" data-a="use" data-o="${id}" ${usable(id) ? '' : 'disabled'}>${ITEMS[id].eat ? `${PWR}+${ITEMS[id].eat}` : '쓰기'}</button>`}</div>`).join('');
   const canDrop = rows || items;
-  openSheet(ico('ic_bag') + (out ? `가방 <small>${carryN()}/${bagCap()}</small>` : '창고'),
+  openSheet(ico('ic_bag') + `가방 <small>${carryN()}/${bagCap()}</small>`,
     (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">빈 가방</p>') + (items ? `<p class="dim" style="margin-top:10px">소모품</p><div class="rows">${items}</div>` : '') + accSection(),
     (canDrop ? `<button class="btn" data-a="dropPick">${ico('ic_trash')}버리기</button>` : '') + `<button class="btn" data-a="stats">${ico('ic_stat')}능력치</button>`);
 }
@@ -3675,8 +3699,8 @@ function showAccInfo(id) {
   openSheet(`${accIco(id)}${ACC[id].n}`, `<p class="eff">${accDesc(id)}</p><p class="dim">${on ? '끼움' : '안 낌'}${n > 1 ? `, 가진 수 ×${n}` : ''}</p>`,
     `<button class="btn" data-a="bag">가방</button>` + (on ? `<button class="btn primary" data-a="unequip" data-o="${id}">빼기</button>` : `<button class="btn primary" data-a="equip" data-o="${id}" ${freeOwned(id) > 0 && S.acc.eq.length < S.acc.slots ? '' : 'disabled'}>끼기</button>`));
 }
-// 버리기: 고르고 수량 막대로 정함 (마을 밖은 가방, 마을은 창고)
-function dropSrc() { return scene !== 'village' ? S.carry : S.inv; }
+// 버리기: 가방에서 고르고 수량 막대로 정함 (어디서든 가방에서 버림)
+function dropSrc() { return S.carry; }
 function showDropPick() {
   const src = dropSrc();
   const ores = ORE_ORDER.filter(o => src[o] > 0).map(o => `<div class="rowi tap" data-a="dropSel" data-o="${o}" data-k="ore"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name}</span><span>×${src[o]}</span></div>`).join('');
@@ -3722,7 +3746,7 @@ const canRestore = id => { const i = QUESTS.findIndex(q => q.id === id); return 
 function restoreObj(id) {
   const o = OBJ.find(v => v.id === id), r = RESTORE[id];
   if (!o || o.done || !r || !canRestore(id) || S.gold < r.gold || !hasAll(r.need || {})) return;
-  S.gold -= r.gold; Object.entries(r.need || {}).forEach(([k, n]) => { S.inv[k] -= n; });
+  S.gold -= r.gold; Object.entries(r.need || {}).forEach(([k, n]) => { take(k, n); });
   S.restored.push(id); o.done = true; o.grow = o.kind === 'mine' ? 1 : 0; if (r.then) r.then();
   SFX.stairs(); questEvent(id); save(); renderHud();
   openSheet(r.who, `<p>${r.line}</p>`);
@@ -3735,7 +3759,7 @@ const HOMES = [
 ];
 function upgradeHome() {
   const next = HOMES[(S.home || 0) + 1]; if (!next || !hasAll(next.need) || S.gold < next.gold) return;
-  Object.entries(next.need).forEach(([k, n]) => { S.inv[k] -= n; }); S.gold -= next.gold;
+  Object.entries(next.need).forEach(([k, n]) => { take(k, n); }); S.gold -= next.gold;
   S.home = (S.home || 0) + 1; S.max += next.max; S.energy += next.max;
   const o = OBJ.find(v => v.id === 'house'); o.name = next.name; o.grow = 0;
   SFX.stairs(); toast(`${ico('ic_village')}${next.name} ${PWR}${S.max}`); questEvent('home'); save(); renderHud(); showHouse();
@@ -3743,7 +3767,7 @@ function upgradeHome() {
 function showHouse() {
   const ph = phaseIndex(), late = ph === 3, early = ph <= 1, next = HOMES[(S.home || 0) + 1];
   const up = next ? `<p class="dim" style="margin-top:10px">고치기</p><div class="rows"><div class="rowi"><span class="nm">${next.name} ${PWR}+${next.max} ${needHtml(next.need, next.gold)}</span><button class="btn small" data-a="home" ${hasAll(next.need) && S.gold >= next.gold ? '' : 'disabled'}>고치기</button></div></div>` : '';
-  openSheet(ico('ic_village') + HOMES[S.home || 0].name, `<p>${S.day + 1}일차 아침 ${PWR}${Math.round(S.max * START_FRAC[late ? 'late' : early ? 'early' : 'normal'])}</p>` + (late ? '<p class="warn">새벽 취침</p>' : '') + up, '<button class="btn primary" data-a="sleep">자기</button>');
+  openSheet(ico('ic_village') + HOMES[S.home || 0].name, `<p>${S.day + 1}일차 아침 ${PWR}${Math.round(S.max * START_FRAC[late ? 'late' : early ? 'early' : 'normal'])}</p>` + (late ? '<p class="warn">새벽 취침</p>' : '') + up, `<button class="btn" data-a="store">${ico('ic_box')}창고</button><button class="btn primary" data-a="sleep">자기</button>`);
 }
 // 무너진 곳 창: 고치면 생기는 것, 차례가 왔으면 값과 고치기 단추
 function ruinCard(o) {
@@ -3755,14 +3779,14 @@ function showSmithy() {
   let smelt;
   if (S.furnace) smelt = `<div class="rowi"><span class="nm"><span class="ore ${S.furnace.bar}"></span>${ORES[S.furnace.bar].name} <small>×${S.furnace.n}</small></span><small>내일 아침</small></div>`;
   else {
-    const rows = Object.keys(SMELT).filter(o => (S.inv[o] || 0) >= SMELT_N).map(o => { const n = smeltN(o); return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${Math.max(n, 1) * SMELT_N} <span class="ore coal"></span>${Math.max(n, 1)} ${ico('ic_arrow')} <span class="ore ${SMELT[o]}"></span>${n}</span><button class="btn small" data-a="smelt" data-o="${o}" ${n ? '' : 'disabled'}>넣기</button></div>`; }).join('');
+    const rows = Object.keys(SMELT).filter(o => have(o) >= SMELT_N).map(o => { const n = smeltN(o); return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${Math.max(n, 1) * SMELT_N} <span class="ore coal"></span>${Math.max(n, 1)} ${ico('ic_arrow')} <span class="ore ${SMELT[o]}"></span>${n}</span><button class="btn small" data-a="smelt" data-o="${o}" ${n ? '' : 'disabled'}>넣기</button></div>`; }).join('');
     smelt = rows || `<p class="dim">광석 ${SMELT_N}, 석탄 1 ${ico('ic_arrow')} 주괴 1</p>`;
   }
   const cur = PICKS[S.pick], next = PICKS[S.pick + 1];
   let pick = `<div class="rowi"><span class="nm">${ico('ic_pick')}${cur.name}${S.pick ? ` <small>${QUAL[S.pickQ]}</small>` : ''}</span></div>`;
   if (next) {
-    const ok = Object.entries(next.need).every(([k, n]) => (S.inv[k] || 0) >= n) && S.gold >= next.gold;
-    pick += `<div class="rowi"><span class="nm">${next.name} ${Object.entries(next.need).map(([k, n]) => `<span class="ore ${k}"></span>${Math.min(S.inv[k] || 0, n)}/${n}`).join(' ')} ${GOLD}${next.gold}</span><button class="btn small ${ok ? 'primary' : ''}" data-a="forge" ${ok ? '' : 'disabled'}>강화</button></div>`;
+    const ok = Object.entries(next.need).every(([k, n]) => have(k) >= n) && S.gold >= next.gold;
+    pick += `<div class="rowi"><span class="nm">${next.name} ${Object.entries(next.need).map(([k, n]) => `<span class="ore ${k}"></span>${Math.min(have(k), n)}/${n}`).join(' ')} ${GOLD}${next.gold}</span><button class="btn small ${ok ? 'primary' : ''}" data-a="forge" ${ok ? '' : 'disabled'}>강화</button></div>`;
   }
   const sh = SHARP[S.sharp || 0];
   pick = `<div class="rowi"><span class="nm">${ico('ic_pick')}곡괭이 파워</span><b>${pickPower()}</b></div>` + pick;
@@ -3773,18 +3797,18 @@ function showSmithy() {
   const recs = RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b)).map(([[a, b, o], i]) => `<div class="rowi"><span class="nm">${accIco(a)}<span class="${owned(a) ? '' : 'lack'}">${ACC[a].n}</span> + ${accIco(b)}<span class="${owned(b) ? '' : 'lack'}">${ACC[b].n}</span> ${ico('ic_arrow')} ${owned(a) && owned(b) ? ACC[o].n : '?'}</span><button class="btn small" data-a="combine" data-n="${i}" ${owned(a) && owned(b) && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`).join('');
   openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div><p class="dim" style="margin-top:10px">만들기</p><div class="rows">${crafts}</div>` + (recs ? `<p class="dim" style="margin-top:10px">합치기</p><div class="rows">${recs}</div>` : ''));
 }
-const smeltN = o => Math.min(FURNACE_MAX, Math.floor((S.inv[o] || 0) / SMELT_N), S.inv.coal || 0);   // 주괴 하나에 광석 5개와 석탄 1개
+const smeltN = o => Math.min(FURNACE_MAX, Math.floor(have(o) / SMELT_N), have('coal'));   // 주괴 하나에 광석 5개와 석탄 1개
 function smelt(o) {
   if (S.furnace || !SMELT[o]) return;
   const n = smeltN(o); if (!n) return;
-  S.inv[o] -= n * SMELT_N; S.inv.coal -= n; S.furnace = { bar: SMELT[o], n };
+  take(o, n * SMELT_N); take('coal', n); S.furnace = { bar: SMELT[o], n };
   SFX.stairs(); questEvent('smelt'); save(); renderHud(); showSmithy();
 }
 // 망치질: 바늘이 오가는 막대에서 가운데를 맞춰 세 번 두드림. 맞춘 정도로 품질
 let hammer = null;
 function startHammer() {
   const next = PICKS[S.pick + 1]; if (!next) return;
-  if (!Object.entries(next.need).every(([k, n]) => (S.inv[k] || 0) >= n) || S.gold < next.gold) return;
+  if (!Object.entries(next.need).every(([k, n]) => have(k) >= n) || S.gold < next.gold) return;
   openHammer('망치질', next.period, next.zone, q => finishForge(q));
 }
 // 막대 놀이: period 바늘이 한 번 오가는 초(두드릴 때마다 빨라짐), zone 맞는 칸 넓이, done(품질 0~2)
@@ -3812,7 +3836,7 @@ function strike() {
 }
 function finishForge(q) {
   const next = PICKS[S.pick + 1];
-  Object.entries(next.need).forEach(([k, n]) => { S.inv[k] -= n; });
+  Object.entries(next.need).forEach(([k, n]) => { take(k, n); });
   S.gold -= next.gold; S.pick += 1; S.pickQ = q;
   SFX.stairs(); questEvent('pick'); save(); renderHud();
   openSheet('대장장이', `<p>${next.name} 완성이에요. ${['쓸 만하게 나왔네요.', '솜씨가 좋은데요.', '이건 정말 잘 나왔어요.'][q]}</p><div class="feat"><span>${ico('ic_pick')}${next.name} ${QUAL[q]}</span></div>`);
@@ -3933,18 +3957,18 @@ let kitSel = [];
 function todayReq() { if (!S.req || S.req.day !== S.day) { const r = REQS[(S.day * 7 + 3) % REQS.length]; S.req = { day: S.day, item: r[0], n: r[1], gold: r[2], done: false }; } return S.req; }
 function findRecipe(a, b) { return RECIPES_K.find(r => (r.a === a && r.b === b) || (r.a === b && r.b === a)); }
 function showKitchen() {
-  const has = o => (S.inv[o] || 0) - kitSel.filter(k => k === o).length;
-  const chips = COOKABLE.filter(o => S.inv[o]).map(o => `<button class="chip ${kitSel.includes(o) ? 'on' : ''}" data-a="kpick" data-o="${o}" ${has(o) > 0 || kitSel.includes(o) ? '' : 'disabled'}><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o]}</small></button>`).join('');
-  const known = (S.recipes || []).map(i => RECIPES_K[i]).map((r, j) => `<div class="rowi"><span class="nm">${accIco(r.out)}${ITEMS[r.out].n} <small>${ORES[r.a].name} + ${ORES[r.b].name}</small> ${PWR}+${ITEMS[r.out].eat}</span><button class="btn small" data-a="kcook" data-n="${S.recipes[j]}" ${(S.inv[r.a] || 0) >= (r.a === r.b ? 2 : 1) && (S.inv[r.b] || 0) >= 1 ? '' : 'disabled'}>요리</button></div>`).join('');
+  const has = o => have(o) - kitSel.filter(k => k === o).length;
+  const chips = COOKABLE.filter(o => have(o)).map(o => `<button class="chip ${kitSel.includes(o) ? 'on' : ''}" data-a="kpick" data-o="${o}" ${has(o) > 0 || kitSel.includes(o) ? '' : 'disabled'}><span class="ore ${o}"></span>${ORES[o].name} <small>×${have(o)}</small></button>`).join('');
+  const known = (S.recipes || []).map(i => RECIPES_K[i]).map((r, j) => `<div class="rowi"><span class="nm">${accIco(r.out)}${ITEMS[r.out].n} <small>${ORES[r.a].name} + ${ORES[r.b].name}</small> ${PWR}+${ITEMS[r.out].eat}</span><button class="btn small" data-a="kcook" data-n="${S.recipes[j]}" ${have(r.a) >= (r.a === r.b ? 2 : 1) && have(r.b) >= 1 ? '' : 'disabled'}>요리</button></div>`).join('');
   const ph = phaseIndex(), q = todayReq(), reqOpen = ph === 1 || ph === 2;
-  const req = !reqOpen ? '<p class="dim">점심과 저녁에 의뢰</p>' : q.done ? `<p class="dim">${ico('ic_check')}오늘 의뢰 끝</p>` : `<div class="rowi"><span class="nm"><span class="ore ${q.item}"></span>${ORES[q.item].name} ${Math.min(S.inv[q.item] || 0, q.n)}/${q.n}</span><button class="btn small" data-a="kreq" ${(S.inv[q.item] || 0) >= q.n ? '' : 'disabled'}>${GOLD}${q.gold}</button></div>`;
+  const req = !reqOpen ? '<p class="dim">점심과 저녁에 의뢰</p>' : q.done ? `<p class="dim">${ico('ic_check')}오늘 의뢰 끝</p>` : `<div class="rowi"><span class="nm"><span class="ore ${q.item}"></span>${ORES[q.item].name} ${Math.min(have(q.item), q.n)}/${q.n}</span><button class="btn small" data-a="kreq" ${have(q.item) >= q.n ? '' : 'disabled'}>${GOLD}${q.gold}</button></div>`;
   openSheet(ico('ic_rest') + '식당', `<p class="dim">재료 둘</p><div class="chips">${chips || '<span class="dim">재료 없음</span>'}</div><div class="btns" style="margin:6px 0 10px"><button class="btn primary" data-a="kcookSel" ${kitSel.length === 2 ? '' : 'disabled'}>요리</button></div>`
     + (known ? `<p class="dim">알게 된 요리</p><div class="rows">${known}</div>` : '') + `<p class="dim" style="margin-top:10px">주민 의뢰</p>${req}`);
 }
-function kpick(o) { const i = kitSel.indexOf(o); if (i >= 0) kitSel.splice(i, 1); else if (kitSel.length < 2 && (S.inv[o] || 0) > kitSel.filter(k => k === o).length) kitSel.push(o); showKitchen(); }
+function kpick(o) { const i = kitSel.indexOf(o); if (i >= 0) kitSel.splice(i, 1); else if (kitSel.length < 2 && have(o) > kitSel.filter(k => k === o).length) kitSel.push(o); showKitchen(); }
 function cook(a, b) {
-  if ((S.inv[a] || 0) < (a === b ? 2 : 1) || (S.inv[b] || 0) < 1) return;
-  S.inv[a]--; S.inv[b]--;
+  if (have(a) < (a === b ? 2 : 1) || have(b) < 1) return;
+  take(a, 1); take(b, 1);
   const r = findRecipe(a, b), out = r ? r.out : 'mush2';
   S.items[out] = (S.items[out] || 0) + 1;
   if (r) { const i = RECIPES_K.indexOf(r); S.recipes = S.recipes || []; if (!S.recipes.includes(i)) { S.recipes.push(i); toast(`${ico('ic_check')}새 요리 ${ITEMS[out].n}`); } else toast(`${accIco(out)}${ITEMS[out].n}`); }
@@ -3968,7 +3992,7 @@ function todayBoard() {
   S.board = { day: S.day, list: pool.slice(0, 3) };
   return S.board;
 }
-const boardHave = b => (b.kind === 'item' ? S.inv[b.item] || 0 : b.kind === 'chest' ? S.today._chest || 0 : S.today._kill || 0);
+const boardHave = b => (b.kind === 'item' ? have(b.item) : b.kind === 'chest' ? S.today._chest || 0 : S.today._kill || 0);
 function boardHtml() {
   if (!boardOpen()) return '';
   const rows = todayBoard().list.map((b, i) => {
@@ -3980,28 +4004,28 @@ function boardHtml() {
 }
 function doBoard(i) {
   const b = todayBoard().list[i]; if (!b || b.done || boardHave(b) < b.n) return;
-  if (b.kind === 'item') S.inv[b.item] -= b.n;
+  if (b.kind === 'item') take(b.item, b.n);
   b.done = true; S.gold += b.gold; S.boardN = (S.boardN || 0) + 1;
   SFX.coin(); toast(`${GOLD}+${b.gold}`); questEvent('board'); save(); renderHud(); showCard(OBJ.find(o => o.id === 'chief'));
 }
 function doReq() {
-  const q = todayReq(), ph = phaseIndex(); if (q.done || (S.inv[q.item] || 0) < q.n || !(ph === 1 || ph === 2)) return;
-  S.inv[q.item] -= q.n; S.gold += q.gold; q.done = true; S.reqN = (S.reqN || 0) + 1;
+  const q = todayReq(), ph = phaseIndex(); if (q.done || have(q.item) < q.n || !(ph === 1 || ph === 2)) return;
+  take(q.item, q.n); S.gold += q.gold; q.done = true; S.reqN = (S.reqN || 0) + 1;
   SFX.coin(); toast(`${GOLD}+${q.gold}`); questEvent('request'); save(); renderHud(); showKitchen();
 }
 /* ===== 세공소 (기획 4번 10단계): 원석 하나와 30골드로 깎기. 막대 놀이로 결을 맞출수록 보석이 더 나옴 =====
    보통 1개, 좋음 1개(반은 2개), 최상 2개. 귀한 원석일수록 바늘이 빠르고 칸이 좁음 */
 const CUTS = { crystal: { out: 'crystalGem', period: 2.2, zone: 1 }, amethyst: { out: 'amethystGem', period: 1.9, zone: .85 }, ruby: { out: 'rubyGem', period: 1.6, zone: .7 } }, CUT_GOLD = 30;
 function showJewel() {
-  const rows = Object.keys(CUTS).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o] || 0}</small> ${ico('ic_arrow')} <span class="ore ${CUTS[o].out}"></span>${ORES[CUTS[o].out].name}</span><button class="btn small" data-a="cut" data-o="${o}" ${(S.inv[o] || 0) >= 1 && S.gold >= CUT_GOLD ? '' : 'disabled'}>${GOLD}${CUT_GOLD}</button></div>`).join('');
+  const rows = Object.keys(CUTS).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${have(o)}</small> ${ico('ic_arrow')} <span class="ore ${CUTS[o].out}"></span>${ORES[CUTS[o].out].name}</span><button class="btn small" data-a="cut" data-o="${o}" ${have(o) >= 1 && S.gold >= CUT_GOLD ? '' : 'disabled'}>${GOLD}${CUT_GOLD}</button></div>`).join('');
   openSheet(ico('ic_shard') + '세공소', `<div class="rows">${rows}</div>`);
 }
 function cutGem(o) {
-  const C = CUTS[o]; if (!C || (S.inv[o] || 0) < 1 || S.gold < CUT_GOLD) return;
-  S.inv[o]--; S.gold -= CUT_GOLD; renderHud();
+  const C = CUTS[o]; if (!C || have(o) < 1 || S.gold < CUT_GOLD) return;
+  take(o, 1); S.gold -= CUT_GOLD; renderHud();
   openHammer('깎기', C.period, C.zone, q => {
     const n = q === 2 ? 2 : q === 1 ? 1 + (Math.random() < .5 ? 1 : 0) : 1;
-    S.inv[C.out] = (S.inv[C.out] || 0) + n; S.cutN = (S.cutN || 0) + 1;
+    give(C.out, n); S.cutN = (S.cutN || 0) + 1;
     SFX.stairs(); questEvent('cut'); save(); renderHud();
     openSheet('세공사', `<p>${['괜찮게 나왔어요.', '결이 잘 맞았네요.', '이건 정말 잘 깎였어요.'][q]}</p><div class="feat"><span><span class="ore ${C.out}"></span>${ORES[C.out].name} ×${n} ${QUAL[q]}</span></div>`);
   });
@@ -4022,14 +4046,14 @@ function rollMarket(first) {
   M.hint = up || null;
 }
 const unitPrice = (o, extra = 0) => Math.max(1, Math.round(ORES[o].price * S.market.mult[o] * Math.max(.4, 1 - .02 * ((S.market.sold[o] || 0) + extra))));
-function tradeValue(o) { let g = 0; for (let k = 0; k < (S.inv[o] || 0); k++) g += unitPrice(o, k); return g; }
+function tradeValue(o) { let g = 0; for (let k = 0; k < have(o); k++) g += unitPrice(o, k); return g; }
 // 시장 상인들 (기획 54번): 시세 거래 말고도 음식 상인은 먹을 것, 재료 상인은 재료를 팖
 const FOOD_SHOP = [['tea', 20], ['bread', 35], ['skewer', 80]];
 const MAT_SHOP = [['wood', 5, 30], ['fiber', 5, 20], ['coal', 5, 45], ['herb', 3, 50], ['leather', 1, 45]];
 let marketTab = 'trade';
 function marketBuy(kind, i) {
   if (kind === 'food') { const [id, g] = FOOD_SHOP[i]; if (S.gold < g) return; S.gold -= g; S.items[id] = (S.items[id] || 0) + 1; toast(`${accIco(id)}${ITEMS[id].n}`); }
-  else { const [id, n, g] = MAT_SHOP[i]; if (S.gold < g) return; S.gold -= g; S.inv[id] = (S.inv[id] || 0) + n; toast(`<span class="ore ${id}"></span>${ORES[id].name} +${n}`); }
+  else { const [id, n, g] = MAT_SHOP[i]; if (S.gold < g) return; S.gold -= g; give(id, n); toast(`<span class="ore ${id}"></span>${ORES[id].name} +${n}`); }
   SFX.coin(); save(); renderHud(); showMarket();
 }
 function showMarket() {
@@ -4041,20 +4065,20 @@ function showMarket() {
     openSheet(ico('ic_shop') + '시장', tabs + `<p>갓 구운 빵이랑 따뜻한 꼬치 있어요. 일하다 출출할 때 하나씩 먹어요.</p><div class="rows">${rows}</div>`); return;
   }
   if (marketTab === 'mat') {
-    const rows = MAT_SHOP.map(([id, n, g], i) => `<div class="rowi"><span class="nm"><span class="ore ${id}"></span>${ORES[id].name} ×${n}${S.inv[id] ? ` <small>창고 ${S.inv[id]}</small>` : ''}</span><button class="btn small" data-a="mbuy" data-o="mat" data-n="${i}" ${S.gold >= g ? '' : 'disabled'}>${GOLD}${g}</button></div>`).join('');
+    const rows = MAT_SHOP.map(([id, n, g], i) => `<div class="rowi"><span class="nm"><span class="ore ${id}"></span>${ORES[id].name} ×${n}${have(id) ? ` <small>×${have(id)}</small>` : ''}</span><button class="btn small" data-a="mbuy" data-o="mat" data-n="${i}" ${S.gold >= g ? '' : 'disabled'}>${GOLD}${g}</button></div>`).join('');
     openSheet(ico('ic_shop') + '시장', tabs + `<p>모자란 재료 있으면 여기서 채워 가요. 좀 비싸긴 해도 발품은 덜 들죠.</p><div class="rows">${rows}</div>`); return;
   }
-  const rows = TRADE.filter(o => S.inv[o]).map(o => { const m = M.mult[o], p = unitPrice(o), cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o]}</small> <small class="${cls}">${GOLD}${p}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="trade" data-o="${o}">${GOLD}${tradeValue(o)}</button></div>`; }).join('');
+  const rows = TRADE.filter(o => have(o)).map(o => { const m = M.mult[o], p = unitPrice(o), cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${have(o)}</small> <small class="${cls}">${GOLD}${p}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="trade" data-o="${o}">${GOLD}${tradeValue(o)}</button></div>`; }).join('');
   const news = M.hint ? `<p class="news">${ico('ic_shop')}내일 ${ORES[M.hint].name} 오름</p>` : '';
   openSheet(ico('ic_shop') + '시장', tabs + news + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + nightHtml());
 }
 function trade(o) {
-  const n = S.inv[o] || 0; if (!n) return;
-  const g = tradeValue(o); S.inv[o] = 0; S.market.sold[o] = (S.market.sold[o] || 0) + n; S.gold += g;
+  const n = have(o); if (!n) return;
+  const g = tradeValue(o); take(o, n); S.market.sold[o] = (S.market.sold[o] || 0) + n; S.gold += g;
   SFX.coin(); toast(`${GOLD}+${g}`); questEvent('trade'); save(); renderHud(); showMarket();
 }
-function sell(o) { const n = S.inv[o] || 0; if (!n) return; S.inv[o] = 0; S.gold += ORES[o].price * n; SFX.coin(); toast(`${GOLD}+${ORES[o].price * n}`); questEvent('sell'); save(); renderHud(); showMerchant(); }
-function sellAll() { let g = 0; ORE_ORDER.forEach(o => { g += (S.inv[o] || 0) * ORES[o].price; S.inv[o] = 0; }); if (!g) return; S.gold += g; SFX.coin(); toast(`${GOLD}+${g}`); questEvent('sell'); save(); renderHud(); showMerchant(); }
+function sell(o) { const n = have(o); if (!n) return; take(o, n); S.gold += ORES[o].price * n; SFX.coin(); toast(`${GOLD}+${ORES[o].price * n}`); questEvent('sell'); save(); renderHud(); showMerchant(); }
+function sellAll() { let g = 0; ORE_ORDER.forEach(o => { const n = have(o); g += n * ORES[o].price; take(o, n); }); if (!g) return; S.gold += g; SFX.coin(); toast(`${GOLD}+${g}`); questEvent('sell'); save(); renderHud(); showMerchant(); }
 // 소리 크기 막대
 document.addEventListener('input', e => {
   const k = e.target.dataset && e.target.dataset.vol; if (!k) return;
@@ -4105,8 +4129,10 @@ document.addEventListener('click', e => {
   else if (a === 'skiptrip') endTrip();
   else if (a === 'mtab') { marketTab = b.dataset.o; showMarket(); }
   else if (a === 'mbuy') marketBuy(b.dataset.o, n);
-  else if (a === 'pack') packItem(b.dataset.o);
-  else if (a === 'unpack1') unpackItem(b.dataset.o);
+  else if (a === 'store') showStore();
+  else if (a === 'stIn') storeIn(b.dataset.o);
+  else if (a === 'stOut') storeOut(b.dataset.o);
+  else if (a === 'stAll') storeAll();
   else if (a === 'tsell') townSell(b.dataset.o);
   else if (a === 'inn') innSleep();
   else if (a === 'donkey') buyDonkey();
@@ -4274,7 +4300,7 @@ function startGame() {
   if (S.screen === 'mine' && S.deep) { scene = 'mine'; FLAT = true; S.mine = { L: S.deep.L }; hero.x = S.deep.x; hero.y = S.deep.y; mineSee(); }
   else if (S.screen === 'town' && TOWNS[S.loc]) { enterTown(S.loc, 'road'); }
   else if (S.screen === 'forest' && S.forest && S.forest.day === S.day && S.forest.it && S.forest.t.length === FW * FH) { scene = 'forest'; FLAT = true; hero.x = S.forest.hx; hero.y = S.forest.hy; forestSee(); }
-  else { S.screen = 'village'; S.mine = null; S.hunt = null; unpack(); }
+  else { S.screen = 'village'; S.mine = null; S.hunt = null; }
   snapCam(); renderHud(); renderDock(); showHome();
   fade = 1;
   requestAnimationFrame(frame);
