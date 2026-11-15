@@ -3609,6 +3609,7 @@ function showCard(o, msg) {
   if (msg) { toast(msg); return; }
   if (o.id === 'forest') {
     if (!o.done) { ruinCard(o); return; }
+    if (!S.introSeen) { openSheet(`${ico('ic_tree')}숲`, '<p>숲에 가기 전에 촌장부터 만나 보기</p>', `<button class="btn primary" data-a="toChief">${ico('ic_quest')}촌장</button>`); return; }   // 촌장 소개 전엔 숲에 못 들어감
     openSheet(`${ico('ic_tree')}숲`, '', '<button class="btn primary" data-a="forest">들어가기</button>');
     return;
   }
@@ -4041,6 +4042,7 @@ document.addEventListener('click', e => {
   else if (a === 'forge') startHammer();
   else if (a === 'strike') strike();
   else if (a === 'forest') enterForest();
+  else if (a === 'toChief') { closeSheet(); const o = OBJ.find(v => v.id === 'chief'); mark(o.gx, o.gy, '233,176,79', o.w, o.d); goTo(o); }
   else if (a === 'hunt') enterHunt();
   else if (a === 'nbuy') nightBuy(n);
   else if (a === 'board') doBoard(n);
