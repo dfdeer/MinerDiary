@@ -1968,7 +1968,7 @@ function openChest(x, y) {
   for (let i = 0; i < 4 + z * 2 + rnd(3); i++) { const o = pickFrom(Z.ores, Math.random()); if (k < room) { got[o] = (got[o] || 0) + 1; k++; } }
   Object.entries(got).forEach(([o, n]) => addItem(o, n));
   const gold = 40 * (z + 1) + rnd(40) * (z + 1); S.gold += gold;
-  const acc = !S.chestN ? 'plumb' : z >= 2 && Math.random() < .06 ? 'plenty' : Math.random() < .25 ? CHEST[rnd(CHEST.length)] : null;   // 처음 연 상자엔 깊이 추(구멍 화살표, 땅속에서 바로 쓸모), 깊은 곳 상자엔 드물게 풍요의 고리
+  const acc = z >= 2 && Math.random() < .06 ? 'plenty' : Math.random() < .25 + (S.chestN ? 0 : 1) ? CHEST[rnd(CHEST.length)] : null;   // 처음 연 상자엔 꼭 하나(무작위), 깊은 곳 상자엔 드물게 풍요의 고리
   let accTxt = '';
   if (acc && ACC[acc]) { gainAcc(acc); accTxt = ` ${accIco(acc)}${ACC[acc].n}`; } else if (acc) { addItem(acc, 2); }
   S.chestN = (S.chestN || 0) + 1; S.today._chest = (S.today._chest || 0) + 1;
@@ -4311,7 +4311,7 @@ window.MinerDiary = {
   mfloats: () => mfloats.map(f => f.text),
   trip: () => (trip ? trip.mode : null),
   townSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, 0); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
-  fcell: (x, y) => S.forest.t[fI(x, y)], power: () => pickPower(), fishBite: () => { if (fishing) fishing.t0 = performance.now() - fishing.bite - 100; },
+  fcell: (x, y) => S.forest.t[fI(x, y)], power: () => pickPower(), fishBite: () => { if (fishing) fishing.t0 = performance.now() - fishing.bite; },
   huntSpot: (x, y) => { follow = false; const p = iso(x + .5, y + .5, 0); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
   mons: () => (S.hunt ? S.hunt.mons.map(m => ({ id: m.id, kind: m.kind, x: m.x, y: m.y, hp: m.hp })) : []),
   setMon: (id, x, y) => { const m = S.hunt.mons.find(o => o.id === id); m.x = m.wx = x; m.y = m.wy = y; },
