@@ -878,25 +878,32 @@ function chibi(c, X, Y, s, o) {
   const swing = o.swing || 0, t = 1 - swing;
   const ez = v => 1 - (1 - v) * (1 - v), ein = v => v * v;
   const curve = swing <= 0 ? 0 : t < .35 ? -1.25 * ez(t / .35) : t < .55 ? -1.25 + 2.2 * ein((t - .35) / .2) : .95 * (1 - ez((t - .55) / .45));
-  const ang = curve * -rs;
+  const ang = -curve;   // 들 때는 곡괭이가 머리 위로, 찍을 때는 바깥 앞 땅으로 (앞뒤 모두 화면에서 같은 방향)
+  // 자루 (아래 끝 a, 위 끝 b)와 쥔 손 g. 날은 자루 끝에서 자루와 직각으로 양쪽에 뻗고 끝이 자루 쪽으로 살짝 휨
+  // 앞모습은 몸 옆에 비스듬히 세워 쥐고(소매 위로 자루, 그 위를 주먹이 감쌈), 뒷모습은 어깨 너머로 들어 올림. 자루는 짧고 굵게
+  const PG = back ? { a: [9, -32], b: [22, -74], g: [13, -38], bl: 16 } : { a: [15, -24], b: [35, -62], g: [19.4, -32.4], bl: 15 };
   const pickaxe = () => {
+    const [ax, ay] = PG.a, [bx, by] = PG.b, ln = Math.hypot(bx - ax, by - ay), ux = (bx - ax) / ln, uy = (by - ay) / ln, nx = -uy, ny = ux;
+    const H = [bx + ux * 3, by + uy * 3], tip = k => [rs * (H[0] + nx * PG.bl * k - ux * 4), H[1] + ny * PG.bl * k - uy * 4], top = [rs * (H[0] + ux * 11), H[1] + uy * 11];
     c.save(); c.translate(rs * 16, -48); c.rotate(ang); c.translate(-rs * 16, 48);
-    limb(c, rs * 6, -26, rs * 23, -84, '#a8703a', 5.5);
-    // 쇠 날은 자루 끝에서 자루와 직각으로 양쪽에 뻗고 끝이 자루 쪽으로 살짝 휨
-    c.beginPath(); c.moveTo(rs * 3.5, -88.7); c.quadraticCurveTo(rs * 27.2, -98.4, rs * 41.9, -77.5);
+    limb(c, rs * ax, ay, rs * bx, by, '#a8703a', 6.5);
+    const t1 = tip(-1), t2 = tip(1);
+    c.beginPath(); c.moveTo(t1[0], t1[1]); c.quadraticCurveTo(top[0], top[1], t2[0], t2[1]);
     c.strokeStyle = OUT; c.lineWidth = 12; c.stroke(); c.strokeStyle = '#b7c0ca'; c.lineWidth = 6.5; c.stroke();
-    c.beginPath(); c.moveTo(rs * 10, -92); c.quadraticCurveTo(rs * 26.6, -97.4, rs * 37, -83); c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 2; c.stroke();
-    shape(c, () => { c.save(); c.translate(rs * 23.6, -86.4); c.rotate(rs * .284); c.roundRect(-4.5, -5, 9, 10, 2); c.restore(); }, '#7d8792', 2.5);
+    const h1 = tip(-.7), h2 = tip(.7), hm = [rs * (H[0] + ux * 8), H[1] + uy * 8];
+    c.beginPath(); c.moveTo(h1[0] + rs * ux * 2.5, h1[1] + uy * 2.5); c.quadraticCurveTo(hm[0], hm[1], h2[0] + rs * ux * 2.5, h2[1] + uy * 2.5); c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 2; c.stroke();
+    shape(c, () => { c.save(); c.translate(rs * H[0], H[1]); c.rotate(Math.atan2(uy, rs * ux) + Math.PI / 2); c.roundRect(-4.5, -5, 9, 10, 2); c.restore(); }, '#7d8792', 2.5);
     c.restore();
   };
-  const gripArm = () => {
+  const gripArm = part => {   // part: 'sleeve'(팔), 'fist'(자루를 감싼 주먹), 없으면 둘 다
+    const [gx, gy] = PG.g;
     c.save(); c.translate(rs * 16, -48); c.rotate(ang); c.translate(-rs * 16, 48);
-    limb(c, rs * 16, -47, rs * 13, -38, L.sleeve, 8);
-    shape(c, () => c.arc(rs * 13, -38, 6.5, 0, 7), L.glove, 3);
+    if (part !== 'fist') limb(c, rs * 16, -47, rs * gx, gy, L.sleeve, 8.5);
+    if (part !== 'sleeve') shape(c, () => c.arc(rs * gx, gy, 6.5, 0, 7), L.glove, 3);
     c.restore();
   };
-  // 곡괭이는 몸 앞에서 쥐고 어깨에 걸침: 얼굴이 보이면 자루 위쪽이 몸 뒤로, 등이 보이면 쥔 손과 자루 아래쪽이 몸에 가려짐
-  if (L.pick) pickaxe();
+  // 등이 보이면 곡괭이를 몸보다 먼저 그려 쥔 손과 자루 아래쪽이 몸에 가려짐. 앞모습은 몸 앞에서 손에 쥠(아래에서 그림)
+  if (L.pick && back) pickaxe();
   // 팔: 반대쪽 다리와 함께 앞뒤로 흔들림. 곡괭이나 지팡이가 있으면 오른손이 쥠
   const arm = (side, p, hold) => {
     if (hold) return;
@@ -906,7 +913,6 @@ function chibi(c, X, Y, s, o) {
   };
   const arms = [[-rs, ph + Math.PI, false], [rs, ph, !!L.pick || !!L.cane]];
   arms.forEach(([side, p2, hold]) => { if (side === far) arm(side, p2, hold); });
-  if (L.pick && !back && rs === far) gripArm();   // 곡괭이 쥔 손이 먼 쪽이면 몸 뒤
   legs.forEach(([side, f]) => leg(side, f));
   // 몸: 둥근 통
   if (L.robe) shape(c, () => { c.moveTo(-14, -56); c.quadraticCurveTo(0, -60, 14, -56); c.quadraticCurveTo(21, -34, 19, -14); c.quadraticCurveTo(0, -9, -19, -14); c.quadraticCurveTo(-21, -34, -14, -56); }, L.body);
@@ -925,7 +931,7 @@ function chibi(c, X, Y, s, o) {
   if (!L.robe) { R(c, -16, -28, 32, 4.5, '#6b4424'); if (!back) shape(c, () => c.roundRect(fx * 3 - 4, -29.5, 8, 7, 2), '#e8b830', 2); }
   if (L.pack && back) pack();
   arms.forEach(([side, p2, hold]) => { if (side !== far) arm(side, p2, hold); });
-  if (L.pick && !back && rs !== far) gripArm();
+  if (L.pick && !back) { gripArm('sleeve'); pickaxe(); gripArm('fist'); }   // 앞모습: 소매, 자루, 주먹 순서로 그려 주먹이 자루를 감쌈
   if (L.pick && back) { c.save(); c.translate(rs * 16, -48); c.rotate(ang); c.translate(-rs * 16, 48); limb(c, rs * 15, -50, rs * 13, -41, L.sleeve, 9); c.restore(); }   // 등이 보이면 앞으로 뻗은 오른팔은 어깨만 보임
   if (L.cane) { limb(c, rs * 22, -36, rs * 25, -1, '#8a5a32', 4); shape(c, () => c.arc(rs * 22, -38, 7, Math.PI, 0), '#8a5a32', 3); limb(c, rs * 15, -49, rs * 21, -36, L.sleeve, 9); shape(c, () => c.arc(rs * 21, -36, 6.5, 0, 7), L.glove, 3); }
   // 머리
