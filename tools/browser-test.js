@@ -208,6 +208,16 @@ const shot = process.argv[2];
     await page.evaluate(([x, y]) => { window.MinerDiary.setCell(x, y, 'r', 'iron'); S.carry.coal = 99; }, r);
     await tap(r[0], r[1]);
     ok((await cell(r[0], r[1])).t === 'r', '가방이 가득이면 광석을 캐지 않음');
+    ok(/가방이 가득 차 더 못 캠/.test(await page.textContent('#toast')) && (await page.evaluate(() => window.MinerDiary.mfloats())).includes('가방 가득') && await page.locator('#minebar [data-a="bag"].full').count() === 1, '가방이 가득이면 알림과 바위 위 가방 가득 글자, 가방 단추가 붉게 깜빡임');
+    // 버리기: 고르고 수량 막대로 정함
+    await page.evaluate(() => showBag());
+    await page.click('#sheet [data-a="dropPick"]');
+    await page.click('#sheet [data-a="dropSel"][data-o="coal"]');
+    await page.locator('#sheet input[data-drop]').fill('90');
+    ok((await page.textContent('#sheet .drop b')) === '×90', '수량 막대를 당기면 버릴 수량이 바뀜');
+    await page.click('#sheet [data-a="dropDo"]');
+    ok(await page.evaluate(() => S.carry.coal === 9 && window.MinerDiary.carryN() < 20) && await page.locator('#sheet [data-a="dropPick"]').count() === 1, '석탄 99개 중 90개를 버리면 9개 남고 가방 창으로 돌아옴');
+    await page.click('#sheet [data-a="close"]');
     await page.evaluate(() => { delete S.carry.coal; renderDock(); });
   }
 
@@ -752,7 +762,18 @@ const shot = process.argv[2];
   ok(s.acc.have.guide === 1 && !s.acc.have.compass && !s.acc.have.plumb, '나침반과 깊이 추를 합치면 길잡이 나침반');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => showBag());
-  if ((await st()).acc.eq.length >= (await st()).acc.slots) await page.click('#sheet [data-a="unequip"]');
+  ok(/소모품/.test(await page.textContent('#sheet')) && !/쓸 것/.test(await page.textContent('#sheet')), '가방의 쓰는 물건 칸 이름은 소모품');
+  ok(await page.locator('#sheet .slot').count() === 3 && await page.locator('#sheet .slot.lock').count() === 3 - (await st()).acc.slots, '장신구 칸은 늘 세 칸, 안 열린 칸은 자물쇠');
+  await page.click('#sheet .slot.lock');
+  ok(/장신구 고리|깊이 10/.test(await page.textContent('#toast')), '잠긴 칸을 누르면 여는 방법');
+  if ((await st()).acc.eq.length) {
+    const eq0 = (await st()).acc.eq[0];
+    ok(await page.locator(`#sheet .rowi[data-o="${eq0}"] .eff`).count() === 1, '끼운 장신구에도 효과 설명');
+    await page.click(`#sheet .slot.on[data-o="${eq0}"]`);
+    ok(await page.locator('#sheet .eff').count() >= 1 && await page.locator(`#sheet [data-a="unequip"][data-o="${eq0}"]`).count() === 1, '끼운 칸을 누르면 상세(효과)와 빼기 단추');
+    await page.click(`#sheet [data-a="unequip"][data-o="${eq0}"]`);
+    ok(!(await st()).acc.eq.includes(eq0), '빼기 단추를 누르면 장신구가 빠짐');
+  }
   await page.click('#sheet [data-a="equip"][data-o="guide"]');
   ok(await page.evaluate(() => window.MinerDiary.accEff('home') === 1 && window.MinerDiary.accEff('hole') === 1), '길잡이 나침반을 끼면 입구와 구멍 화살표가 켜짐');
   await page.click('#sheet [data-a="close"]');

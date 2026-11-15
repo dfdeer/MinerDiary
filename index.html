@@ -121,6 +121,9 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .up{color:#8fe08a}.down{color:#f0907a}.news{background:rgba(233,176,79,.15);border-radius:10px;padding:6px 10px}
 .slots{display:flex;gap:8px;margin:2px 0 8px}.slot{flex:1;min-height:52px;border-radius:12px;border:2px dashed rgba(255,255,255,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
 .slot.on{border:2px solid #e9b04f;background:rgba(233,176,79,.15)}.slot .ico{width:22px;height:22px}
+.slot.lock{border:2px solid rgba(255,255,255,.12);background:rgba(0,0,0,.25);color:var(--dim);opacity:.8}.rowi.tap{cursor:pointer}
+.btn.full{border-color:#e0604a;box-shadow:0 0 0 2px rgba(224,96,74,.55);animation:fullp 1s ease-in-out infinite}@keyframes fullp{50%{box-shadow:0 0 0 4px rgba(224,96,74,.25)}}
+.drop{display:flex;align-items:center;gap:10px;margin:10px 0}.drop input{flex:1;accent-color:#e9b04f}.drop b{min-width:44px;text-align:right}
 .nd{display:inline-flex;align-items:center;gap:3px;font-size:12px;margin-left:6px}.nd.lack,.lack{color:#e68a7a}
 .fishing{height:110px;border-radius:14px;background:linear-gradient(#4f9fd8,#3f7fb0);position:relative;overflow:hidden;margin-bottom:6px}.fishing .bob{position:absolute;left:50%;top:44px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#fff 0 30%,#e04a3a 31%);border:2px solid #2b1a12;transition:transform .1s}.fishing .bob.bite{transform:translateY(10px) scale(.9)}.fishing .say{position:absolute;left:0;right:0;top:8px;text-align:center;font-size:22px;color:#fff;text-shadow:0 2px 0 #2b1a12}
 
@@ -522,6 +525,7 @@ const ICONS = {
   ic_moon: [['M15.5 3.2A9 9 0 1 0 20.8 15 7 7 0 0 1 15.5 3.2Z', '#f2e6a8']],
   ic_sword: [['M16.8 3.2h4v4L10.5 17.5l-4-4Z', '#dfe6ee'], ['M5 12.5l6.5 6.5-1.6 1.6-6.5-6.5Z', '#8a5a32'], ['M4.2 17.8l2 2-2.6 2.6-2-2Z', '#e9b04f']],
   ic_warn: [['M12 2.8 22 20.5H2Z', '#f2c230'], ['M10.9 8.5h2.2l-.4 6.3h-1.4Z', '#2b1a12', 0], ['M12 16.4a1.3 1.3 0 1 0 .01 0Z', '#2b1a12', 0]],
+  ic_trash: [['M4.5 6.5h15', 'none', 2], ['M9.5 6V4h5v2', 'none', 1.8], ['M6 7.5h12l-1.2 13H7.2Z', '#9aa4ae'], ['M10 10.5v7M14 10.5v7', 'none', 1.4]],
   ic_bag: [['M8.5 6.5a3.5 3.5 0 0 1 7 0', 'none', 1.8], ['M4.5 7.5h15l-1.4 13H5.9Z', '#a8723f'], ['M4.5 7.5h15v3.5H4.5Z', '#8a5a2e'], ['M10.5 12h3v2.5h-3Z', '#f2c230']],
   ic_settings: [[gearPath(), '#b9c0c8'], ['M12 8.6a3.4 3.4 0 1 0 .01 0Z', '#5a6068']],
   ic_sound: [['M3.5 9h4l5-4v14l-5-4h-4Z', '#b9c0c8'], ['M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12', 'none', 1.8]],
@@ -1964,7 +1968,7 @@ function openChest(x, y) {
   for (let i = 0; i < 4 + z * 2 + rnd(3); i++) { const o = pickFrom(Z.ores, Math.random()); if (k < room) { got[o] = (got[o] || 0) + 1; k++; } }
   Object.entries(got).forEach(([o, n]) => addItem(o, n));
   const gold = 40 * (z + 1) + rnd(40) * (z + 1); S.gold += gold;
-  const acc = z >= 2 && Math.random() < .06 ? 'plenty' : Math.random() < .25 + (S.chestN ? 0 : 1) ? CHEST[rnd(CHEST.length)] : null;   // 처음 연 상자엔 꼭 하나, 깊은 곳 상자엔 드물게 풍요의 고리
+  const acc = !S.chestN ? 'plumb' : z >= 2 && Math.random() < .06 ? 'plenty' : Math.random() < .25 ? CHEST[rnd(CHEST.length)] : null;   // 처음 연 상자엔 깊이 추(구멍 화살표, 땅속에서 바로 쓸모), 깊은 곳 상자엔 드물게 풍요의 고리
   let accTxt = '';
   if (acc && ACC[acc]) { gainAcc(acc); accTxt = ` ${accIco(acc)}${ACC[acc].n}`; } else if (acc) { addItem(acc, 2); }
   S.chestN = (S.chestN || 0) + 1; S.today._chest = (S.today._chest || 0) + 1;
@@ -1978,7 +1982,7 @@ function dig(x, y, force) {
   const t = mT(x, y);
   if (!ROCKISH(t) || t === 'w' || (t === 'h' && !canHard())) return;
   const ore = mO(x, y), cost = digCost(t);
-  if (ore && carryN() >= bagCap()) { toast(`${ico('ic_bag')}가득`); mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
+  if (ore && carryN() >= bagCap()) { bagFullMsg(x, y, '캠'); mbumps.push({ x, y, t: .3 }); return; }
   // 마지막 기력: 쓰러지기 전에 한 번 물어봄
   if (S.energy <= cost && !force) {
     openSheet(ico('ic_warn') + '기력 바닥', '<p class="warn">이 칸을 캐면 쓰러짐</p>', `<button class="btn" data-a="close">그만</button><button class="btn primary" data-a="digForce" data-n="${x},${y}">캐기</button>`);
@@ -2419,7 +2423,7 @@ const fT = (x, y) => (fIn(x, y) ? S.forest.t[fI(x, y)] : 't');
 // 숲에서 옆 칸에 하는 일: 가시덤불 치기, 낚시
 function forestAct([x, y, t]) {
   if (t === 'm') {
-    if (carryN() >= bagCap()) { toast(`${ico('ic_bag')}가득`); SFX.deny(); return; }
+    if (carryN() >= bagCap()) { bagFullMsg(x, y, '캠'); return; }
     const o = pickFrom(GROVES[S.forest.grove].ores, Math.random()); S.forest.t[fI(x, y)] = 'g'; addItem(o, 1); mswing = 1; SFX.dig(); SFX.ore(1);
     toast(`<span class="ore ${o}"></span>${ORES[o].name} +1`); for (let i = 0; i < 10; i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .3, y: y + .5 + Math.sin(a) * .3, z: .4, life: .8, col: ORES[o].light }); }
     if (spend(2)) { save(); renderHud(); renderDock(); } return;
@@ -2499,7 +2503,7 @@ function forestStep() {
 // 밟은 칸의 것을 주움 (가방이 가득이면 못 주움)
 function gather(x, y) {
   const f = S.forest, k = x + ',' + y, what = f.it[k]; if (!what) return;
-  if (carryN() >= bagCap()) { toast(`${ico('ic_bag')}가득`); SFX.deny(); return; }
+  if (carryN() >= bagCap()) { bagFullMsg(x, y, '주움'); return; }
   delete f.it[k];
   const p = iso(x + .5, y + .5, .5);
   if (what === 'sparkle' || what === 'chest') {
@@ -3262,7 +3266,7 @@ const ITEMS = {
   stew: { n: '무 조림', ic: 'ic_d_stew', eat: 30 }, jam: { n: '딸기 잼', ic: 'ic_d_jam', eat: 20 }, eelbowl: { n: '장어 덮밥', ic: 'ic_d_eelbowl', eat: 60 },
   moonsoup: { n: '달빛 국', ic: 'ic_d_moonsoup', eat: 80 }, steak: { n: '고기 구이', ic: 'ic_d_steak', eat: 45 }, mush2: { n: '이상한 죽', ic: 'ic_d_mush2', eat: 5 },
   radishSeed: { n: '무 씨앗', ic: 'ic_seed', seed: 'radish' }, potatoSeed: { n: '감자 씨앗', ic: 'ic_seed', seed: 'potato' }, berrySeed: { n: '딸기 씨앗', ic: 'ic_seed', seed: 'berry' }, recall: { n: '귀환서', ic: 'ic_scroll' }, campRecall: { n: '야영 귀환서', ic: 'ic_scroll' }, tent: { n: '야영 천막', ic: 'ic_tent' } };
-// 대장간에서 만드는 것 (장신구, 쓸 것, 장신구 고리)
+// 대장간에서 만드는 것 (장신구, 소모품, 장신구 고리)
 const CRAFTS = [
   { id: 'tent', kind: 'item', need: { fiber: 6, wood: 4 }, gold: 0 },
   { id: 'flag', kind: 'acc', need: { fiber: 5, wood: 3 }, gold: 50 },
@@ -3578,7 +3582,7 @@ function renderDock() {
   minebar.hidden = !mine || !!trip;   // 이동 장면 동안엔 아래 단추를 숨김
   dock.hidden = mine || !sheet.hidden || !!trip;
   if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate" data-a="bag" aria-label="가방">${ico('ic_bag')}${bagCount()}</button>`;
-  const bagBtn = `<button class="btn small" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
+  const bagBtn = `<button class="btn small${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
   if (scene === 'town') minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button><b>${ico('ic_village')}${(townHere() || TOWNS.mtn).n}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_sword')}성 밖</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_tree')}${fPlace(Math.round(hero.x))}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
@@ -3646,12 +3650,56 @@ function showBag() {
   const rows = ORE_ORDER.filter(o => src[o]).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name}</span><span>×${src[o]}</span><small>${GOLD}${ORES[o].price * src[o]}</small></div>`).join('');
   const usable = id => (ITEMS[id].eat ? S.energy < S.max : id === 'tent' ? scene === 'mine' : id === 'recall' ? out : !!S.deep.lastCamp);
   const items = Object.keys(ITEMS).filter(id => S.items[id] > 0).map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small>×${S.items[id]}</small></span>${ITEMS[id].seed ? '' : `<button class="btn small" data-a="use" data-o="${id}" ${usable(id) ? '' : 'disabled'}>${ITEMS[id].eat ? `${PWR}+${ITEMS[id].eat}` : '쓰기'}</button>`}</div>`).join('');
-  const slots = []; for (let i = 0; i < S.acc.slots; i++) { const id = S.acc.eq[i]; slots.push(id ? `<button class="slot on" data-a="unequip" data-o="${id}" aria-label="빼기">${accIco(id)}<small>${ACC[id].n}</small></button>` : '<span class="slot"></span>'); }
-  const accs = Object.keys(ACC).filter(id => freeOwned(id) > 0).map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ACC[id].n}${owned(id) > 1 ? ` <small>×${freeOwned(id)}</small>` : ''} <small class="eff">${accDesc(id)}</small></span><button class="btn small" data-a="equip" data-o="${id}" ${S.acc.eq.length < S.acc.slots ? '' : 'disabled'}>끼기</button></div>`).join('');
+  const canDrop = rows || items;
   openSheet(ico('ic_bag') + (out ? `가방 <small>${carryN()}/${bagCap()}</small>` : '창고'),
-    (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">빈 가방</p>') + (items ? `<p class="dim" style="margin-top:10px">쓸 것</p><div class="rows">${items}</div>` : '')
-    + `<p class="dim" style="margin-top:10px">장신구</p><div class="slots">${slots.join('')}</div>` + (S.acc.eq.length ? `<p class="eff">${S.acc.eq.map(accDesc).join(', ')}</p>` : '') + (accs ? `<div class="rows">${accs}</div>` : ''),
-    `<button class="btn" data-a="stats">${ico('ic_stat')}능력치</button>`);
+    (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">빈 가방</p>') + (items ? `<p class="dim" style="margin-top:10px">소모품</p><div class="rows">${items}</div>` : '') + accSection(),
+    (canDrop ? `<button class="btn" data-a="dropPick">${ico('ic_trash')}버리기</button>` : '') + `<button class="btn" data-a="stats">${ico('ic_stat')}능력치</button>`);
+}
+// 장신구 칸: 세 칸을 늘 보여 주고, 아직 안 열린 칸은 자물쇠와 여는 방법. 칸이나 줄을 누르면 상세
+const SLOT_LOCK = ['', '대장간 장신구 고리', '깊이 10 도달'];
+function accSection() {
+  const slots = [];
+  for (let i = 0; i < 3; i++) {
+    const id = S.acc.eq[i];
+    if (i >= S.acc.slots) slots.push(`<button class="slot lock" data-a="slotInfo" data-n="${i}" aria-label="잠긴 칸">${ico('ic_lock')}<small>${SLOT_LOCK[i]}</small></button>`);
+    else slots.push(id ? `<button class="slot on" data-a="accInfo" data-o="${id}">${accIco(id)}<small>${ACC[id].n}</small></button>` : '<span class="slot"></span>');
+  }
+  const row = (id, btn) => `<div class="rowi tap" data-a="accInfo" data-o="${id}"><span class="nm">${accIco(id)}<span>${ACC[id].n}${btn === 'equip' && freeOwned(id) > 1 ? ` <small>×${freeOwned(id)}</small>` : ''}<br><small class="eff">${accDesc(id)}</small></span></span>`
+    + (btn === 'unequip' ? `<button class="btn small" data-a="unequip" data-o="${id}">빼기</button>` : `<button class="btn small" data-a="equip" data-o="${id}" ${S.acc.eq.length < S.acc.slots ? '' : 'disabled'}>끼기</button>`) + '</div>';
+  const eq = S.acc.eq.map(id => row(id, 'unequip')).join(''), free = Object.keys(ACC).filter(id => freeOwned(id) > 0).map(id => row(id, 'equip')).join('');
+  return `<p class="dim" style="margin-top:10px">장신구 <small>${S.acc.eq.length}/${S.acc.slots}</small></p><div class="slots">${slots.join('')}</div>`
+    + (eq ? `<div class="rows">${eq}</div>` : '') + (free ? `<p class="dim" style="margin-top:8px">가진 장신구</p><div class="rows">${free}</div>` : '');
+}
+function showAccInfo(id) {
+  const on = S.acc.eq.includes(id), n = owned(id);
+  openSheet(`${accIco(id)}${ACC[id].n}`, `<p class="eff">${accDesc(id)}</p><p class="dim">${on ? '끼움' : '안 낌'}${n > 1 ? `, 가진 수 ×${n}` : ''}</p>`,
+    `<button class="btn" data-a="bag">가방</button>` + (on ? `<button class="btn primary" data-a="unequip" data-o="${id}">빼기</button>` : `<button class="btn primary" data-a="equip" data-o="${id}" ${freeOwned(id) > 0 && S.acc.eq.length < S.acc.slots ? '' : 'disabled'}>끼기</button>`));
+}
+// 버리기: 고르고 수량 막대로 정함 (마을 밖은 가방, 마을은 창고)
+function dropSrc() { return scene !== 'village' ? S.carry : S.inv; }
+function showDropPick() {
+  const src = dropSrc();
+  const ores = ORE_ORDER.filter(o => src[o] > 0).map(o => `<div class="rowi tap" data-a="dropSel" data-o="${o}" data-k="ore"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name}</span><span>×${src[o]}</span></div>`).join('');
+  const items = Object.keys(ITEMS).filter(id => S.items[id] > 0).map(id => `<div class="rowi tap" data-a="dropSel" data-o="${id}" data-k="item"><span class="nm">${accIco(id)}${ITEMS[id].n}</span><span>×${S.items[id]}</span></div>`).join('');
+  openSheet(ico('ic_trash') + '버리기', `<div class="rows">${ores}${items}</div>`, `<button class="btn" data-a="bag">가방</button>`);
+}
+function showDropSel(o, k) {
+  const have = k === 'item' ? (S.items[o] || 0) : (dropSrc()[o] || 0); if (!have) { showBag(); return; }
+  const nm = k === 'item' ? `${accIco(o)}${ITEMS[o].n}` : `<span class="ore ${o}"></span>${ORES[o].name}`;
+  openSheet(ico('ic_trash') + '버리기', `<p>${nm} <small>×${have}</small></p><div class="drop"><input type="range" min="1" max="${have}" step="1" value="1" data-drop="1" aria-label="수량"><b>×1</b></div>`,
+    `<button class="btn" data-a="dropPick">뒤로</button><button class="btn primary" data-a="dropDo" data-o="${o}" data-k="${k}">버리기</button>`);
+}
+function dropDo(o, k) {
+  const inp = document.querySelector('#sheet input[data-drop]'), src = k === 'item' ? S.items : dropSrc();
+  const n = Math.max(1, Math.min(src[o] || 0, +(inp ? inp.value : 1))); if (!src[o]) return;
+  src[o] -= n; if (k !== 'item' && src[o] <= 0) delete src[o];
+  SFX.deny(); toast(`${ico('ic_trash')}${k === 'item' ? ITEMS[o].n : ORES[o].name} ${n}개 버림`); save(); renderHud(); renderDock(); showBag();
+}
+// 가방이 가득일 때: 알림, 그 자리에 가방 가득 글자, 가방 단추가 붉게 깜빡임
+function bagFullMsg(x, y, verb) {
+  toast(`${ico('ic_bag')}가방이 가득 차 더 못 ${verb}`); SFX.deny();
+  if (x != null && scene === 'mine') { const p = iso(x + .5, y + .5, .6); mfloats.push({ x: p[0], y: p[1] - TW * .3, text: '가방 가득', color: '#ff9a7a', life: 1.4 }); }
+  renderDock();
 }
 function showMenu() {
   const sl = (k, ic, name) => { const v = Math.round(S.vol[k] * 100); return `<div class="rowi vol"><span class="nm">${ico(ic)}${name}</span><input type="range" min="0" max="100" step="5" value="${v}" data-vol="${k}" aria-label="${name}"><small>${v}</small></div>`; };
@@ -4013,6 +4061,7 @@ document.addEventListener('input', e => {
   S.vol[k] = +e.target.value / 100; e.target.nextElementSibling.textContent = e.target.value;
   startAudio(); setVolumes(); save();
 });
+document.addEventListener('input', e => { if (e.target.dataset && e.target.dataset.drop) e.target.nextElementSibling.textContent = '×' + e.target.value; });
 document.addEventListener('change', e => { if (e.target.dataset && (e.target.dataset.vol === 'sfx' || e.target.dataset.vol === 'master')) SFX.coin(); });
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
@@ -4067,6 +4116,11 @@ document.addEventListener('click', e => {
   else if (a === 'campSleep') { hideSheet(); sleep(S.deep.lastCamp); }
   else if (a === 'use') useItem(b.dataset.o);
   else if (a === 'equip') equip(b.dataset.o);
+  else if (a === 'accInfo') showAccInfo(b.dataset.o);
+  else if (a === 'slotInfo') toast(`${ico('ic_lock')}${SLOT_LOCK[n]}`);
+  else if (a === 'dropPick') showDropPick();
+  else if (a === 'dropSel') showDropSel(b.dataset.o, b.dataset.k);
+  else if (a === 'dropDo') dropDo(b.dataset.o, b.dataset.k);
   else if (a === 'unequip') unequip(b.dataset.o);
   else if (a === 'craft') craft(b.dataset.o);
   else if (a === 'combine') combine(n);
