@@ -69,7 +69,7 @@ const shot = process.argv[2];
   // 2. 상호작용하는 것끼리 화면에서 겹치지 않음 (누르는 모양 기준)
   const overlaps = await page.evaluate(() => {
     const OBJ = window.MinerDiary.objects();
-    const TALL = { house: 3.4, smithy: 4, kitchen: 3.6, jewel: 3.6, market: 2.6, museum: 4, mine: 4.2, gate: 2.4, npc: 2.2, wagon: 2.2 };
+    const TALL = { house: 3.4, smithy: 4, kitchen: 3.6, jewel: 3.6, market: 1.3, museum: 4, mine: 4.2, gate: 2.4, npc: 2.2, wagon: 2.2 };
     const poly = o => { const z = hgt(o.gx, o.gy), up = ZU * (TALL[o.kind] || 1.2); const a = iso(o.gx, o.gy, z), b = iso(o.gx + o.w, o.gy, z), c = iso(o.gx + o.w, o.gy + o.d, z), d = iso(o.gx, o.gy + o.d, z); return [d, c, b, [b[0], b[1] - up], [a[0], a[1] - up], [d[0], d[1] - up]]; };
     const both = (A, B) => { const xs = A.map(q => q[0]), ys = A.map(q => q[1]); for (let x = Math.min(...xs); x <= Math.max(...xs); x += 3) for (let y = Math.min(...ys); y <= Math.max(...ys); y += 3) if (inPoly(x, y, A) && inPoly(x, y, B)) return true; return false; };
     const act = OBJ.filter(o => !['bigtree', 'bridge', 'field'].includes(o.kind)), out = [];
@@ -428,6 +428,17 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="trade"][data-o="iron"]');
   s = await st();
   ok(s.gold === gM + pr[2] + 50 && s.inv.iron === 0 && s.market.sold.iron === 20, `철 광석 20개를 시세로 팔아 🪙${pr[2]} (퀘스트 보상 🪙50)`);
+  // 13-0a2. 시장 상인들: 음식 상인과 재료 상인
+  await page.evaluate(() => { S.gold += 200; marketTab = 'food'; showMarket(); });
+  const gFd = (await st()).gold;
+  await page.click('#sheet [data-a="mbuy"][data-o="food"][data-n="1"]');
+  ok((await st()).items.bread === 1 && (await st()).gold === gFd - 35, '시장 음식 상인에게서 빵 🪙35');
+  const wd0 = (await st()).inv.wood || 0;
+  await page.click('#sheet [data-a="mtab"][data-o="mat"]');
+  await page.click('#sheet [data-a="mbuy"][data-o="mat"][data-n="0"]');
+  ok((await st()).inv.wood === wd0 + 5, '시장 재료 상인에게서 나뭇가지 5개');
+  await page.evaluate(() => { marketTab = 'trade'; showMarket(); });
+
   // 13-0b. 집 고치기: 최대 기력 +20
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { S.inv.wood = 15; S.inv.ironBar = 2; S.gold += 400; renderHud(); });

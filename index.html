@@ -88,6 +88,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @keyframes pop{0%{transform:scale(1.8);opacity:0}100%{transform:scale(1);opacity:1}}
 .eff{color:#9fd88a;font-size:12px}p.eff{margin:2px 0 6px}
 .wmap{width:100%;height:auto;display:block}
+.mtabs{margin-bottom:8px}.mtabs .chip{flex:1;justify-content:center}
 .sheet .x{display:grid;place-items:center}.vol input{flex:1;min-width:0;margin:0 10px;accent-color:#e9b04f;height:28px}.vol small{width:26px;text-align:right}.sheet .x .ico{margin:0;width:18px;height:18px}
 .sheet p{margin:0 0 8px;line-height:1.55}
 .sheet .warn{color:var(--bad);font-size:13px;font-weight:700}
@@ -176,7 +177,7 @@ const OBJ = [
   { id: 'field', gx: 8, gy: 27, w: 6, d: 3, stage: 5, kind: 'field', name: '밭', ruin: '거친 밭', feat: ['농사'] },
   { id: 'forest', gx: 5, gy: 14, w: 1, d: 1, stage: 0, kind: 'logs', name: '숲', ruin: '막힌 숲길', icon: 'ic_tree', feat: ['숲 탐험', '채집'] },
   { id: 'kitchen', gx: 20, gy: 17, w: 3, d: 3, stage: 7, kind: 'kitchen', name: '식당', ruin: '닫힌 식당', icon: 'ic_rest', feat: ['요리', '주민 의뢰'], door: [21, 20] },
-  { id: 'market', gx: 19, gy: 3, w: 4, d: 3, stage: 4, kind: 'market', name: '시장', ruin: '빈 시장 터', icon: 'ic_shop', feat: ['매일 바뀌는 시세'], door: [20, 6] },
+  { id: 'market', gx: 17, gy: 2, w: 5, d: 4, stage: 4, kind: 'market', name: '시장', ruin: '빈 시장 터', icon: 'ic_shop', feat: ['매일 바뀌는 시세', '음식 상인', '재료 상인'], door: [19, 6] },
   { id: 'gate', gx: 16, gy: -1, w: 1, d: 1, stage: 9, kind: 'gate', name: '성벽 문', ruin: '닫힌 성벽 문', feat: ['성 밖 사냥터'] },
   { id: 'jewel', gx: 22, gy: 10, w: 2, d: 2, stage: 6, kind: 'jewel', name: '세공소', ruin: '부서진 세공소', icon: 'ic_shard', feat: ['보석 세공'], door: [22, 12] },
   { id: 'museum', gx: 26, gy: 2, w: 4, d: 4, stage: 12, kind: 'museum', name: '박물관', ruin: '무너진 박물관', icon: 'ic_treasure', feat: ['광석 도감', '기증'], door: [27, 6] },
@@ -624,6 +625,9 @@ const DISH_ART = {
   eelbowl: bowl('#f4f0e6', [['M5.6 11.2c2-1.6 4-1.6 6 0s4 1.6 6.4 0', 'none', 2.6, '#2b1a12'], ['M5.6 11.2c2-1.6 4-1.6 6 0s4 1.6 6.4 0', 'none', 1.4, '#a86a3a']]),
   moonsoup: [...bowl('#ece6ff', [['M13.4 10.4a1.8 1.8 0 1 1-2.6 2.2 1.4 1.4 0 0 0 2.6-2.2Z', '#b9a8ff', 0]])],
   mush2: bowl('#8a9a5a', [[cP(10, 11.2, .9), '#5a6a3a', 0], [cP(14, 11.8, .7), '#5a6a3a', 0], ['M15.6 4.4 17 2.8M8.6 4.4 7.2 2.8', 'none', 1, '#8a9a5a']]),
+  tea: [['M5 9h11v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4Z', '#f4efe6'], ['M16 11h1.6a2.4 2.4 0 0 1 0 4.8H16', 'none', 1.6, '#2b1a12'], [eP(10.5, 9.4, 5.2, 1.4), '#a8703a'], ['M8.6 6.6c-.6-1.4.6-2.4 0-4M12.4 6.6c-.6-1.4.6-2.4 0-4', 'none', 1.2, '#d8cfbe']],
+  bread: [['M3.4 15c0-4.6 3.8-8 8.6-8s8.6 3.4 8.6 8c0 1.8-1.4 3-3.2 3H6.6c-1.8 0-3.2-1.2-3.2-3Z', '#d8a05a'], ['M8 9.6l1.6 2.6M12 8.6v3M16 9.6l-1.6 2.6', 'none', 1.4, '#a8703a'], ['M5.6 13c1-2.2 2.6-3.6 4.6-4.2', 'none', 1.1, '#f4d9a8']],
+  skewer: [['M3 21 21 3', 'none', 1.6, '#8a5a32'], [cP(9, 15, 2.8), '#a85a3a'], [cP(12.4, 11.6, 2.8), '#7fbf4f'], [cP(15.8, 8.2, 2.8), '#a85a3a'], ['M7.6 14 9 13.4M14.4 7.2l1.2-.6', 'none', 1, '#f0a090']],
   steak: plate([['M6 14c0-2.6 2.6-4 6-4s6.6 1.2 6.6 3.6-2.6 3.8-6.6 3.8S6 16.4 6 14Z', '#9a4a2a'], ['M8.4 12.6l1.4 2.8M11.4 12l1.4 3.2M14.4 12.2l1.2 2.8', 'none', 1, '#5a2a14'], [cP(16.8, 15.6, 1), '#4fae55', .7]]),
 };
 // 글 속 아이템 그림 (<span class="ore 이름">)을 CSS 배경으로
@@ -845,7 +849,7 @@ function limb(c, x0, y0, x1, y1, col, w) { c.lineCap = 'round'; c.beginPath(); c
 // o: { who, fx, back, phase(걸음 박자), moving, swing(0~1, 곡괭이질 진행) }
 const LN = (...a) => L(...a);   // chibi 안에서는 L이 생김새 이름이라 선 긋기를 이 이름으로 씀
 function chibi(c, X, Y, s, o) {
-  const L = LOOKS[o.who], fx = o.fx || 1, back = !!o.back, mv = o.moving ? 1 : 0;
+  const L = o.look || LOOKS[o.who], fx = o.fx || 1, back = !!o.back, mv = o.moving ? 1 : 0;
   const ph = o.phase || 0, bob = mv ? (1 - Math.abs(Math.sin(ph))) * 2.6 : 0;   // 두 발이 엇갈려 지나갈 때 몸이 가장 높음
   const k = s * .37;
   c.save(); c.translate(X, Y); c.scale(k, k); c.lineJoin = 'round'; c.lineCap = 'round';
@@ -1111,21 +1115,37 @@ function drawBuilding(c, o, night) {
       signBoard(c, o, z, 1.25 * g, 1);
       break;
     }
-    case 'market': {  // 시장: 나무 바닥에 색색 천막 가판대와 물건 상자
-      prism(c, x0 + .1, y0 + .1, o.w - .2, o.d - .2, z, .12, '#c9a477', '#a8845a', '#8a6a44');
-      const cols = ['#c8463a', '#3d8a9a', '#e0a83a', '#6a9a4a'];
-      for (let k = 0; k < 3; k++) {
-        const sx = x0 + .25 + k * 1.25, sy = y0 + .5;
-        prism(c, sx, sy + .9, 1, .5, z + .12, .45 * g, '#b08655', '#8a6a44', '#6d5030');
-        for (let q = 0; q < 5; q++) { const p = iso(sx + .15 + q * .18, sy + 1.15, z + .12 + .45 * g); Cc(c, p[0], p[1] - TW * .04, TW * .06, ['#e05a3a', '#f2c230', '#7fbf4f', '#d97a3a', '#8a5aa0'][(q + k) % 5]); }
+    case 'market': {  // 시장 광장 (기획 54번): 돌바닥에 노점 넷과 상인들, 가운데 작은 분수, 줄 등불
+      const p0 = INK; INK = Math.max(1.2, TW * .016);
+      prism(c, x0 + .05, y0 + .05, o.w - .1, o.d - .1, z, .1, '#cdbfa6', '#b0a28a', '#948670');
+      for (let i = 0; i < o.w * 2; i++) for (let j = 0; j < o.d * 2; j++) if (H32(i * 31 + j * 17) < .35) { const q = iso(x0 + .25 + i * .5, y0 + .25 + j * .5, z + .1); E(c, q[0], q[1], TW * .09, TH * .05, 'rgba(120,100,80,.25)'); }
+      INK = p0;
+      const stall = (sx, sy, awn, goods, look) => {
+        // 상인 (계산대 뒤), 계산대, 차양 기둥과 줄무늬 천
+        const pv = iso(sx + .95, sy + .55, z + .1); if (g > .5) chibi(c, pv[0], pv[1], TW / 36, { who: 'merchant', fx: 1, back: false, look: { ...LOOKS.merchant, body: look, bodyDk: rgbk([1, 3, 5].map(i => parseInt(look.slice(i, i + 2), 16)), -40), pack: false } });
+        prism(c, sx + .1, sy + 1, 1.8, .4, z + .1, .32 * g, '#b08655', '#8a6a44', '#6d5030');
+        goods(iso(sx + .3, sy + 1.2, z + .1 + .32 * g));
         if (g > .5) {
-          [[0, 0], [1, 0], [0, 1.4], [1, 1.4]].forEach(([a, b]) => { const p0 = iso(sx + a, sy + b, z + .12), p1 = iso(sx + a, sy + b, z + 1.6 * g); L(c, p0[0], p0[1], p1[0], p1[1], '#6d5030', TW * .04); });
-          for (let s2 = 0; s2 < 4; s2++) P(c, [iso(sx + s2 * .25, sy, z + 1.75 * g), iso(sx + s2 * .25 + .25, sy, z + 1.75 * g), iso(sx + s2 * .25 + .25, sy + 1.5, z + 1.45 * g), iso(sx + s2 * .25, sy + 1.5, z + 1.45 * g)], s2 % 2 ? '#f4efe6' : cols[k]);
+          [[0, 0], [1.9, 0]].forEach(([a2, b2]) => { const q0 = iso(sx + a2, sy + b2, z + .1), q1 = iso(sx + a2, sy + b2, z + 3.1 * g); L(c, q0[0], q0[1], q1[0], q1[1], '#6d5030', TW * .04); });
+          // 차양은 뒤쪽 기둥에서 앞으로 짧게 뻗어 상인 얼굴이 보이게
+          for (let k = 0; k < 6; k++) P(c, [iso(sx + k * .32, sy, z + 3.2 * g), iso(sx + k * .32 + .32, sy, z + 3.2 * g), iso(sx + k * .32 + .32, sy + .8, z + 2.95 * g), iso(sx + k * .32, sy + .8, z + 2.95 * g)], k % 2 ? '#f4efe6' : awn);
+          for (let k = 0; k < 12; k++) { const q = iso(sx + k * .16 + .08, sy + .8, z + 2.95 * g); Cc(c, q[0], q[1] + TW * .02, TW * .04, k % 2 ? '#f4efe6' : awn); }
         }
-      }
-      for (let k = 0; k < 3; k++) prism(c, x1 - .55, y0 + .3 + k * .45, .35, .35, z + .12, .3, '#b88a58', '#9a7046', '#7a5634');
-      const pole = iso(x0 + .2, y1 - .15, z); L(c, pole[0], pole[1], pole[0], pole[1] - ZU * 2.6 * g, '#6b4a2a', TW * .05);
-      if (g > .5) { const s = TW * .42, p = [pole[0], pole[1] - ZU * 2.6 * g]; c.fillStyle = 'rgba(40,26,14,.92)'; c.beginPath(); c.roundRect(p[0] - s / 2, p[1] - s, s, s, s * .22); c.fill(); c.strokeStyle = '#e9b04f'; c.lineWidth = 2; c.stroke(); emo(c, o.icon, p[0], p[1] - s / 2, (s * .66) * 1.3); }
+      };
+      const u = TW / 100;
+      const bread = q => { for (let k = 0; k < 4; k++) { E(c, q[0] + k * u * 14, q[1] - u * 6 - (k % 2) * u * 3, u * 7, u * 4.5, '#d8a05a'); L(c, q[0] + k * u * 14 - u * 3, q[1] - u * 7, q[0] + k * u * 14 + u * 3, q[1] - u * 8, '#f4d9a8', u * 1.2); } for (let k = 0; k < 2; k++) { const t2 = (tnow * .6 + k * .5) % 1; c.globalAlpha = (1 - t2) * .6; Cc(c, q[0] + u * 20 + k * u * 10, q[1] - u * 20 - t2 * u * 30, u * (4 + t2 * 6), '#ffffff'); } c.globalAlpha = 1; };
+      const mats = q => { for (let k = 0; k < 3; k++) { L(c, q[0] + k * u * 6, q[1] - u * 4 - k * u * 4, q[0] + u * 26 + k * u * 6, q[1] - u * 12 - k * u * 4, '#2b1a12', u * 6); L(c, q[0] + k * u * 6, q[1] - u * 4 - k * u * 4, q[0] + u * 26 + k * u * 6, q[1] - u * 12 - k * u * 4, '#a8703a', u * 4); } [['#d97a3a', 34], ['#aeb7c2', 42], ['#3a3a40', 50]].forEach(([col, dx]) => Cc(c, q[0] + u * dx, q[1] - u * 8, u * 5, col)); };
+      const fish2 = q => { E(c, q[0] + u * 24, q[1] - u * 6, u * 30, u * 8, '#dff2fa'); for (let k = 0; k < 4; k++) E(c, q[0] + u * (8 + k * 12), q[1] - u * 8, u * 6, u * 2.6, ['#c8a050', '#e08a8a', '#9aa874', '#6a6a5a'][k]); };
+      const fruit = q => { [['#e0405a', 0], ['#f2c230', 10], ['#7fbf4f', 20], ['#e0405a', 30], ['#d97a3a', 40], ['#b9a2e8', 50]].forEach(([col, dx], k) => Cc(c, q[0] + u * dx, q[1] - u * (6 + (k % 2) * 4), u * 5, col)); };
+      stall(x0 + .15, y0 + .1, '#c8463a', bread, '#c8463a');
+      stall(x0 + .15, y0 + 2.15, '#3d8a9a', fish2, '#3d8a9a');
+      stall(x0 + 2.95, y0 + .1, '#6a9a4a', mats, '#6a9a4a');
+      // 통과 상자
+      [[x0 + 2.3, y0 + 1.75], [x0 + 4.55, y0 + 3.7]].forEach(([a2, b2]) => { prism(c, a2, b2, .35, .35, z + .1, .32, '#b88a58', '#9a7046', '#7a5634'); prism(c, a2 + .1, b2 - .3, .3, .3, z + .1, .26, '#c89a68', '#a8804e', '#86603c'); });
+      stall(x0 + 2.95, y0 + 2.15, '#e0a83a', fruit, '#e0a83a');
+      // 줄 등불 (저녁부터 빛남)
+      if (g > .5) { const a3 = iso(x0 + .2, y0 + 2, z + 2.9), b3 = iso(x0 + 4.8, y0 + 2, z + 2.9); c.strokeStyle = '#4a3020'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(a3[0], a3[1]); c.quadraticCurveTo((a3[0] + b3[0]) / 2, (a3[1] + b3[1]) / 2 + u * 14, b3[0], b3[1]); c.stroke(); for (let k = 1; k < 8; k++) { const t2 = k / 8, mx = (1 - t2) * (1 - t2) * a3[0] + 2 * (1 - t2) * t2 * (a3[0] + b3[0]) / 2 + t2 * t2 * b3[0], my = (1 - t2) * (1 - t2) * a3[1] + 2 * (1 - t2) * t2 * ((a3[1] + b3[1]) / 2 + u * 14) + t2 * t2 * b3[1]; if (night) Cc(c, mx, my + u * 3, u * 9, 'rgba(255,210,120,.25)'); Cc(c, mx, my + u * 3, u * 3, ['#ffd27a', '#f08aa0', '#9fd3ff'][k % 3]); } }
+      signBoard(c, o, z, 2.2, 1);
       break;
     }
     case 'museum': {  // 박물관: 계단, 흰 기둥, 삼각 박공
@@ -1586,7 +1606,7 @@ function tap(px, py) {
   const [x, y] = screenToWorld(px, py);
   // 물건: 앞쪽부터, 건물 높이까지 포함한 상자
   const hits = OBJ.filter(o => o.kind !== 'bigtree').filter(o => {   // 큰 나무는 풍경이라 안 눌림
-    const z = hgt(o.gx, o.gy), tall = { house: 3.4, smithy: 4, kitchen: 3.6, jewel: 3.6, market: 2.6, museum: 4, mine: 4.2, gate: 2.4, npc: 2.2, wagon: 2.2 }[o.kind] || 1.2;
+    const z = hgt(o.gx, o.gy), tall = { house: 3.4, smithy: 4, kitchen: 3.6, jewel: 3.6, market: 1.3, museum: 4, mine: 4.2, gate: 2.4, npc: 2.2, wagon: 2.2 }[o.kind] || 1.2;
     const up = ZU * (o.done || o.grow > .3 ? tall : 1.4);
     const a = iso(o.gx, o.gy, z), b = iso(o.gx + o.w, o.gy, z), cc = iso(o.gx + o.w, o.gy + o.d, z), d = iso(o.gx, o.gy + o.d, z);
     return inPoly(x, y, [[d[0], d[1]], [cc[0], cc[1]], [b[0], b[1]], [b[0], b[1] - up], [a[0], a[1] - up], [d[0], d[1] - up]]);
@@ -3227,6 +3247,7 @@ const COMBINE_GOLD = 100;
 // 쓰고 없어지는 것
 const TOOLS = { sickle: { n: '낫', ic: 'ic_sickle' }, cart: { n: '손수레', ic: 'ic_cart', d: '길 기력 6할, 가방 +10칸' } };
 const ITEMS = {
+  tea: { n: '따뜻한 차', ic: 'ic_d_tea', eat: 10 }, bread: { n: '빵', ic: 'ic_d_bread', eat: 15 }, skewer: { n: '꼬치구이', ic: 'ic_d_skewer', eat: 30 },
   soup: { n: '버섯 수프', ic: 'ic_d_soup', eat: 25 }, grill: { n: '생선 구이', ic: 'ic_d_grill', eat: 30 }, fry: { n: '감자 볶음', ic: 'ic_d_fry', eat: 35 },
   stew: { n: '무 조림', ic: 'ic_d_stew', eat: 30 }, jam: { n: '딸기 잼', ic: 'ic_d_jam', eat: 20 }, eelbowl: { n: '장어 덮밥', ic: 'ic_d_eelbowl', eat: 60 },
   moonsoup: { n: '달빛 국', ic: 'ic_d_moonsoup', eat: 80 }, steak: { n: '고기 구이', ic: 'ic_d_steak', eat: 45 }, mush2: { n: '이상한 죽', ic: 'ic_d_mush2', eat: 5 },
@@ -3942,12 +3963,30 @@ function rollMarket(first) {
 }
 const unitPrice = (o, extra = 0) => Math.max(1, Math.round(ORES[o].price * S.market.mult[o] * Math.max(.4, 1 - .02 * ((S.market.sold[o] || 0) + extra))));
 function tradeValue(o) { let g = 0; for (let k = 0; k < (S.inv[o] || 0); k++) g += unitPrice(o, k); return g; }
+// 시장 상인들 (기획 54번): 시세 거래 말고도 음식 상인은 먹을 것, 재료 상인은 재료를 팖
+const FOOD_SHOP = [['tea', 20], ['bread', 35], ['skewer', 80]];
+const MAT_SHOP = [['wood', 5, 30], ['fiber', 5, 20], ['coal', 5, 45], ['herb', 3, 50], ['leather', 1, 45]];
+let marketTab = 'trade';
+function marketBuy(kind, i) {
+  if (kind === 'food') { const [id, g] = FOOD_SHOP[i]; if (S.gold < g) return; S.gold -= g; S.items[id] = (S.items[id] || 0) + 1; toast(`${accIco(id)}${ITEMS[id].n}`); }
+  else { const [id, n, g] = MAT_SHOP[i]; if (S.gold < g) return; S.gold -= g; S.inv[id] = (S.inv[id] || 0) + n; toast(`<span class="ore ${id}"></span>${ORES[id].name} +${n}`); }
+  SFX.coin(); save(); renderHud(); showMarket();
+}
 function showMarket() {
   if (!S.market) rollMarket(true);
   const M = S.market;
+  const tabs = `<div class="chips mtabs">${[['trade', ico('ic_shop') + '시세'], ['food', ico('ic_d_bread') + '음식'], ['mat', ico('ic_cart') + '재료']].map(([k, n]) => `<button class="chip ${marketTab === k ? 'on' : ''}" data-a="mtab" data-o="${k}">${n}</button>`).join('')}</div>`;
+  if (marketTab === 'food') {
+    const rows = FOOD_SHOP.map(([id, g], i) => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small class="eff">${PWR}+${ITEMS[id].eat}</small>${S.items[id] ? ` <small>×${S.items[id]}</small>` : ''}</span><button class="btn small" data-a="mbuy" data-o="food" data-n="${i}" ${S.gold >= g ? '' : 'disabled'}>${GOLD}${g}</button></div>`).join('');
+    openSheet(ico('ic_shop') + '시장', tabs + `<p>갓 구운 빵이랑 따뜻한 꼬치 있어요. 일하다 출출할 때 하나씩 먹어요.</p><div class="rows">${rows}</div>`); return;
+  }
+  if (marketTab === 'mat') {
+    const rows = MAT_SHOP.map(([id, n, g], i) => `<div class="rowi"><span class="nm"><span class="ore ${id}"></span>${ORES[id].name} ×${n}${S.inv[id] ? ` <small>창고 ${S.inv[id]}</small>` : ''}</span><button class="btn small" data-a="mbuy" data-o="mat" data-n="${i}" ${S.gold >= g ? '' : 'disabled'}>${GOLD}${g}</button></div>`).join('');
+    openSheet(ico('ic_shop') + '시장', tabs + `<p>모자란 재료 있으면 여기서 채워 가요. 좀 비싸긴 해도 발품은 덜 들죠.</p><div class="rows">${rows}</div>`); return;
+  }
   const rows = TRADE.filter(o => S.inv[o]).map(o => { const m = M.mult[o], p = unitPrice(o), cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.inv[o]}</small> <small class="${cls}">${GOLD}${p}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="trade" data-o="${o}">${GOLD}${tradeValue(o)}</button></div>`; }).join('');
   const news = M.hint ? `<p class="news">${ico('ic_shop')}내일 ${ORES[M.hint].name} 오름</p>` : '';
-  openSheet(ico('ic_shop') + '시장', news + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + nightHtml());
+  openSheet(ico('ic_shop') + '시장', tabs + news + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + nightHtml());
 }
 function trade(o) {
   const n = S.inv[o] || 0; if (!n) return;
@@ -4002,6 +4041,8 @@ document.addEventListener('click', e => {
   else if (a === 'travel') travel(b.dataset.o);
   else if (a === 'walk') enterRoad(b.dataset.o);
   else if (a === 'skiptrip') endTrip();
+  else if (a === 'mtab') { marketTab = b.dataset.o; showMarket(); }
+  else if (a === 'mbuy') marketBuy(b.dataset.o, n);
   else if (a === 'pack') packItem(b.dataset.o);
   else if (a === 'unpack1') unpackItem(b.dataset.o);
   else if (a === 'tsell') townSell(b.dataset.o);
