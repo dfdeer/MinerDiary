@@ -907,8 +907,10 @@ function chibi(c, X, Y, s, o) {
     if (part !== 'fist') limb(c, shX, shY, GX, GY, L.sleeve, 8.5);
     if (part !== 'sleeve') shape(c, () => c.arc(GX, GY, 6.5, 0, 7), L.glove, 3);
   };
-  // 등이 보이면 곡괭이를 몸보다 먼저 그려 쥔 손과 자루 아래쪽이 몸에 가려짐. 앞모습은 몸 앞에서 손에 쥠(아래에서 그림)
-  if (L.pick && back) pickaxe();
+  // 곡괭이 쥔 오른손이 화면에서 먼 쪽(앞 왼쪽, 뒤 왼쪽)이면 팔과 곡괭이를 몸보다 먼저 그려 몸 뒤로,
+  // 가까운 쪽(앞 오른쪽, 뒤 오른쪽)이면 머리까지 다 그린 뒤 맨 앞에 그림. 소매, 자루, 주먹 순서라 주먹이 자루를 감쌈
+  const pickNear = rs !== far, drawPick = () => { gripArm('sleeve'); pickaxe(); gripArm('fist'); };
+  if (L.pick && !pickNear) drawPick();
   // 팔: 반대쪽 다리와 함께 앞뒤로 흔들림. 곡괭이나 지팡이가 있으면 오른손이 쥠
   const arm = (side, p, hold) => {
     if (hold) return;
@@ -936,8 +938,6 @@ function chibi(c, X, Y, s, o) {
   if (!L.robe) { R(c, -16, -28, 32, 4.5, '#6b4424'); if (!back) shape(c, () => c.roundRect(fx * 3 - 4, -29.5, 8, 7, 2), '#e8b830', 2); }
   if (L.pack && back) pack();
   arms.forEach(([side, p2, hold]) => { if (side !== far) arm(side, p2, hold); });
-  if (L.pick && !back) { gripArm('sleeve'); pickaxe(); gripArm('fist'); }   // 앞모습: 소매, 자루, 주먹 순서로 그려 주먹이 자루를 감쌈
-  if (L.pick && back) limb(c, shX, shY - 2, shX + Math.cos(phi) * 9, shY + Math.sin(phi) * 9, L.sleeve, 9);   // 등이 보이면 앞으로 뻗은 오른팔은 어깨 쪽만 보임
   if (L.cane) { limb(c, rs * 22, -36, rs * 25, -1, '#8a5a32', 4); shape(c, () => c.arc(rs * 22, -38, 7, Math.PI, 0), '#8a5a32', 3); limb(c, rs * 15, -49, rs * 21, -36, L.sleeve, 9); shape(c, () => c.arc(rs * 21, -36, 6.5, 0, 7), L.glove, 3); }
   // 머리
   const hx = fx * 1.5, hy = -78;
@@ -964,6 +964,7 @@ function chibi(c, X, Y, s, o) {
     shape(c, () => c.roundRect(hx - 16, hy - 19, 32, 6, 2), '#c0483a', 2);
     shape(c, () => c.ellipse(hx, hy - 11, 33, 7.5, 0, 0, 7), L.hat);
   } else if (L.beard && back) { /* 뒷모습 흰머리는 머리색으로 이미 그림 */ }
+  if (L.pick && pickNear) drawPick();
   c.restore();
 }
 // 예전 호출 모양을 그대로 받음: helmet이면 광부, beard면 촌장, 나머지는 상인
