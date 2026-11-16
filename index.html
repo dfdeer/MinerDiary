@@ -2369,7 +2369,12 @@ function hidesFloor(x, y) {
 }
 function mineTap(px, py) {
   if (!sheet.hidden) hideSheet();
-  const [x, y] = screenToWorld(px, py), RH = 1.05, vr = viewTiles();
+  const [x, y] = screenToWorld(px, py), c = mineHit(x, y);
+  if (c) mineTapCell(c[0], c[1]);
+}
+// 그리는 좌표 (x, y)를 누르면 어느 칸이 눌리는지
+function mineHit(x, y) {
+  const RH = 1.05, vr = viewTiles();
   for (let s = vr.x1 + vr.y1 + 2; s >= vr.x0 + vr.y0; s--) for (let tx = vr.x0; tx <= vr.x1 + 2; tx++) {
     const ty = s - tx; if (ty < vr.y0 || ty > vr.y1 + 2) continue;
     const rock = !seenGet(tx, ty) || ROCKISH(mT(tx, ty));
@@ -2377,9 +2382,10 @@ function mineTap(px, py) {
       : [iso(tx, ty, 0), iso(tx + 1, ty, 0), iso(tx + 1, ty + 1, 0), iso(tx, ty + 1, 0)];
     if (!inPoly(x, y, poly)) continue;
     if (!seenGet(tx, ty) || Math.hypot(tx - hero.x, ty - hero.y) > lightR() + .5) continue;   // 어둠 덩어리는 건너뛰고 그 뒤에 보이는 칸을 찾음
-    if (rock && hidesFloor(tx, ty)) { const fl = floorBehind(x, y, s, vr); if (fl) { mineTapCell(fl[0], fl[1]); return; } }   // 반투명 바위 너머 바닥이면 걷기
-    mineTapCell(tx, ty); return;
+    if (rock && hidesFloor(tx, ty)) { const fl = floorBehind(x, y, s, vr); if (fl) return fl; }   // 반투명 바위 너머 바닥이면 걷기
+    return [tx, ty];
   }
+  return null;
 }
 // 누른 점 아래, 앞쪽 바위에 가려진 본 바닥 (갈 수 있는 것)
 function floorBehind(x, y, s0, vr) {
@@ -4446,7 +4452,10 @@ window.MinerDiary = {
   state: () => S, phaseIndex, untilNext, objects: () => OBJ, scene: () => scene,
   cellPoint, hero: () => ({ x: hero.x, y: hero.y, moving: hero.path.length > 0 || !!strikeQ }),   // 곡괭이질 도중도 움직이는 중으로 셈
   // 칸을 화면 가운데로 옮기고 그 위치를 돌려줌 (바위는 윗면 가운데)
-  cellSpot: (x, y) => { follow = false; const z = cellZ(x, y) ? .4 : 0; /* 바위는 아래쪽 (위쪽은 반투명일 때 뒤 바닥으로 걷기) */ const p = iso(x + .5, y + .5, z); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
+  cellSpot: (x, y) => {   // 그 칸이 실제로 눌리는 자리를 찾아 화면 가운데로 (바위는 윗면 가운데부터, 반투명 바위면 아래쪽)
+    follow = false; const z = cellZ(x, y); let p = iso(x + .5, y + .5, z);
+    if (z) for (const [u, v, h] of [[.5, .5, z], [.5, .5, .7], [.5, .5, .45], [.3, .7, .5], [.7, .3, .5], [.5, .5, .2], [.25, .9, .25], [.9, .25, .25]]) { const q = iso(x + u, y + v, h), r = mineHit(q[0], q[1]); if (r && r[0] === x && r[1] === y) { p = q; break; } }
+    cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
   glintDir: (x, y) => glintDir(x, y),
   cell: (x, y) => ({ t: mT(x, y), seen: seenGet(x, y), ore: mO(x, y) }),
   setCell: (x, y, t, ore) => { S.deep.dug[dKey(S.deep.L, x, y)] = t; if (ore !== undefined) { S.deep.ore = S.deep.ore || {}; S.deep.ore[dKey(S.deep.L, x, y)] = ore; } seenSet(x, y); },
