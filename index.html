@@ -809,6 +809,13 @@ const FONT = '"Jua",system-ui,sans-serif';   // 둥근 글꼴 (파일 맨 아래
 function shade(hex, k) { const n = parseInt(hex.slice(1), 16); return `rgb(${[n >> 16, (n >> 8) & 255, n & 255].map(v => Math.max(0, Math.min(255, v + k)))})`; }
 let INK = 0;   // 0보다 크면 다각형에 짙은 테두리 (건물을 그릴 때 켬). 반투명 무늬는 테두리 없음
 function P(c, pts, f) { c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.fillStyle = f; c.fill(); if (INK && typeof f === 'string' && !f.startsWith('rgba')) { c.lineWidth = INK; c.strokeStyle = '#2b1a12'; c.lineJoin = 'round'; c.stroke(); } }
+// 겹친 물체를 반투명하게: 부분마다 따로 흐리면 안쪽 선과 겹친 부분이 비치므로, 그리기 전 화면을 떠 두고 물체를 진하게 그린 뒤 떠 둔 화면을 (1 - 진하기)만큼 덮음
+const gcv = document.createElement('canvas'), gcx = gcv.getContext('2d');
+function ghostStart(c) {
+  const cv2 = c.canvas; if (gcv.width !== cv2.width || gcv.height !== cv2.height) { gcv.width = cv2.width; gcv.height = cv2.height; }
+  gcx.globalCompositeOperation = 'copy'; gcx.drawImage(cv2, 0, 0); gcx.globalCompositeOperation = 'source-over';
+}
+function ghostEnd(c, a) { c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1 - a; c.globalCompositeOperation = 'source-over'; c.drawImage(gcv, 0, 0); c.restore(); }
 function R(c, a, b, w, h, f) { c.fillStyle = f; c.fillRect(a, b, w, h); }
 function Cc(c, a, b, r, f) { c.beginPath(); c.arc(a, b, Math.max(0, r), 0, 7); c.fillStyle = f; c.fill(); }
 function E(c, a, b, rx, ry, f) { c.beginPath(); c.ellipse(a, b, rx, ry, 0, 0, 7); c.fillStyle = f; c.fill(); }
@@ -920,7 +927,8 @@ function chibi(c, X, Y, s, o) {
   // 곡괭이 쥔 오른손이 화면에서 먼 쪽(앞 왼쪽, 뒤 왼쪽)이면 팔과 곡괭이를 몸보다 먼저 그려 몸 뒤로,
   // 가까운 쪽(앞 오른쪽, 뒤 오른쪽)이면 머리까지 다 그린 뒤 맨 앞에 그림. 소매, 자루, 주먹 순서라 주먹이 자루를 감쌈
   const pickNear = rs !== far, drawPick = () => { gripArm('sleeve'); pickaxe(); gripArm('fist'); };
-  if (L.pick && !pickNear) drawPick();
+  const hasPick = L.pick && swing > 0;   // 곡괭이는 휘두를 때만 손에 나타남
+  if (hasPick && !pickNear) drawPick();
   // 팔: 반대쪽 다리와 함께 앞뒤로 흔들림. 곡괭이나 지팡이가 있으면 오른손이 쥠
   const arm = (side, p, hold) => {
     if (hold) return;
@@ -928,7 +936,7 @@ function chibi(c, X, Y, s, o) {
     limb(c, sx, sy, hx, hy, L.sleeve, 9);   // 관절 없이 곧은 팔
     shape(c, () => c.arc(hx, hy, 6.5, 0, 7), L.glove, 3);
   };
-  const arms = [[-rs, ph + Math.PI, false], [rs, ph, !!L.pick || !!L.cane]];
+  const arms = [[-rs, ph + Math.PI, false], [rs, ph, hasPick || !!L.cane]];
   arms.forEach(([side, p2, hold]) => { if (side === far) arm(side, p2, hold); });
   legs.forEach(([side, f]) => leg(side, f));
   // 몸: 둥근 통
@@ -951,12 +959,13 @@ function chibi(c, X, Y, s, o) {
   if (L.cane) { limb(c, rs * 22, -36, rs * 25, -1, '#8a5a32', 4); shape(c, () => c.arc(rs * 22, -38, 7, Math.PI, 0), '#8a5a32', 3); limb(c, rs * 15, -49, rs * 21, -36, L.sleeve, 9); shape(c, () => c.arc(rs * 21, -36, 6.5, 0, 7), L.glove, 3); }
   // 머리
   const hx = fx * 1.5, hy = -78;
+  if (!back) for (const d of [-1, 1]) shape(c, () => c.ellipse(hx + d * 24, hy + 6, 4.5, 5.5, 0, 0, 7), L.skin, 2.5);   // 귀
   cel(c, () => c.ellipse(hx, hy, 25, 23, 0, 0, 7), back ? L.hair : L.skin, 3, 3.5);
   if (!back) {
     // 앞머리 (위를 덮고 이마에서 물결)
     shape(c, () => { c.moveTo(hx - 24.5, hy + 2); c.ellipse(hx, hy, 25, 23, 0, Math.PI * 1.03, Math.PI * 1.97); c.lineTo(hx + 24.5, hy + 2); c.quadraticCurveTo(hx + 17, hy - 4, hx + 10 * fx + 6, hy - 6); c.quadraticCurveTo(hx + 2, hy - 2, hx - 4, hy - 8); c.quadraticCurveTo(hx - 13, hy - 3, hx - 24.5, hy + 2); c.closePath(); }, L.hair, 3);
     const ex = hx + fx * 4;
-    for (const d of [-8.5, 8.5]) { E(c, ex + d, hy + 6, 3.8, 5.2, OUT); Cc(c, ex + d - 1.1, hy + 3.9, 1.7, '#fff'); Cc(c, ex + d + 1.3, hy + 8.2, .8, '#fff'); }
+    for (const d of [-8.5, 8.5]) { E(c, ex + d, hy + 6, 3.4, 4.8, OUT); Cc(c, ex + d - 1, hy + 4, 1.5, '#fff'); }
     if (!L.beard) for (const d of [-8.5, 8.5]) { c.beginPath(); c.moveTo(ex + d - 3.5, hy - 2.2); c.quadraticCurveTo(ex + d, hy - 4.2, ex + d + 3.5, hy - 2.2); c.strokeStyle = shade(L.hair, -25); c.lineWidth = 2; c.stroke(); }
     E(c, ex - 14, hy + 13, 4.5, 2.6, 'rgba(240,110,100,.4)'); E(c, ex + 14, hy + 13, 4.5, 2.6, 'rgba(240,110,100,.4)');
     if (L.beard) {
@@ -979,7 +988,7 @@ function chibi(c, X, Y, s, o) {
     shape(c, () => c.roundRect(hx - 16, hy - 19, 32, 6, 2), '#c0483a', 2);
     shape(c, () => c.ellipse(hx, hy - 11, 33, 7.5, 0, 0, 7), L.hat);
   } else if (L.beard && back) { /* 뒷모습 흰머리는 머리색으로 이미 그림 */ }
-  if (L.pick && pickNear) drawPick();
+  if (hasPick && pickNear) drawPick();
   c.restore();
 }
 // 예전 호출 모양을 그대로 받음: helmet이면 광부, beard면 촌장, 나머지는 상인
@@ -1459,7 +1468,7 @@ function drawIsland(c) {
   order.forEach((it, k) => {
     let a = it.fog ? 1 - it.fog * .9 : 1;
     if (k > heroAt && it.shape && !cam.to && cam.s <= 1.05 && overlapsHero(it)) { hidden = true; a = Math.min(a, .32); }
-    c.globalAlpha = a; it.f(); c.globalAlpha = 1;
+    if (a < 1) ghostStart(c); it.f(); if (a < 1) ghostEnd(c, a);
   });
   // 고른 건물 테두리는 건물 위에 한 번 더 (바닥판에 가려지지 않게)
   if (selected && selected.kind !== 'npc') {
@@ -1470,7 +1479,7 @@ function drawIsland(c) {
   }
   // 누른 건물 퍼지는 표시도 건물 위에
   marks.forEach(m => { if (m.w === 1 && m.d === 1) return; const pts = area(m.x, m.y, m.w, m.d, 1.04 + (1 - m.life) * .25); c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.strokeStyle = `rgba(${m.col},${m.life})`; c.lineWidth = TW * .06; c.stroke(); });
-  if (hidden) { const p = iso(hero.x + .5, hero.y + .5, heroZ()); c.globalAlpha = .55; person(c, p[0], p[1], TW / 44, '#3d6fa8', true, hero.path.length ? Math.abs(Math.sin(hero.walk)) * 2 : 0, false); c.globalAlpha = 1; }
+  if (hidden) { const p = iso(hero.x + .5, hero.y + .5, heroZ()); ghostStart(c); person(c, p[0], p[1], TW / 44, '#3d6fa8', true, hero.path.length ? Math.abs(Math.sin(hero.walk)) * 2 : 0, false); ghostEnd(c, .55); }
   dust = dust.filter(p => (p.life -= 1 / 60) > 0);
   dust.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .05; Cc(c, p.x, p.y, p.r * p.life, `rgba(230,220,200,${p.life})`); });
   if (selected) {
@@ -2163,7 +2172,7 @@ function drawMine(c, dt) {
       const front = s > hs + .5 && s <= hs + 2.6 && Math.abs((x - y) - (hero.x - hero.y)) < 1.6;
       // 아직 못 본 곳은 모두 바위 덩어리로 (뚫린 곳인지 알 수 없게). 귀한 광맥은 멀리서도 빛남
       if (!seen) {
-        if (front) c.globalAlpha = .45; rockMass(c, x, y, RH, rgbk(col, -58 + n * 6), rgbk(col, -80), rgbk(col, -98), solid, 0); c.globalAlpha = 1;
+        if (front) ghostStart(c); rockMass(c, x, y, RH, rgbk(col, -58 + n * 6), rgbk(col, -80), rgbk(col, -98), solid, 0); if (front) ghostEnd(c, .45);
         if (ROCKISH(t)) { const o = mO(x, y); if (o && GLOW_ORES[o] && Math.hypot(x - hero.x, y - hero.y) < glowR) mglows.push([iso(x + .5, y + .5, RH), o, n]); }
         continue;
       }
@@ -2211,7 +2220,7 @@ function drawMine(c, dt) {
         continue;
       }
       // 바위 (광부 앞에 있고 가리면 반투명)
-      if (front) c.globalAlpha = .45;
+      if (front) ghostStart(c);
       const exposed = !solid(x, y + 1) || !solid(x + 1, y);
       if (t === 'h') {
         rockMass(c, x, y, RH, '#5c5653', '#46413f', '#2f2b2a', solid, ink);
@@ -2227,11 +2236,11 @@ function drawMine(c, dt) {
       glintDir(x, y).forEach(([dx, dy, o2]) => {
         const a = .45 + .45 * Math.sin(tnow * 4 + x * 3 + y), cx = x + .5 + dx * .3, cy = y + .5 + dy * .3;
         const q1 = iso(cx - dy * .22, cy - dx * .22, RH), q2 = iso(cx + dx * .05, cy + dy * .05, RH), q3 = iso(cx + dy * .2, cy + dx * .2, RH);
-        const OC = ORES[o2] || { light: '#fff6c2', color: '#e9b04f' }; c.globalAlpha = (front ? .45 : 1) * a; c.strokeStyle = OC.light; c.lineWidth = TW * .045; c.lineCap = 'round'; c.beginPath(); c.moveTo(q1[0], q1[1]); c.lineTo(q2[0], q2[1]); c.lineTo(q3[0], q3[1]); c.stroke();
-        c.strokeStyle = OC.color; c.lineWidth = TW * .02; c.stroke(); c.globalAlpha = front ? .45 : 1;
+        const OC = ORES[o2] || { light: '#fff6c2', color: '#e9b04f' }; c.globalAlpha = a; c.strokeStyle = OC.light; c.lineWidth = TW * .045; c.lineCap = 'round'; c.beginPath(); c.moveTo(q1[0], q1[1]); c.lineTo(q2[0], q2[1]); c.lineTo(q3[0], q3[1]); c.stroke();
+        c.strokeStyle = OC.color; c.lineWidth = TW * .02; c.stroke(); c.globalAlpha = 1;
       });
       INK = Math.max(1, TW * .018);
-      c.globalAlpha = 1;
+      if (front) ghostEnd(c, .45);
     }
   }
   }
@@ -2709,12 +2718,12 @@ function drawForest(c, dt) {
       if (t === 'v') { if ((x >= hero.x + .8 || y >= hero.y + .8) === (pass === 1)) caveMouth(c, x, y); continue; }
       if ((x >= hero.x + .8 || y >= hero.y + .8) !== (pass === 1)) continue;
       const front = s > hero.x + hero.y + .5 && s <= hero.x + hero.y + 3 && Math.abs((x - y) - (hero.x - hero.y)) < 1.8 && t === 't';
-      if (front) c.globalAlpha = .4;
+      if (front) ghostStart(c);
       if (t === 't' && f.road === 'volcano') deadTreeAt(c, x, y); else if (t === 't') { treeAt(c, x, y); if (f.road === 'mtn') { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .62, TW * .2, TH * .12, 'rgba(250,252,255,.9)'); } }
       else if (t === 'm') { rockAt(c, x, y); const q = iso(x + .5, y + .5, 0), o = GROVES[f.grove].ores[0][0]; for (let k = 0; k < 4; k++) Cc(c, q[0] + (k - 1.5) * TW * .07, q[1] - TW * (.1 + (k % 2) * .06), TW * .03, k % 2 ? ORES[o].light : ORES[o].color); }
       else if (t === 'k') rockAt(c, x, y); else if (t === 's') bushAt(c, x, y); else if (t === 'B') boulderAt(c, x, y);
       else if (t === 'q') thornAt(c, x, y); else if (t === 'o') groveGate(c, x, y);
-      c.globalAlpha = 1;
+      if (front) ghostEnd(c, .4);
     }
   }
   }
@@ -3217,7 +3226,7 @@ function drawTown(c, dt) {
   for (let s2 = vr.x0 + vr.y0; s2 <= vr.x1 + vr.y1; s2++) for (let x = Math.max(vr.x0, s2 - vr.y1); x <= Math.min(vr.x1, s2 - vr.y0); x++) {
     const y = s2 - x, t = tT(x, y);
     const front = x + y > hero.x + hero.y + .5 && x + y <= hero.x + hero.y + 3 && Math.abs((x - y) - (hero.x - hero.y)) < 1.8;   // 광부를 가리는 나무는 반투명
-    if (t === 't') list.push([x + y + 1, () => { if (front) c.globalAlpha = .4; if (S.loc === 'volcano') deadTreeAt(c, x, y); else treeAt(c, x, y); c.globalAlpha = 1; if (S.loc === 'volcano') return; if (T.cap) { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .62, TW * .2, TH * .12, T.cap); } }]);
+    if (t === 't') list.push([x + y + 1, () => { if (front) ghostStart(c); if (S.loc === 'volcano') deadTreeAt(c, x, y); else treeAt(c, x, y); if (front) ghostEnd(c, .4); if (S.loc === 'volcano') return; if (T.cap) { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .62, TW * .2, TH * .12, T.cap); } }]);
     else if (t === 'r') list.push([x + y + 1, () => { rockAt(c, x, y); if (T.cap) { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .16, TW * .16, TH * .08, T.cap); } }]);
   }
   list.push([4 + 4 + 3, () => townHouse(c, TOWN_OBJ[0], T, '여관')]);
