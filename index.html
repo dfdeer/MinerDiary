@@ -2217,7 +2217,7 @@ function drawMine(c, dt) {
       const ahead = (!seen || ROCKISH(t)) && (x >= hero.x + .8 || y >= hero.y + .8);
       if (ahead !== (pass === 1)) continue;
       const Z = ZONES[zoneAt(L0, x, y)], col = Z.rock;
-      const front = (s > hs + .5 && s <= hs + 2.6 && Math.abs((x - y) - (hero.x - hero.y)) < 1.6) || hidesFloor(x, y);
+      const front = seeThrough(x, y);
       // 아직 못 본 곳은 모두 바위 덩어리로 (뚫린 곳인지 알 수 없게). 귀한 광맥은 멀리서도 빛남
       if (!seen) {
         if (front) ghostStart(c, rockBox(x, y, RH)); rockMass(c, x, y, RH, rgbk(col, -58 + n * 6), rgbk(col, -80), rgbk(col, -98), solid, 0); if (front) ghostEnd(c, .45);
@@ -2362,6 +2362,8 @@ function drawMiniMap(c) {
 // 광부 둘레에서 본 바닥을 가리는 바위 (바로 뒤 세 칸 중에 광부와 3칸 안의 본 바닥이 있음). 반투명하게 그리고, 누르면 그 뒤 바닥으로 걸어감
 // 바위 한 칸이 그려지는 범위 (반짝임과 꾸밈까지 넉넉히)
 function rockBox(x, y, RH) { const l = iso(x, y + 1, 0), r = iso(x + 1, y, 0), t = iso(x, y, RH), b = iso(x + 1, y + 1, 0); return [l[0] - TW * .2, t[1] - TW * .5, r[0] + TW * .2, b[1] + TW * .2]; }
+// 반투명으로 그리는 바위: 광부를 가리거나, 광부 둘레의 본 바닥을 가림
+function seeThrough(x, y) { const s = x + y, hs = hero.x + hero.y; return (s > hs + .5 && s <= hs + 2.6 && Math.abs((x - y) - (hero.x - hero.y)) < 1.6) || hidesFloor(x, y); }
 function hidesFloor(x, y) {
   if (Math.hypot(x - hero.x, y - hero.y) > 3.6) return false;
   for (const [a, b] of [[x - 1, y - 1], [x - 1, y], [x, y - 1]]) if (seenGet(a, b) && FLOORISH(mT(a, b)) && Math.hypot(a - hero.x, b - hero.y) <= 3) return true;
@@ -2382,9 +2384,24 @@ function mineHit(x, y) {
       : [iso(tx, ty, 0), iso(tx + 1, ty, 0), iso(tx + 1, ty + 1, 0), iso(tx, ty + 1, 0)];
     if (!inPoly(x, y, poly)) continue;
     if (!seenGet(tx, ty) || Math.hypot(tx - hero.x, ty - hero.y) > lightR() + .5) continue;   // 어둠 덩어리는 건너뛰고 그 뒤에 보이는 칸을 찾음
-    if (rock && hidesFloor(tx, ty)) { const fl = floorBehind(x, y, s, vr); if (fl && !(fl[0] === Math.round(hero.x) && fl[1] === Math.round(hero.y))) return fl; }   // 반투명 바위 너머 바닥이면 걷기 (그 바닥이 지금 선 칸이면 캠)
+    // 반투명 바위: 광부 바로 옆이 아니면 캐지 않고 걸어감 (누른 점 아래 바닥, 없으면 그 바위가 가리던 바닥이나 옆 바닥 중 가장 가까운 곳)
+    // 바로 옆이면 누른 점 아래에 다른 바닥이 비칠 때만 걷고 나머지는 캠
+    if (rock && seenGet(tx, ty) && seeThrough(tx, ty)) {
+      const hx = Math.round(hero.x), hy = Math.round(hero.y), next = Math.abs(tx - hx) + Math.abs(ty - hy) === 1;
+      const fl = floorBehind(x, y, s, vr);
+      if (fl && !(fl[0] === hx && fl[1] === hy)) return fl;
+      if (!next) { const nf = floorNear(tx, ty); if (nf) return nf; }
+    }
     return [tx, ty];
   }
+  return null;
+}
+// 반투명 바위 둘레(뒤 세 칸, 옆 네 칸)에서 광부가 갈 수 있는 가장 가까운 본 바닥
+function floorNear(x, y) {
+  const hx = Math.round(hero.x), hy = Math.round(hero.y);
+  const c = [[x - 1, y - 1], [x - 1, y], [x, y - 1], [x + 1, y], [x, y + 1], [x - 1, y + 1], [x + 1, y - 1]].filter(([a, b]) => seenGet(a, b) && FLOORISH(mT(a, b)) && !(a === hx && b === hy));
+  c.sort((p, q) => Math.hypot(p[0] - hero.x, p[1] - hero.y) - Math.hypot(q[0] - hero.x, q[1] - hero.y));
+  for (const [a, b] of c) if (bfs(hx, hy, (u, v) => u === a && v === b)) return [a, b];
   return null;
 }
 // 누른 점 아래, 앞쪽 바위에 가려진 본 바닥 (갈 수 있는 것)
@@ -4461,9 +4478,9 @@ window.MinerDiary = {
   cell: (x, y) => ({ t: mT(x, y), seen: seenGet(x, y), ore: mO(x, y) }),
   setCell: (x, y, t, ore) => { S.deep.dug[dKey(S.deep.L, x, y)] = t; if (ore !== undefined) { S.deep.ore = S.deep.ore || {}; S.deep.ore[dKey(S.deep.L, x, y)] = ore; } seenSet(x, y); },
   // 광부 둘레에서 본 적 있는, 바닥에 닿은 캘 수 있는 바위
-  nearRock: () => { const hx = Math.round(hero.x), hy = Math.round(hero.y); let best = null, bd = 1e9; for (let y = hy - 8; y <= hy + 8; y++) for (let x = hx - 8; x <= hx + 8; x++) { if (!seenGet(x, y) || mT(x, y) !== 'r' || Math.hypot(x - hero.x, y - hero.y) > lightR()) continue; if (!D4.some(([dx, dy]) => seenGet(x + dx, y + dy) && FLOORISH(mT(x + dx, y + dy)))) continue; const d = Math.abs(x - hx) + Math.abs(y - hy); if (d < bd) { bd = d; best = [x, y]; } }
-    // 둘레에 바위가 없으면(넓은 방) 옆 바닥 칸 하나를 바위로 만들어 돌려줌 (시험용)
-    if (!best) for (const [dx, dy] of D4) { const x = hx + dx * 2, y = hy + dy * 2; if (mT(x, y) === 'f' && mT(hx + dx, hy + dy) === 'f') { S.deep.dug[dKey(S.deep.L, x, y)] = 'r'; seenSet(x, y); best = [x, y]; break; } }
+  nearRock: () => { const hx = Math.round(hero.x), hy = Math.round(hero.y); let best = null, bd = 1e9; for (let y = hy - 8; y <= hy + 8; y++) for (let x = hx - 8; x <= hx + 8; x++) { if (!seenGet(x, y) || mT(x, y) !== 'r' || Math.hypot(x - hero.x, y - hero.y) > lightR()) continue; if (!D4.some(([dx, dy]) => seenGet(x + dx, y + dy) && FLOORISH(mT(x + dx, y + dy)))) continue; const d = Math.abs(x - hx) + Math.abs(y - hy); if (d > 1 && seeThrough(x, y)) continue; /* 멀리 있는 반투명 바위는 눌러도 걷기만 함 */ if (d < bd) { bd = d; best = [x, y]; } }
+    // 둘레에 바위가 없으면(넓은 방) 바로 옆 바닥 칸 하나를 바위로 만들어 돌려줌 (시험용)
+    if (!best) for (const [dx, dy] of D4) { const x = hx + dx, y = hy + dy; if (mT(x, y) === 'f') { S.deep.dug[dKey(S.deep.L, x, y)] = 'r'; seenSet(x, y); best = [x, y]; break; } }
     return best; },
   nearestHole: () => nearestHole(), ups: () => upsHere(),
   // 숲 칸을 화면 가운데로 옮기고 그 위치를 돌려줌
