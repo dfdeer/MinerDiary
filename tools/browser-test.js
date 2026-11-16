@@ -117,10 +117,10 @@ const shot = process.argv[2];
   await visit('forest', '#sheet [data-a="forest"]');
   await page.click('#sheet [data-a="forest"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'forest', null, { timeout: 5000 });
-  { const p = await page.evaluate(() => window.MinerDiary.forestSpot(S.forest.ex - 5, S.forest.ey - 3)); await page.mouse.click(p.x, p.y); }
+  { const p = await page.evaluate(() => window.MinerDiary.forestSpot(S.forest.ex - 6, S.forest.ey - 4)); await page.mouse.click(p.x, p.y); }
   await page.waitForFunction(() => window.MinerDiary.scene() === 'mine' && S.deep.L === 0, null, { timeout: 15000 });
   await page.waitForTimeout(300);
-  ok((await quest()).includes('광석 캐기'), '숲에서 동굴 입구로 걸어가면 숲 동굴, 퀘스트 「광석 캐기」');
+  ok((await quest()).includes('광석 캐기'), '숲에서 동굴 입구 2×2 칸 가운데 뒤쪽 칸을 눌러도 걸어가서 숲 동굴, 퀘스트 「광석 캐기」');
   ok(await page.evaluate(() => { let holes = 0; for (let y = -18; y <= 18; y++) for (let x = -18; x <= 18; x++) if (mT(x, y) === 'd') holes++; const e0 = S.energy; dig(30, 0); return holes === 0 && mT(30, 0) === 'w' && S.energy === e0; }), '숲 동굴은 작고(바깥 벽은 못 캠) 내려가는 구멍이 없음');
   for (let k = 0; k < 5; k++) {
     const r = await page.evaluate(() => window.MinerDiary.nearRock());

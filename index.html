@@ -2584,8 +2584,10 @@ function leaveForest() {
 }
 function forestTapCell(x, y) {
   if (strikeQ) return;
-  const f = S.forest, seen = f.seen[fI(x, y)];
+  const f = S.forest; let seen = f.seen[fI(x, y)];
   hero.goal = null; hero.dig = null; hero.breakAt = null;
+  // 동굴 입구는 그림이 위로 솟아 있어 입구 칸과 그 뒤쪽 세 칸(2×2) 아무 데나 눌러도 동굴로 감
+  if (!f.road && !f.grove) { const vx = f.ex - 5, vy = f.ey - 3; if (f.t[fI(vx, vy)] === 'v' && f.seen[fI(vx, vy)] && x >= vx - 1 && x <= vx && y >= vy - 1 && y <= vy) { x = vx; y = vy; seen = 1; } }
   const tt = f.t[fI(x, y)];
   if (seen && (tt === 'q' || tt === 'm' || (tt === 'w' && S.rod))) {   // 가시덤불은 낫으로 침, 길가 광석 바위는 캠, 물가에선 낚시
     if (tt === 'q' && !S.sickle) { toast('낫 필요'); SFX.deny(); mark(x, y, '235,95,80'); return; }
