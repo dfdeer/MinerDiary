@@ -1779,7 +1779,20 @@ function glintDir(x, y) {
 }
 let mparts = [], mfloats = [], mbumps = [], mswing = 0, mshake = 0;
 // 곡괭이질: 누르면 휘두르기 시작, 곡괭이가 땅에 닿는 순간(휘두르기의 58%쯤) 실제로 캐짐. 그동안 다른 누르기는 받지 않음
-let strikeQ = null, animK = 1;   // animK: 테스트에서 speed(k)로 빨라짐
+let strikeQ = null, animK = 1;
+// 못 캔다는 표시: 친 칸 위에 붉은 금지 표시가 튀어나왔다 사라짐 (땅속, 숲)
+let nos = [];
+function drawNos(c, dt, z) {
+  nos = nos.filter(n => (n.life -= dt) > 0);
+  nos.forEach(n => {
+    const q = iso(n.x + .5, n.y + .5, n.z == null ? z : n.z), age = 1.2 - n.life, pop = age < .12 ? .6 + age / .12 * .5 : age < .22 ? 1.1 - (age - .12) : 1, r = TW * .2 * pop, cy = q[1] - TW * .32;
+    c.globalAlpha = Math.min(1, n.life * 3);
+    c.beginPath(); c.arc(q[0], cy, r, 0, 7); c.fillStyle = 'rgba(255,255,255,.88)'; c.fill();
+    c.lineCap = 'round'; c.lineWidth = TW * .085; c.strokeStyle = OUT; c.stroke(); c.beginPath(); c.moveTo(q[0] - r * .68, cy - r * .68); c.lineTo(q[0] + r * .68, cy + r * .68); c.stroke();
+    c.lineWidth = TW * .05; c.strokeStyle = '#e04a3a'; c.beginPath(); c.arc(q[0], cy, r, 0, 7); c.stroke(); c.beginPath(); c.moveTo(q[0] - r * .68, cy - r * .68); c.lineTo(q[0] + r * .68, cy + r * .68); c.stroke();
+    c.globalAlpha = 1;
+  });
+}   // animK: 테스트에서 speed(k)로 빨라짐
 const STRIKE_T = .32;
 function swingHit(fn) { if (strikeQ) return false; mswing = 1; strikeQ = { t: STRIKE_T / animK, fn, scene }; return true; }
 function strikeTick(dt) { if (!strikeQ || (strikeQ.t -= dt) > 0) return; const q = strikeQ; strikeQ = null; if (q.scene === scene) q.fn(); }
@@ -2039,7 +2052,7 @@ function dig(x, y, force) {
   const t = mT(x, y);
   if (!ROCKISH(t)) return;
   // 못 캐는 칸(숲 동굴 암반, 파워가 모자란 단단한 바위)도 휘둘러 보고, 닿는 순간 불꽃과 함께 튕겨 나옴
-  if (t === 'w' || (t === 'h' && !canHard())) { if (strikeQ) return; faceCell(x, y); swingHit(() => clang(x, y, t === 'w' ? '암반' : `파워 ${HARD_POW} 필요`)); return; }
+  if (t === 'w' || (t === 'h' && !canHard())) { if (strikeQ) return; faceCell(x, y); swingHit(() => clang(x, y, t === 'w' ? '캘 수 없는 암반' : `파워 ${HARD_POW} 필요`)); return; }
   const ore = mO(x, y), cost = digCost(t);
   if (ore && carryN() >= bagCap()) { bagFullMsg(x, y, '캠'); mbumps.push({ x, y, t: .3 }); return; }
   // 마지막 기력: 쓰러지기 전에 한 번 물어봄
@@ -2055,7 +2068,8 @@ function clang(x, y, msg) {
   const p = iso(x + .5, y + .5, 1.05);
   burst(p[0], p[1] + TW * .1, '#fff6c2', '#ffd27a', 9);
   mbumps.push({ x, y, t: .3 }); mshake = 2; SFX.clang(); buzz(25);
-  mfloats.push({ x: p[0], y: p[1] - TW * .3, text: msg, color: '#ffc9a8', life: 1.2 });
+  nos.push({ x, y, life: 1.2 });
+  mfloats.push({ x: p[0], y: p[1] - TW * .62, text: msg, color: '#ff9a8a', life: 1.4 });
 }
 function digHit(x, y, t, ore, cost) {
   const col = ZONES[zoneAt(S.deep.L, x, y)].rock, p = iso(x + .5, y + .5, .6);
@@ -2269,6 +2283,7 @@ function drawMine(c, dt) {
   marks.forEach(k => { const z = ROCKISH(mT(k.x, k.y)) ? RH : 0, sz = .5 + (1 - k.life) * .5, cx = k.x + .5, cy = k.y + .5; const pts = [iso(cx - sz / 2, cy - sz / 2, z), iso(cx + sz / 2, cy - sz / 2, z), iso(cx + sz / 2, cy + sz / 2, z), iso(cx - sz / 2, cy + sz / 2, z)]; c.beginPath(); pts.forEach(([a, b], j) => j ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.strokeStyle = `rgba(${k.col},${k.life})`; c.lineWidth = TW * .05; c.stroke(); });
   mbumps = mbumps.filter(b => (b.t -= dt) > 0);
   mbumps.forEach(b => { c.globalAlpha = b.t * 1.6; tileTop(c, b.x, b.y, RH, 'rgba(255,255,255,.6)'); c.globalAlpha = 1; });
+  drawNos(c, dt, RH);
   if (hero.path.length) { const [ex, ey] = hero.path[hero.path.length - 1], k = .55 + .1 * Math.sin(tnow * 6), cx = ex + .5, cy = ey + .5; P(c, [iso(cx - k / 2, cy - k / 2, 0), iso(cx + k / 2, cy - k / 2, 0), iso(cx + k / 2, cy + k / 2, 0), iso(cx - k / 2, cy + k / 2, 0)], 'rgba(255,255,255,.22)'); }
   mparts = mparts.filter(p => (p.life -= dt) > 0);
   mparts.forEach(p => { p.vy += TW * 9 * dt; p.x += p.vx * dt; p.y += p.vy * dt; c.globalAlpha = Math.min(1, p.life * 2); R(c, p.x - p.s / 2, p.y - p.s / 2, p.s, p.s, p.c); }); c.globalAlpha = 1;
@@ -2524,7 +2539,7 @@ function breakBoulder(x, y) {
   if (strikeQ) return;
   faceCell(x, y);
   if (pickPower() < need) {   // 휘둘러 보고 튕겨 나옴
-    swingHit(() => { for (let i = 0; i < 9; i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .25, y: y + .5 + Math.sin(a) * .25, z: .5, life: .5, col: i % 2 ? '#fff6c2' : '#ffd27a' }); } SFX.clang(); buzz(25); toast(`파워 ${need} 필요`); mark(x, y, '235,95,80'); });
+    swingHit(() => { for (let i = 0; i < 9; i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .25, y: y + .5 + Math.sin(a) * .25, z: .5, life: .5, col: i % 2 ? '#fff6c2' : '#ffd27a' }); } SFX.clang(); buzz(25); nos.push({ x, y, z: 1.1, life: 1.2 }); toast(`파워 ${need} 필요`); mark(x, y, '235,95,80'); });
     return;
   }
   swingHit(() => { if (S.forest.t[fI(x, y)] === 'B') boulderHit(x, y, z); });
@@ -2773,6 +2788,7 @@ function drawForest(c, dt) {
   }
   outs.forEach(([x, y]) => { if (x + y >= hero.x + hero.y) treeAt(c, x, y); });   // 광부 앞쪽 나무
   wind.forEach(w => { w.z += dt * .8; const p = iso(w.x, w.y, w.z); c.globalAlpha = Math.min(1, w.life * 1.5); Cc(c, p[0], p[1], TW * .03, w.col || '#eef6ff'); }); c.globalAlpha = 1;
+  drawNos(c, dt, 1.1);
   { const p = iso(f.ex + .5, f.ey + .5, 0); label(c, '마을', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); }
   if (f.road) { const p = iso(f.zx + .5, f.zy + .5, 0); label(c, TOWNS[f.road].short, p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#ffe27a', 'rgba(20,14,9,.75)'); }
   { const vx = f.ex - 5, vy = f.ey - 3; if (f.t[fI(vx, vy)] === 'v' && f.seen[fI(vx, vy)]) { const p = iso(vx + .5, vy + .5, 0); label(c, '동굴', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); } }
