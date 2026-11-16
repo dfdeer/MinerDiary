@@ -117,10 +117,10 @@ const shot = process.argv[2];
   await visit('forest', '#sheet [data-a="forest"]');
   await page.click('#sheet [data-a="forest"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'forest', null, { timeout: 5000 });
-  { const p = await page.evaluate(() => window.MinerDiary.forestSpot(S.forest.ex - 5, S.forest.ey - 3)); await page.mouse.click(p.x, p.y); }
+  { const p = await page.evaluate(() => window.MinerDiary.forestSpot(S.forest.ex - 6, S.forest.ey - 4)); await page.mouse.click(p.x, p.y); }
   await page.waitForFunction(() => window.MinerDiary.scene() === 'mine' && S.deep.L === 0, null, { timeout: 15000 });
   await page.waitForTimeout(300);
-  ok((await quest()).includes('광석 캐기'), '숲에서 동굴 입구로 걸어가면 숲 동굴, 퀘스트 「광석 캐기」');
+  ok((await quest()).includes('광석 캐기'), '숲에서 동굴 입구 2×2 칸 가운데 뒤쪽 칸을 눌러도 걸어가서 숲 동굴, 퀘스트 「광석 캐기」');
   ok(await page.evaluate(() => { let holes = 0; for (let y = -18; y <= 18; y++) for (let x = -18; x <= 18; x++) if (mT(x, y) === 'd') holes++; const e0 = S.energy; dig(30, 0); return holes === 0 && mT(30, 0) === 'w' && S.energy === e0; }), '숲 동굴은 작고(바깥 벽은 못 캠) 내려가는 구멍이 없음');
   for (let k = 0; k < 5; k++) {
     const r = await page.evaluate(() => window.MinerDiary.nearRock());
@@ -841,6 +841,22 @@ const shot = process.argv[2];
   ok(await page.evaluate(() => follow && !bubble), '스페이스바로 광부에게 돌아옴');
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '가로 스크롤 없음');
   await page.close();
+
+  /* ===== 좁은 길: 바닥을 가리는 바위는 반투명, 그 위쪽(비쳐 보이는 바닥)을 누르면 캐지 않고 걸어감 ===== */
+  {
+    const cp = await open(390, 844);
+    await cp.evaluate(() => { closeSheet(); S.introSeen = true; window.MinerDiary.speed(10); enterForest(); enterCave();
+      for (let y = -7; y <= 4; y++) for (let x = -2; x <= 8; x++) { S.deep.dug[dKey(0, x, y)] = 'r'; seenSet(x, y); }
+      for (const [x, y] of [[3, 2], [3, 1], [3, 0], [3, -1], [3, -2], [3, -3]]) S.deep.dug[dKey(0, x, y)] = 'f';
+      hero.x = 3; hero.y = 1; hero.path = []; });
+    await cp.waitForTimeout(300);
+    ok(await cp.evaluate(() => hidesFloor(4, -1) && !hidesFloor(8, 4)), '광부 둘레에서 본 바닥을 가리는 바위만 반투명');
+    const pt = await cp.evaluate(() => { follow = false; return cellPoint(3, -2); });
+    await cp.mouse.click(pt.x, pt.y); await cp.waitForTimeout(60);
+    await cp.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 15000 });
+    ok(await cp.evaluate(() => Math.round(hero.x) === 3 && Math.round(hero.y) === -2 && mT(4, -1) === 'r' && mT(4, -2) === 'r'), '반투명 바위 너머 바닥을 누르면 캐지 않고 그곳으로 걸어감');
+    await cp.close();
+  }
 
   /* ===== 컴퓨터 크기: 누르는 위치가 맞는지 ===== */
   const desk = await open(1440, 900);

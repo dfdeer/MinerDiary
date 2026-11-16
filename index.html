@@ -811,11 +811,24 @@ let INK = 0;   // 0보다 크면 다각형에 짙은 테두리 (건물을 그릴
 function P(c, pts, f) { c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.fillStyle = f; c.fill(); if (INK && typeof f === 'string' && !f.startsWith('rgba')) { c.lineWidth = INK; c.strokeStyle = '#2b1a12'; c.lineJoin = 'round'; c.stroke(); } }
 // 겹친 물체를 반투명하게: 부분마다 따로 흐리면 안쪽 선과 겹친 부분이 비치므로, 그리기 전 화면을 떠 두고 물체를 진하게 그린 뒤 떠 둔 화면을 (1 - 진하기)만큼 덮음
 const gcv = document.createElement('canvas'), gcx = gcv.getContext('2d');
-function ghostStart(c) {
+// box: 물체가 차지하는 범위(그리는 좌표 [x0, y0, x1, y1]). 주면 그 둘레만 떠서 빠름
+let gbox = null;
+function ghostStart(c, box) {
   const cv2 = c.canvas; if (gcv.width !== cv2.width || gcv.height !== cv2.height) { gcv.width = cv2.width; gcv.height = cv2.height; }
-  gcx.globalCompositeOperation = 'copy'; gcx.drawImage(cv2, 0, 0); gcx.globalCompositeOperation = 'source-over';
+  gbox = null;
+  if (box) {
+    const m = c.getTransform(), X0 = Math.max(0, Math.floor(m.a * box[0] + m.e) - 2), Y0 = Math.max(0, Math.floor(m.d * box[1] + m.f) - 2);
+    const X1 = Math.min(cv2.width, Math.ceil(m.a * box[2] + m.e) + 2), Y1 = Math.min(cv2.height, Math.ceil(m.d * box[3] + m.f) + 2);
+    if (X1 <= X0 || Y1 <= Y0) { gbox = [0, 0, 0, 0]; return; }
+    gbox = [X0, Y0, X1 - X0, Y1 - Y0];
+  }
+  const [bx, by, bw, bh] = gbox || [0, 0, cv2.width, cv2.height];
+  gcx.globalCompositeOperation = 'copy'; gcx.drawImage(cv2, bx, by, bw, bh, bx, by, bw, bh); gcx.globalCompositeOperation = 'source-over';
 }
-function ghostEnd(c, a) { c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1 - a; c.globalCompositeOperation = 'source-over'; c.drawImage(gcv, 0, 0); c.restore(); }
+function ghostEnd(c, a) {
+  const cv2 = c.canvas, [bx, by, bw, bh] = gbox || [0, 0, cv2.width, cv2.height]; if (!bw || !bh) return;
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1 - a; c.globalCompositeOperation = 'source-over'; c.drawImage(gcv, bx, by, bw, bh, bx, by, bw, bh); c.restore();
+}
 function R(c, a, b, w, h, f) { c.fillStyle = f; c.fillRect(a, b, w, h); }
 function Cc(c, a, b, r, f) { c.beginPath(); c.arc(a, b, Math.max(0, r), 0, 7); c.fillStyle = f; c.fill(); }
 function E(c, a, b, rx, ry, f) { c.beginPath(); c.ellipse(a, b, rx, ry, 0, 0, 7); c.fillStyle = f; c.fill(); }
@@ -2204,10 +2217,10 @@ function drawMine(c, dt) {
       const ahead = (!seen || ROCKISH(t)) && (x >= hero.x + .8 || y >= hero.y + .8);
       if (ahead !== (pass === 1)) continue;
       const Z = ZONES[zoneAt(L0, x, y)], col = Z.rock;
-      const front = s > hs + .5 && s <= hs + 2.6 && Math.abs((x - y) - (hero.x - hero.y)) < 1.6;
+      const front = (s > hs + .5 && s <= hs + 2.6 && Math.abs((x - y) - (hero.x - hero.y)) < 1.6) || hidesFloor(x, y);
       // 아직 못 본 곳은 모두 바위 덩어리로 (뚫린 곳인지 알 수 없게). 귀한 광맥은 멀리서도 빛남
       if (!seen) {
-        if (front) ghostStart(c); rockMass(c, x, y, RH, rgbk(col, -58 + n * 6), rgbk(col, -80), rgbk(col, -98), solid, 0); if (front) ghostEnd(c, .45);
+        if (front) ghostStart(c, rockBox(x, y, RH)); rockMass(c, x, y, RH, rgbk(col, -58 + n * 6), rgbk(col, -80), rgbk(col, -98), solid, 0); if (front) ghostEnd(c, .45);
         if (ROCKISH(t)) { const o = mO(x, y); if (o && GLOW_ORES[o] && Math.hypot(x - hero.x, y - hero.y) < glowR) mglows.push([iso(x + .5, y + .5, RH), o, n]); }
         continue;
       }
@@ -2255,7 +2268,7 @@ function drawMine(c, dt) {
         continue;
       }
       // 바위 (광부 앞에 있고 가리면 반투명)
-      if (front) ghostStart(c);
+      if (front) ghostStart(c, rockBox(x, y, RH));
       const exposed = !solid(x, y + 1) || !solid(x + 1, y);
       if (t === 'w') {   // 숲 동굴 바깥 암반: 못 캐는 벽이라 보통 바위와 달리 짙은 잿빛에 굵은 돌 틈
         rockMass(c, x, y, RH, '#4b4744', '#3a3634', '#2a2725', solid, ink);
@@ -2346,9 +2359,22 @@ function drawMiniMap(c) {
   c.restore();
 }
 // 누른 화면 위치의 칸 (앞쪽부터, 바위는 윗면과 옆면까지)
+// 광부 둘레에서 본 바닥을 가리는 바위 (바로 뒤 세 칸 중에 광부와 3칸 안의 본 바닥이 있음). 반투명하게 그리고, 누르면 그 뒤 바닥으로 걸어감
+// 바위 한 칸이 그려지는 범위 (반짝임과 꾸밈까지 넉넉히)
+function rockBox(x, y, RH) { const l = iso(x, y + 1, 0), r = iso(x + 1, y, 0), t = iso(x, y, RH), b = iso(x + 1, y + 1, 0); return [l[0] - TW * .2, t[1] - TW * .5, r[0] + TW * .2, b[1] + TW * .2]; }
+function hidesFloor(x, y) {
+  if (Math.hypot(x - hero.x, y - hero.y) > 3.6) return false;
+  for (const [a, b] of [[x - 1, y - 1], [x - 1, y], [x, y - 1]]) if (seenGet(a, b) && FLOORISH(mT(a, b)) && Math.hypot(a - hero.x, b - hero.y) <= 3) return true;
+  return false;
+}
 function mineTap(px, py) {
   if (!sheet.hidden) hideSheet();
-  const [x, y] = screenToWorld(px, py), RH = 1.05, vr = viewTiles();
+  const [x, y] = screenToWorld(px, py), c = mineHit(x, y);
+  if (c) mineTapCell(c[0], c[1]);
+}
+// 그리는 좌표 (x, y)를 누르면 어느 칸이 눌리는지
+function mineHit(x, y) {
+  const RH = 1.05, vr = viewTiles();
   for (let s = vr.x1 + vr.y1 + 2; s >= vr.x0 + vr.y0; s--) for (let tx = vr.x0; tx <= vr.x1 + 2; tx++) {
     const ty = s - tx; if (ty < vr.y0 || ty > vr.y1 + 2) continue;
     const rock = !seenGet(tx, ty) || ROCKISH(mT(tx, ty));
@@ -2356,8 +2382,19 @@ function mineTap(px, py) {
       : [iso(tx, ty, 0), iso(tx + 1, ty, 0), iso(tx + 1, ty + 1, 0), iso(tx, ty + 1, 0)];
     if (!inPoly(x, y, poly)) continue;
     if (!seenGet(tx, ty) || Math.hypot(tx - hero.x, ty - hero.y) > lightR() + .5) continue;   // 어둠 덩어리는 건너뛰고 그 뒤에 보이는 칸을 찾음
-    mineTapCell(tx, ty); return;
+    if (rock && hidesFloor(tx, ty)) { const fl = floorBehind(x, y, s, vr); if (fl && !(fl[0] === Math.round(hero.x) && fl[1] === Math.round(hero.y))) return fl; }   // 반투명 바위 너머 바닥이면 걷기 (그 바닥이 지금 선 칸이면 캠)
+    return [tx, ty];
   }
+  return null;
+}
+// 누른 점 아래, 앞쪽 바위에 가려진 본 바닥 (갈 수 있는 것)
+function floorBehind(x, y, s0, vr) {
+  for (let s = s0 - 1; s >= s0 - 3; s--) for (let tx = vr.x0; tx <= vr.x1 + 2; tx++) {
+    const ty = s - tx; if (!seenGet(tx, ty) || !FLOORISH(mT(tx, ty))) continue;
+    if (!inPoly(x, y, [iso(tx, ty, 0), iso(tx + 1, ty, 0), iso(tx + 1, ty + 1, 0), iso(tx, ty + 1, 0)])) continue;
+    if (bfs(Math.round(hero.x), Math.round(hero.y), (a, b) => a === tx && b === ty)) return [tx, ty];
+  }
+  return null;
 }
 // 칸의 화면 위치 (테스트용). 바위는 윗면 가운데
 function cellZ(x, y) { return !seenGet(x, y) || ROCKISH(mT(x, y)) ? 1.05 : 0; }
@@ -2584,8 +2621,10 @@ function leaveForest() {
 }
 function forestTapCell(x, y) {
   if (strikeQ) return;
-  const f = S.forest, seen = f.seen[fI(x, y)];
+  const f = S.forest; let seen = f.seen[fI(x, y)];
   hero.goal = null; hero.dig = null; hero.breakAt = null;
+  // 동굴 입구는 그림이 위로 솟아 있어 입구 칸과 그 뒤쪽 세 칸(2×2) 아무 데나 눌러도 동굴로 감
+  if (!f.road && !f.grove) { const vx = f.ex - 5, vy = f.ey - 3; if (f.t[fI(vx, vy)] === 'v' && f.seen[fI(vx, vy)] && x >= vx - 1 && x <= vx && y >= vy - 1 && y <= vy) { x = vx; y = vy; seen = 1; } }
   const tt = f.t[fI(x, y)];
   if (seen && (tt === 'q' || tt === 'm' || (tt === 'w' && S.rod))) {   // 가시덤불은 낫으로 침, 길가 광석 바위는 캠, 물가에선 낚시
     if (tt === 'q' && !S.sickle) { toast('낫 필요'); SFX.deny(); mark(x, y, '235,95,80'); return; }
@@ -4413,7 +4452,11 @@ window.MinerDiary = {
   state: () => S, phaseIndex, untilNext, objects: () => OBJ, scene: () => scene,
   cellPoint, hero: () => ({ x: hero.x, y: hero.y, moving: hero.path.length > 0 || !!strikeQ }),   // 곡괭이질 도중도 움직이는 중으로 셈
   // 칸을 화면 가운데로 옮기고 그 위치를 돌려줌 (바위는 윗면 가운데)
-  cellSpot: (x, y) => { follow = false; const z = cellZ(x, y); const p = iso(x + .5, y + .5, z); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
+  cellSpot: (x, y) => {   // 그 칸이 실제로 눌리는 자리를 찾아 화면 가운데로 (바위는 윗면 가운데부터, 반투명 바위면 아래쪽)
+    follow = false; const z = cellZ(x, y); let p = iso(x + .5, y + .5, z);
+    if (z) { const cand = [[.5, .5, z]]; for (let h = 1; h >= 0; h -= .15) for (let u = .1; u < 1; u += .2) for (let v = .1; v < 1; v += .2) cand.push([u, v, h]);
+      for (const [u, v, h] of cand) { const q = iso(x + u, y + v, h), r = mineHit(q[0], q[1]); if (r && r[0] === x && r[1] === y) { p = q; break; } } }
+    cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
   glintDir: (x, y) => glintDir(x, y),
   cell: (x, y) => ({ t: mT(x, y), seen: seenGet(x, y), ore: mO(x, y) }),
   setCell: (x, y, t, ore) => { S.deep.dug[dKey(S.deep.L, x, y)] = t; if (ore !== undefined) { S.deep.ore = S.deep.ore || {}; S.deep.ore[dKey(S.deep.L, x, y)] = ore; } seenSet(x, y); },
