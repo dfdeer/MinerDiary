@@ -842,6 +842,22 @@ const shot = process.argv[2];
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '가로 스크롤 없음');
   await page.close();
 
+  /* ===== 좁은 길: 바닥을 가리는 바위는 반투명, 그 위쪽(비쳐 보이는 바닥)을 누르면 캐지 않고 걸어감 ===== */
+  {
+    const cp = await open(390, 844);
+    await cp.evaluate(() => { closeSheet(); S.introSeen = true; window.MinerDiary.speed(10); enterForest(); enterCave();
+      for (let y = -7; y <= 4; y++) for (let x = -2; x <= 8; x++) { S.deep.dug[dKey(0, x, y)] = 'r'; seenSet(x, y); }
+      for (const [x, y] of [[3, 2], [3, 1], [3, 0], [3, -1], [3, -2], [3, -3]]) S.deep.dug[dKey(0, x, y)] = 'f';
+      hero.x = 3; hero.y = 1; hero.path = []; });
+    await cp.waitForTimeout(300);
+    ok(await cp.evaluate(() => hidesFloor(4, -1) && !hidesFloor(8, 4)), '광부 둘레에서 본 바닥을 가리는 바위만 반투명');
+    const pt = await cp.evaluate(() => { follow = false; return cellPoint(3, -2); });
+    await cp.mouse.click(pt.x, pt.y); await cp.waitForTimeout(60);
+    await cp.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 15000 });
+    ok(await cp.evaluate(() => Math.round(hero.x) === 3 && Math.round(hero.y) === -2 && mT(4, -1) === 'r' && mT(4, -2) === 'r'), '반투명 바위 너머 바닥을 누르면 캐지 않고 그곳으로 걸어감');
+    await cp.close();
+  }
+
   /* ===== 컴퓨터 크기: 누르는 위치가 맞는지 ===== */
   const desk = await open(1440, 900);
   const d = helpers(desk);
