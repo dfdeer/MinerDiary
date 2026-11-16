@@ -17,6 +17,7 @@ const shot = process.argv[2];
     await page.goto(url);
     await page.evaluate(() => localStorage.clear());
     await page.reload(); await page.waitForFunction(() => window.MinerDiary && window.MinerDiary.ready, null, { timeout: 15000 });
+    await page.evaluate(() => window.MinerDiary.quietEvents());   // 저절로 생기는 이벤트는 따로 시험
     await page.waitForTimeout(500);
     return page;
   }
@@ -413,6 +414,7 @@ const shot = process.argv[2];
 
   // 12. 저장
   await page.reload(); await page.waitForFunction(() => window.MinerDiary && window.MinerDiary.ready, null, { timeout: 15000 }); await page.waitForTimeout(400);
+  await page.evaluate(() => window.MinerDiary.quietEvents());
   ok((await st()).day === s.day, '새로고침 후에도 날짜 유지');
 
   // 13. 곡괭이 강화: 망치질 세 번, 품질
@@ -840,6 +842,27 @@ const shot = process.argv[2];
   ok(await page.evaluate(() => follow && !bubble), '스페이스바로 광부에게 돌아옴');
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '가로 스크롤 없음');
   await page.close();
+
+  /* ===== 돌발 이벤트: 처음 운석은 3일차 아침에 촌장이 알림, 숲에서 캐면 운석 조각. 시세 폭등은 하루 전에 알리고 다음 날부터 시장 값 두 배 ===== */
+  {
+    const ev = await open(390, 844);
+    await ev.evaluate(() => { evQuiet = false; closeSheet(); S.introSeen = true; S.day = 2; window.MinerDiary.speed(10); sleep(false); });
+    ok((await ev.textContent('#sheet')).includes('별똥별') && await ev.evaluate(() => window.MinerDiary.events().some(e => e.k === 'meteor' && e.from === S.day)), '3일차 아침 촌장이 숲에 떨어진 별똥별을 알림 (첫 운석은 정한 날)');
+    ok(await ev.locator('#hud .evdot').count() === 1, '소식이 있으면 날짜 단추에 점');
+    await ev.evaluate(() => closeSheet()); await ev.click('#hud [data-a="news"]');
+    ok((await ev.textContent('#sheet')).includes('운석'), '날짜 단추를 누르면 소식 창에 운석');
+    const mp = await ev.evaluate(() => { closeSheet(); enterForest(); const e = window.MinerDiary.events().find(o => o.k === 'meteor'); for (let i = 0; i < S.forest.seen.length; i++) S.forest.seen[i] = 1; return S.forest.t[fI(e.x, e.y)] === 'M' ? [e.x, e.y] : null; });
+    ok(!!mp, '숲 열린 구역 풀밭에 운석이 떨어져 있음');
+    { const p = await ev.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), mp); await ev.mouse.click(p.x, p.y); await ev.waitForTimeout(80); await ev.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 30000 }); await ev.waitForTimeout(100); }
+    ok(await ev.evaluate(([x, y]) => S.carry.meteor >= 2 && S.forest.t[fI(x, y)] === 'g' && window.MinerDiary.events().find(o => o.k === 'meteor').dug, mp), '운석을 누르면 걸어가 캐서 운석 조각 둘 이상');
+    const bo = await ev.evaluate(() => { leaveForest(); S.restored.push('market'); S.ev.list = []; window.MinerDiary.quietEvents(); window.MinerDiary.evAdd('boom'); return window.MinerDiary.events().find(o => o.k === 'boom'); });
+    ok(bo && bo.from === bo.warn + 1 && bo.to === bo.from + 2 && await ev.evaluate(o => boomK(o) === 1, bo.ore), '시세 폭등은 알린 다음 날부터 사흘');
+    await ev.evaluate(() => { closeSheet(); sleep(false); closeSheet(); if (!S.market) rollMarket(true); S.market.sold = {}; });
+    ok(await ev.evaluate(o => boomK(o) === 2 && unitPrice(o) === Math.round(ORES[o].price * S.market.mult[o] * 2), bo.ore), '다음 날 시장에서 그 광석 값이 두 배');
+    await ev.evaluate(o => { S.carry[o] = 1; showMarket(); }, bo.ore);
+    ok((await ev.textContent('#sheet')).includes('값 두 배'), '시장 창에 「값 두 배」 소식');
+    await ev.close();
+  }
 
   /* ===== 좁은 길: 바닥을 가리는 바위는 반투명, 그 위쪽(비쳐 보이는 바닥)을 누르면 캐지 않고 걸어감 ===== */
   {
