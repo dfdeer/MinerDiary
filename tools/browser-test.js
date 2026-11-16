@@ -607,13 +607,13 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="sword"]');
   ok((await st()).sword === 1 && !P(await st(), 'copperBar'), '대장간에서 구리 주괴로 구리 검');
   await page.click('#sheet [data-a="close"]');
-  await visit('gate', '#sheet [data-a="hunt"]');
-  ok(await page.locator('#sheet [data-a="hunt"]').isDisabled() === (await page.evaluate(() => phaseIndex())) < 1, '성벽 문은 점심부터 열림');
+  await visit('gate', '#sheet [data-a="stage"][data-n="0"]');
+  ok(await page.locator('#sheet [data-a="stage"][data-n="0"]').isDisabled() === (await page.evaluate(() => phaseIndex())) < 1 && await page.locator('#sheet [data-a="stage"][data-n="1"]').isDisabled(), '성벽 문은 점심부터 열리고, 토벌 2단계는 1단계를 깨야 열림');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { S.minE = S.dayStart - S.max * .35; renderHud(); });
-  await visit('gate', '#sheet [data-a="hunt"]:not([disabled])');
-  await page.click('#sheet [data-a="hunt"]');
-  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'hunt' && (await page.evaluate(() => window.MinerDiary.mons())).length >= 3, '성벽 문으로 나가면 몬스터가 있는 성 밖');
+  await visit('gate', '#sheet [data-a="stage"][data-n="0"]:not([disabled])');
+  await page.click('#sheet [data-a="stage"][data-n="0"]');
+  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'hunt' && (await page.evaluate(() => window.MinerDiary.mons())).length === 3, '토벌 1단계: 성 밖 들판에 멧돼지 셋');
   if (shot) await page.screenshot({ path: path.join(shot, 'hunt.png') });
   await page.waitForFunction(() => window.MinerDiary.bgm() === 'hunt', null, { timeout: 5000 });
   ok(true, '성 밖에선 배경음이 사냥 곡으로 바뀜');
@@ -627,6 +627,19 @@ const shot = process.argv[2];
   }
   s = await st();
   ok(s.killN === 3 && (s.carry.meat || 0) + (s.carry.bone || 0) >= 1 && s.energy < e0 && (await quest()).includes('깊이 10') === false, `몬스터를 누르면 다가가 휘둘러 셋을 잡고 고기를 얻고 기력이 듦 (${e0}→${s.energy})`);
+  await page.waitForSelector('#sheet [data-a="leaveHunt"]', { timeout: 5000 }); s = await st();
+  ok((await page.textContent('#sheet')).includes('1단계') && s.huntClear.home[0] === 1 && (s.carry.leather || 0) >= 2, '다 잡으면 「들판 1단계 토벌」, 처음 보상(가죽 둘)');
+  await page.click('#sheet [data-a="stage"][data-n="1"]');
+  ok(await page.evaluate(() => window.MinerDiary.scene() === 'hunt' && S.hunt.stage === 1 && S.hunt.mons.some(m => m.kind === 'wolf')), '다음 단계 단추로 2단계 (늑대가 섞임)');
+  // 돌진과 빛 구슬, 왕 멧돼지의 부름
+  const beh = await page.evaluate(async () => {
+    const H = S.hunt, b = H.mons.find(m => m.kind === 'boar'); H.mons.forEach(m => { if (m !== b) m.hp = 0; }); b.hp = 99; b.x = hero.x + 3; b.y = hero.y; b.cd2 = 0; b.st = 'walk';
+    const seen = new Set(); for (let i = 0; i < 120; i++) { huntTick(.02); seen.add(b.st); } b.hp = 0;
+    H.won = true; H.mons.push(newMon(H.nid++, 'spirit', hero.x + 4, hero.y)); const sp = H.mons[H.mons.length - 1]; sp.cd2 = 0; huntTick(.02); const shot = H.shots.length > 0; sp.hp = 0; H.shots = [];
+    const k = newMon(H.nid++, 'king', hero.x + 5, hero.y - 2); k.sum = 0; k.cd2 = 9; H.mons.push(k); const n0 = H.mons.length; huntTick(.02); const called = H.mons.length > n0; H.mons.forEach(m => { m.hp = 0; });
+    return { wind: seen.has('wind'), dash: seen.has('dash'), shot, called };
+  });
+  ok(beh.wind && beh.dash && beh.shot && beh.called, '멧돼지는 멈칫했다가 돌진, 정령은 빛 구슬을 쏨, 왕 멧돼지는 멧돼지를 부름');
   await page.click('#minebar [data-a="leave"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 15000 });
   s = await st();

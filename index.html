@@ -2999,22 +2999,41 @@ const MONS = {
   boar:   { n: '멧돼지', hp: 4, hit: 2, speed: 1.6, drop: [['meat', 1], ['leather', .6]] },
   wolf:   { n: '그림자 늑대', hp: 8, hit: 4, speed: 2.2, drop: [['bone', 1], ['manastone', .35]] },
   spirit: { n: '달빛 정령', hp: 12, hit: 5, speed: 1.4, drop: [['moonshard', 1], ['manastone', .5]] },
+  king:   { n: '들판의 왕 멧돼지', hp: 40, hit: 6, speed: 1.4, drop: [['meat', 1], ['leather', 1], ['manastone', 1]] },
 };
+/* 토벌 단계 (기획 60번): 마을마다 토벌 길, 단계마다 몬스터 무리를 다 잡으면 깸. 마지막은 우두머리.
+   멧돼지는 멈칫했다가 돌진(붉은 줄로 미리 보임), 정령은 거리를 두고 빛 구슬을 쏨, 왕 멧돼지는 돌진하며 멧돼지를 부름 */
+const STAGES = {
+  home: { n: '들판', list: [
+    { mons: ['boar', 'boar', 'boar'], reward: { gold: 100, items: { leather: 2 } } },
+    { mons: ['boar', 'boar', 'boar', 'wolf'], reward: { gold: 200, items: { bone: 3 } } },
+    { mons: ['wolf', 'wolf', 'wolf', 'boar', 'boar'], reward: { gold: 300, items: { manastone: 2 } } },
+    { mons: ['wolf', 'wolf', 'spirit', 'spirit'], reward: { gold: 500, items: { moonshard: 2 } } },
+    { mons: ['king', 'boar', 'boar'], reward: { gold: 1000, acc: 'strap' }, boss: 1 },
+  ] },
+};
+const stageOf = () => STAGES.home;
+const stageCleared = n => !!((S.huntClear || {}).home || {})[n];
 const SWORDS = [{ name: '곡괭이', power: 1 }, { name: '구리 검', power: 2, need: { copperBar: 3 }, gold: 150 }, { name: '철 검', power: 4, need: { ironBar: 4 }, gold: 500 }, { name: '은 검', power: 6, need: { silverBar: 4 }, gold: 1200 }];
 const power = () => SWORDS[S.sword || 0].power;
-function genHunt() {
-  const I = (x, y) => y * HW + x, t = Array(HW * HH).fill('g'), R0 = (Math.random() * 1e5) | 0;
-  for (let y = 0; y < HH; y++) for (let x = 0; x < HW; x++) { const v = H32(x * 7919 + y * 104729 + R0); t[I(x, y)] = v < .1 ? 't' : v < .13 ? 'k' : 'g'; if (!x || !y || x === HW - 1 || y === HH - 1) t[I(x, y)] = 't'; }
-  const ex = HW / 2, ey = HH - 2; for (let y = ey - 3; y <= ey; y++) for (let x = ex - 2; x <= ex + 2; x++) t[I(x, y)] = 'g'; t[I(ex, ey)] = 'x';
-  const ph = phaseIndex(), kinds = ph <= 1 ? ['boar'] : ph === 2 ? ['boar', 'wolf'] : ['wolf', 'spirit'], mons = [];
-  for (let k = 0, n = 0; k < 7 && n < 500; n++) { const x = 2 + rnd(HW - 4), y = 2 + rnd(HH - 10); if (t[I(x, y)] !== 'g') continue; const kind = kinds[k % kinds.length]; mons.push({ id: k, kind, x, y, hp: MONS[kind].hp, cd: 0, hurt: 0, wx: x, wy: y }); k++; }
-  return { t, mons, ex, ey, steps: 0 };
+// 단계 n(0부터)의 싸움터: 가운데가 트인 들판, 아래 가운데가 마을로 가는 길. 몬스터는 위쪽에 모여 있음
+function genHunt(n) {
+  const I = (x, y) => y * HW + x, t = Array(HW * HH).fill('g'), R0 = (Math.random() * 1e5) | 0, cx = HW / 2, cy = HH / 2;
+  for (let y = 0; y < HH; y++) for (let x = 0; x < HW; x++) {
+    const r = Math.hypot((x - cx) / 1.1, y - cy), v = H32(x * 7919 + y * 104729 + R0), edge = 10.5 + vnoise(Math.atan2(y - cy, x - cx) * 2 + 3, 0, R0) * 2.5;
+    t[I(x, y)] = r > edge ? 't' : r > 4 && v < .05 ? 't' : r > 4 && v < .08 ? 'k' : 'g';
+  }
+  const ex = cx, ey = HH - 4; for (let y = cy + 3; y <= ey; y++) for (let x = ex - 1; x <= ex + 1; x++) t[I(x, y)] = 'g'; t[I(ex, ey)] = 'x';
+  const st = stageOf().list[n], mons = [];
+  st.mons.forEach((kind, k) => { for (let tries = 0; tries < 200; tries++) { const x = cx - 5 + rnd(11), y = cy - 7 + rnd(6); if (t[I(x, y)] !== 'g' || mons.some(m => Math.hypot(m.x - x, m.y - y) < 1.5)) continue; mons.push(newMon(k, kind, x, y)); break; } });
+  return { t, mons, ex, ey, steps: 0, stage: n, shots: [], won: false, nid: mons.length };
 }
+function newMon(id, kind, x, y) { return { id, kind, x, y, hp: MONS[kind].hp, cd: 0, hurt: 0, wx: x, wy: y, st: 'walk', stT: 0, cd2: 1 + Math.random(), sum: 6 }; }
 const hT = (x, y) => (x >= 0 && y >= 0 && x < HW && y < HH ? S.hunt.t[y * HW + x] : 't');
 const hBlocked = (x, y) => { const t = hT(x, y); return t === 't' || t === 'k'; };
-function enterHunt() {
+function enterHunt(n = 0) {
   hideSheet(); selected = null;
-  S.hunt = genHunt(); scene = 'hunt'; S.screen = 'hunt'; FLAT = true;
+  S.hunt = genHunt(n); scene = 'hunt'; S.screen = 'hunt'; FLAT = true;
   hero.x = S.hunt.ex; hero.y = S.hunt.ey - 1; hero.path = []; hero.target = null; hero.goal = null; hero.atk = null; hero.fx = 1; hero.back = true;
   cam.s = 1; cam.to = null; follow = true; snapCam(); fade = 1; hunts = [];
   save(); renderHud(); renderDock();
@@ -3062,31 +3081,57 @@ function huntArrive() {
 }
 // 매 장면: 몬스터 움직임과 공격, 광부의 휘두르기
 let swingCd = 0;
+function heroHit(n) { SFX.deny(); buzz(30); cam.shake = 4; hunts.push({ x: hero.x, y: hero.y, text: `${PWR}-${n}`, col: '#ff9a8a', life: 1 }); if (!spend(n)) return false; renderHud(); return true; }
+function monMove(m, tx, ty, sp) {
+  const dx = tx - m.x, dy = ty - m.y, l = Math.hypot(dx, dy) || 1, st = Math.min(l, sp);
+  const nx = m.x + dx / l * st, ny = m.y + dy / l * st;
+  if (!hBlocked(Math.round(nx), Math.round(ny))) { m.x = nx; m.y = ny; return true; }
+  m.wx = m.x; m.wy = m.y; return false;
+}
 function huntTick(dt) {
   const H = S.hunt; if (!H) return;
   swingCd = Math.max(0, swingCd - dt);
+  H.shots = H.shots || [];
   for (const m of H.mons) {
     if (m.hp <= 0) continue;
-    m.hurt = Math.max(0, m.hurt - dt); m.cd = Math.max(0, m.cd - dt);
-    const M = MONS[m.kind], d = Math.hypot(m.x - hero.x, m.y - hero.y);
-    let tx = m.wx, ty = m.wy;
-    if (d < 5.5) { tx = hero.x; ty = hero.y; } else if (Math.hypot(m.x - m.wx, m.y - m.wy) < .2) { m.wx = Math.max(1, Math.min(HW - 2, m.x + (Math.random() - .5) * 6)); m.wy = Math.max(1, Math.min(HH - 2, m.y + (Math.random() - .5) * 6)); }
-    if (d > 1.05) {
-      const dx = tx - m.x, dy = ty - m.y, l = Math.hypot(dx, dy) || 1, st = Math.min(l, M.speed * dt * (d < 5.5 ? 1 : .4));
-      const nx = m.x + dx / l * st, ny = m.y + dy / l * st;
-      if (!hBlocked(Math.round(nx), Math.round(ny))) { m.x = nx; m.y = ny; } else { m.wx = m.x; m.wy = m.y; }
-    } else if (m.cd <= 0) {   // 옆에 붙으면 때림
-      m.cd = 1.4; SFX.deny(); buzz(30); cam.shake = 4;
-      if (!spend(M.hit)) return; renderHud();
+    m.hurt = Math.max(0, m.hurt - dt); m.cd = Math.max(0, m.cd - dt); m.cd2 = Math.max(0, (m.cd2 || 0) - dt); m.stT = Math.max(0, (m.stT || 0) - dt);
+    const M = MONS[m.kind], d = Math.hypot(m.x - hero.x, m.y - hero.y), sees = d < 6.5;
+    const charger = m.kind === 'boar' || m.kind === 'king';
+    // 돌진: 멈칫(붉은 줄) 다음 곧게 달림, 끝나면 잠깐 쉼 (그때가 칠 기회)
+    if (m.st === 'wind') { if (m.stT <= 0) { m.st = 'dash'; m.stT = .85; m.hitOnce = false; } continue; }
+    if (m.st === 'dash') {
+      const ok2 = monMove(m, m.x + m.dx, m.y + m.dy, (m.kind === 'king' ? 6 : 7) * dt);
+      if (!m.hitOnce && Math.hypot(m.x - hero.x, m.y - hero.y) < .8) { m.hitOnce = true; if (!heroHit(M.hit + 1)) return; }
+      if (!ok2 || m.stT <= 0) { m.st = 'rest'; m.stT = m.kind === 'king' ? 1.3 : 1; }
+      continue;
     }
+    if (m.st === 'rest') { if (m.stT <= 0) { m.st = 'walk'; m.cd2 = 1.6 + Math.random(); } continue; }
+    if (charger && sees && d > 1.6 && d < 5 && m.cd2 <= 0) { const l = d || 1; m.dx = (hero.x - m.x) / l; m.dy = (hero.y - m.y) / l; m.st = 'wind'; m.stT = .6; continue; }
+    // 왕 멧돼지는 가끔 멧돼지를 부름 (살아 있는 멧돼지가 셋보다 적을 때)
+    if (m.kind === 'king' && sees) { m.sum -= dt; if (m.sum <= 0) { m.sum = 8; if (H.mons.filter(o => o.hp > 0 && o.kind === 'boar').length < 3) { for (let k = 0; k < 8; k++) { const a = Math.random() * 6.3, x = Math.round(m.x + Math.cos(a) * 2), y = Math.round(m.y + Math.sin(a) * 2); if (!hBlocked(x, y)) { const b = newMon(H.nid++, 'boar', x, y); b.cd2 = 1.5; H.mons.push(b); for (let i = 0; i < 8; i++) hunts.push({ x: x + (Math.random() - .5), y: y + (Math.random() - .5), text: '', col: '#fff', life: .01 }); toast(`${MONS.king.n}의 부름`); break; } } } } }
+    // 정령: 거리를 두고 빛 구슬을 쏨
+    if (m.kind === 'spirit' && sees) {
+      if (d < 3) monMove(m, m.x * 2 - hero.x, m.y * 2 - hero.y, M.speed * dt); else if (d > 4.5) monMove(m, hero.x, hero.y, M.speed * dt);
+      if (m.cd2 <= 0) { m.cd2 = 2.2; const l = d || 1; H.shots.push({ x: m.x, y: m.y, vx: (hero.x - m.x) / l * 3.2, vy: (hero.y - m.y) / l * 3.2, life: 2.6, hit: M.hit }); }
+      continue;
+    }
+    let tx = m.wx, ty = m.wy;
+    if (sees) { tx = hero.x; ty = hero.y; } else if (Math.hypot(m.x - m.wx, m.y - m.wy) < .2) { m.wx = Math.max(1, Math.min(HW - 2, m.x + (Math.random() - .5) * 6)); m.wy = Math.max(1, Math.min(HH - 2, m.y + (Math.random() - .5) * 6)); }
+    if (d > 1.05) monMove(m, tx, ty, M.speed * dt * (sees ? 1 : .4));
+    else if (m.cd <= 0) { m.cd = 1.4; if (!heroHit(M.hit)) return; }   // 옆에 붙으면 때림
   }
+  // 빛 구슬: 곧게 날아가 광부에 닿으면 기력이 깎임, 나무와 바위에 막힘
+  H.shots = H.shots.filter(b => { b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt; if (hBlocked(Math.round(b.x), Math.round(b.y))) return false; if (Math.hypot(b.x - hero.x, b.y - hero.y) < .45) { heroHit(b.hit); return false; } return b.life > 0; });
+  if (scene !== 'hunt') return;
+  // 다 잡으면 단계를 깸
+  if (!H.won && H.mons.every(o => o.hp <= 0)) { H.won = true; stageClear(H.stage); return; }
   // 쫓던 몬스터 옆이면 휘두름
   const tgt = H.mons.find(o => o.id === hero.atk && o.hp > 0);
   if (tgt && !hero.path.length && Math.hypot(tgt.x - hero.x, tgt.y - hero.y) >= 1.35) chaseStep();
   if (tgt && Math.hypot(tgt.x - hero.x, tgt.y - hero.y) < 1.35 && swingCd <= 0 && !hero.path.length) {
     swingCd = .55; mswing = 1;
     if (tgt.x > hero.x) { hero.back = false; hero.fx = 1; } else { hero.back = true; hero.fx = -1; }
-    tgt.hp -= power(); tgt.hurt = .2; SFX.dig();
+    tgt.hp -= power(); tgt.hurt = .2; SFX.dig(); if (tgt.st === 'wind') { tgt.st = 'rest'; tgt.stT = .6; }   // 멈칫할 때 치면 돌진이 끊김
     hunts.push({ x: tgt.x, y: tgt.y, text: `${power()}`, col: '#fff', life: 1 });
     if (tgt.hp <= 0) {
       const got = MONS[tgt.kind].drop.filter(([, p2]) => Math.random() < p2).map(([k]) => k), room = got.filter((k, i) => carryN() + i < bagCap());
@@ -3097,12 +3142,41 @@ function huntTick(dt) {
     if (!spend(1)) return; renderHud();
   }
 }
+// 단계를 깸: 처음이면 큰 보상, 다시 하면 잡은 것만
+function stageClear(n) {
+  const SG = stageOf(), st = SG.list[n]; S.huntClear = S.huntClear || {}; const C = S.huntClear.home || (S.huntClear.home = {});
+  const first = !C[n]; C[n] = 1; let html = '';
+  if (first) {
+    const R = st.reward; S.gold += R.gold || 0;
+    Object.entries(R.items || {}).forEach(([k, v]) => addItem(k, v));
+    if (R.acc) gainAcc(R.acc);
+    html = `<p class="news">${GOLD}+${R.gold || 0} ${Object.entries(R.items || {}).map(([k, v]) => `<span class="ore ${k}"></span>${ORES[k].name} +${v}`).join(' ')}${R.acc ? ` ${accIco(R.acc)}${ACC[R.acc].n}` : ''}</p>`;
+  }
+  SFX.fanfare(); questEvent('stage'); save(); renderHud(); renderDock();
+  const next = n + 1 < SG.list.length;
+  openSheet(`${ico('ic_flag')}${SG.n} ${n + 1}단계${st.boss ? ' 우두머리' : ''} 토벌`, (st.boss && first ? `<p>${SG.n}이 조용해졌어요. 이제 마음 놓고 다녀도 되겠어요.</p>` : '') + (html || '<p class="dim">처음 보상은 이미 받음</p>'),
+    `<button class="btn" data-a="leaveHunt">${ico('ic_village')}마을로</button>` + (next ? `<button class="btn primary" data-a="stage" data-n="${n + 1}">다음 단계</button>` : ''), false);
+}
+// 성벽 문 창: 토벌 단계 목록
+function stageRows() {
+  const SG = stageOf(), am = phaseIndex() === 0;
+  return `<div class="rows">${SG.list.map((st, i) => { const open = i === 0 || stageCleared(i - 1), done = stageCleared(i); const kinds = [...new Set(st.mons)].map(k => MONS[k].n).join(', ');
+    return `<div class="rowi"><span class="nm">${done ? ico('ic_check') : open ? ico('ic_sword') : ico('ic_lock')}${SG.n} ${i + 1}${st.boss ? ' 우두머리' : ''} <small>${kinds}</small></span><button class="btn small ${open && !done ? 'primary' : ''}" data-a="stage" data-n="${i}" ${open && !am ? '' : 'disabled'}>도전</button></div>`; }).join('')}</div>`;
+}
 function monsterAt(c, m) {
   const p = iso(m.x + .5, m.y + .5, 0), u = TW / 72, ink = Math.max(1.4, TW * .022), bob = Math.sin(tnow * 6 + m.id) * u * 2;
   c.save(); c.translate(p[0], p[1]);
   E(c, 0, u * 2, u * 22, u * 8, 'rgba(0,0,0,.25)');
   if (m.hurt > 0) c.globalAlpha = .6;
-  if (m.kind === 'boar') {
+  if (m.st === 'wind') c.translate(Math.sin(tnow * 60) * u * 1.5, 0);   // 돌진 전 부들부들
+  if (m.kind === 'king') {   // 왕 멧돼지: 큰 몸, 엄니 둘, 금관
+    c.scale(1.6, 1.6);
+    blobs(c, [[0, -u * 16 + bob, u * 18], [u * 14, -u * 14 + bob, u * 11]], '#6a4028', ink / 1.6);
+    Cc(c, u * 19, -u * 17 + bob, u * 2.2, '#ff5a3a');
+    inkPoly(c, [[u * 22, -u * 10 + bob], [u * 30, -u * 16 + bob], [u * 23, -u * 7 + bob]], '#f4ead6', ink * .6 / 1.6); inkPoly(c, [[u * 16, -u * 9 + bob], [u * 21, -u * 15 + bob], [u * 18, -u * 7 + bob]], '#f4ead6', ink * .6 / 1.6);
+    inkPoly(c, [[-u * 8, -u * 31 + bob], [-u * 6, -u * 39 + bob], [-u * 2, -u * 34 + bob], [u * 1, -u * 41 + bob], [u * 4, -u * 34 + bob], [u * 8, -u * 39 + bob], [u * 9, -u * 30 + bob]], '#f2c230', ink * .7 / 1.6);
+    c.scale(1 / 1.6, 1 / 1.6);
+  } else if (m.kind === 'boar') {
     blobs(c, [[0, -u * 16 + bob, u * 18], [u * 14, -u * 14 + bob, u * 11]], '#8a5a3a', ink);
     Cc(c, u * 19, -u * 17 + bob, u * 2.2, '#2b1a12'); inkPoly(c, [[u * 22, -u * 10 + bob], [u * 28, -u * 14 + bob], [u * 23, -u * 8 + bob]], '#f4ead6', ink * .6);
   } else if (m.kind === 'wolf') {
@@ -3115,7 +3189,7 @@ function monsterAt(c, m) {
     Cc(c, -u * 4, -u * 26 + bob, u * 2.2, '#5a4a9a'); Cc(c, u * 4, -u * 26 + bob, u * 2.2, '#5a4a9a');
   }
   c.globalAlpha = 1;
-  const f = Math.max(0, m.hp / MONS[m.kind].hp); c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(-u * 16, -u * 48, u * 32, u * 5); c.fillStyle = '#e04a3a'; c.fillRect(-u * 16, -u * 48, u * 32 * f, u * 5);
+  const f = Math.max(0, m.hp / MONS[m.kind].hp), bw = m.kind === 'king' ? 2 : 1, by = m.kind === 'king' ? -u * 72 : -u * 48; c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(-u * 16 * bw, by, u * 32 * bw, u * 5); c.fillStyle = '#e04a3a'; c.fillRect(-u * 16 * bw, by, u * 32 * bw * f, u * 5);
   c.restore();
 }
 function drawHunt(c, dt) {
@@ -3132,7 +3206,11 @@ function drawHunt(c, dt) {
   for (let s = vr.x0 + vr.y0; s <= vr.x1 + vr.y1; s++) for (let x = Math.max(vr.x0, s - vr.y1); x <= Math.min(vr.x1, s - vr.y0); x++) {
     const y = s - x, t = outT(x, y) || hT(x, y); if (t === 't') list.push([x + y + 1, () => treeAt(c, x, y)]); else if (t === 'k') list.push([x + y + 1, () => rockAt(c, x, y)]);
   }
+  // 돌진 예고: 달릴 길이 붉게 깜빡임
+  H.mons.forEach(m => { if (m.hp <= 0 || m.st !== 'wind') return; const L2 = 4.5, w2 = m.kind === 'king' ? .5 : .32, nx = -m.dy, ny = m.dx, a0 = [m.x + .5 + nx * w2, m.y + .5 + ny * w2], a1 = [m.x + .5 - nx * w2, m.y + .5 - ny * w2];
+    const P4 = [a0, a1, [a1[0] + m.dx * L2, a1[1] + m.dy * L2], [a0[0] + m.dx * L2, a0[1] + m.dy * L2]].map(([x, y]) => iso(x, y, 0)); c.beginPath(); P4.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.closePath(); c.fillStyle = `rgba(230,60,40,${.38 + .14 * Math.sin(tnow * 20)})`; c.fill(); c.strokeStyle = 'rgba(170,30,20,.8)'; c.lineWidth = TW * .025; c.stroke(); });
   H.mons.forEach(m => { if (m.hp > 0) list.push([m.x + m.y + 1.01, () => monsterAt(c, m)]); });
+  (H.shots || []).forEach(b => list.push([b.x + b.y + 1.03, () => { const q = iso(b.x + .5, b.y + .5, .5), g = c.createRadialGradient(q[0], q[1], 1, q[0], q[1], TW * .2); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.4, 'rgba(200,190,255,.9)'); g.addColorStop(1, 'rgba(160,140,255,0)'); Cc(c, q[0], q[1], TW * .2, g); E(c, q[0], iso(b.x + .5, b.y + .5, 0)[1], TW * .08, TH * .06, 'rgba(0,0,0,.2)'); }]));
   list.push([hero.x + hero.y + 1.02, () => { const p = iso(hero.x + .5, hero.y + .5, 0); person(c, p[0], p[1], TW / 44, '#3d6fa8', true, 0, false); }]);
   list.sort((a, b) => a[0] - b[0]).forEach(([, f]) => f());
   { const p = iso(H.ex + .5, H.ey + .5, 0); label(c, '마을', p[0], p[1] + TH * .4, Math.max(11, TW * .16), '#f6ecdd', 'rgba(20,14,9,.7)'); }
@@ -3863,7 +3941,7 @@ function renderDock() {
   if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
   const bagBtn = `<button class="btn small${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
   if (scene === 'town') minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button><b>${ico('ic_village')}${(townHere() || TOWNS.mtn).n}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
-  else if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_sword')}성 밖</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  else if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_sword')}${S.hunt && S.hunt.stage !== undefined ? `${stageOf().n} ${S.hunt.stage + 1}단계` : '성 밖'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_tree')}${fPlace(Math.round(hero.x))}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (mine && S.mine) minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button><b>${S.deep.L ? `${S.deep.town ? TOWNS[S.deep.town].mine + ' ' : ''}${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small>` : '숲 동굴'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
 }
@@ -3910,7 +3988,7 @@ function showCard(o, msg) {
     return;
   }
   if (!o.done) { ruinCard(o); return; }
-  if (o.id === 'gate') { const am = phaseIndex() === 0; openSheet(`${ico('ic_sword')}성 밖`, `<p>${ico('ic_sword')}${SWORDS[S.sword || 0].name}</p>` + (am ? '<p class="dim">점심부터</p>' : ''), (travelOpen() ? `<button class="btn" data-a="world">${ico('ic_map')}지도</button>` : '') + `<button class="btn primary" data-a="hunt" ${am ? 'disabled' : ''}>나가기</button>`); return; }
+  if (o.id === 'gate') { const am = phaseIndex() === 0; openSheet(`${ico('ic_sword')}성 밖 토벌`, `<p>${ico('ic_sword')}${SWORDS[S.sword || 0].name}</p>` + (am ? '<p class="dim">점심부터</p>' : '') + stageRows(), travelOpen() ? `<button class="btn" data-a="world">${ico('ic_map')}지도</button>` : ''); return; }
   if (o.id === 'house') {
     showHouse();
   } else if (o.id === 'chief') {
@@ -4384,7 +4462,9 @@ document.addEventListener('click', e => {
   else if (a === 'strike') strike();
   else if (a === 'forest') enterForest();
   else if (a === 'toChief') { closeSheet(); const o = OBJ.find(v => v.id === 'chief'); mark(o.gx, o.gy, '233,176,79', o.w, o.d); goTo(o); }
-  else if (a === 'hunt') enterHunt();
+  else if (a === 'hunt') enterHunt(0);
+  else if (a === 'stage') { closeSheet(); enterHunt(n); }
+  else if (a === 'leaveHunt') { closeSheet(); leaveHunt(); }
   else if (a === 'nbuy') nightBuy(n);
   else if (a === 'board') doBoard(n);
   else if (a === 'nsell') nightSell(n);
