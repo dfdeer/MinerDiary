@@ -1942,8 +1942,6 @@ function mineTapCell(x, y) {
   if (!seen || Math.hypot(x - hero.x, y - hero.y) > lightR() + .5) return;   // 어둠 쪽은 반응 없음
   hero.dig = null; hero.goal = null; S.exiting = false;
   if (seen && ROCKISH(t)) {
-    if (t === 'h' && !canHard()) { toast(`파워 ${HARD_POW} 필요`); mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }
-    if (t === 'w') { toast('암반'); mbumps.push({ x, y, t: .3 }); SFX.deny(); return; }   // 동굴 바깥 벽(암반)은 못 캠
     mark(x, y, '255,220,150');
     const hx = Math.round(hero.x), hy = Math.round(hero.y);
     if (Math.abs(hx - x) + Math.abs(hy - y) === 1 && !hero.path.length) { dig(x, y); return; }
@@ -2039,7 +2037,9 @@ function openChest(x, y) {
 }
 function dig(x, y, force) {
   const t = mT(x, y);
-  if (!ROCKISH(t) || t === 'w' || (t === 'h' && !canHard())) return;
+  if (!ROCKISH(t)) return;
+  // 못 캐는 칸(숲 동굴 암반, 파워가 모자란 단단한 바위)도 휘둘러 보고, 닿는 순간 불꽃과 함께 튕겨 나옴
+  if (t === 'w' || (t === 'h' && !canHard())) { if (strikeQ) return; faceCell(x, y); swingHit(() => clang(x, y, t === 'w' ? '암반' : `파워 ${HARD_POW} 필요`)); return; }
   const ore = mO(x, y), cost = digCost(t);
   if (ore && carryN() >= bagCap()) { bagFullMsg(x, y, '캠'); mbumps.push({ x, y, t: .3 }); return; }
   // 마지막 기력: 쓰러지기 전에 한 번 물어봄
@@ -2050,6 +2050,12 @@ function dig(x, y, force) {
   if (strikeQ) return;
   faceCell(x, y);
   swingHit(() => { if (mT(x, y) === t) digHit(x, y, t, ore, cost); });
+}
+function clang(x, y, msg) {
+  const p = iso(x + .5, y + .5, 1.05);
+  burst(p[0], p[1] + TW * .1, '#fff6c2', '#ffd27a', 9);
+  mbumps.push({ x, y, t: .3 }); mshake = 2; SFX.clang(); buzz(25);
+  mfloats.push({ x: p[0], y: p[1] - TW * .3, text: msg, color: '#ffc9a8', life: 1.2 });
 }
 function digHit(x, y, t, ore, cost) {
   const col = ZONES[zoneAt(S.deep.L, x, y)].rock, p = iso(x + .5, y + .5, .6);
@@ -2515,9 +2521,12 @@ function cutThorn(x, y) {
 }
 function breakBoulder(x, y) {
   const z = fZone(x - 1), need = F_ZONES[z].need;
-  if (pickPower() < need) { toast(`파워 ${need} 필요`); SFX.deny(); mark(x, y, '235,95,80'); return; }
   if (strikeQ) return;
   faceCell(x, y);
+  if (pickPower() < need) {   // 휘둘러 보고 튕겨 나옴
+    swingHit(() => { for (let i = 0; i < 9; i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .25, y: y + .5 + Math.sin(a) * .25, z: .5, life: .5, col: i % 2 ? '#fff6c2' : '#ffd27a' }); } SFX.clang(); buzz(25); toast(`파워 ${need} 필요`); mark(x, y, '235,95,80'); });
+    return;
+  }
   swingHit(() => { if (S.forest.t[fI(x, y)] === 'B') boulderHit(x, y, z); });
 }
 function boulderHit(x, y, z) {
@@ -3621,6 +3630,7 @@ const SFX = {
   ore: n => { for (let k = 0; k < Math.min(n, 6); k++) setTimeout(() => beep(620 + k * 120, .14, 'sine', .08), k * 55); },
   stairs: () => { beep(392, .12, 'sine', .08); setTimeout(() => beep(523, .2, 'sine', .08), 110); },
   deny: () => beep(95, .07, 'sawtooth', .04),
+  clang: () => { beep(1480, .05, 'square', .045); setTimeout(() => beep(960, .14, 'triangle', .06), 35); },   // 곡괭이가 튕겨 나옴
   coin: () => { beep(988, .07, 'square', .04); setTimeout(() => beep(1319, .16, 'square', .04), 70); },
   tap: () => beep(420, .04, 'sine', .03),
   combo: n => { const f = 523 * Math.pow(2, Math.min(n - 2, 7) / 12 * 2); beep(f, .12, 'triangle', .07); setTimeout(() => beep(f * 1.5, .16, 'triangle', .06), 70); },
