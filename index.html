@@ -1781,7 +1781,7 @@ let mparts = [], mfloats = [], mbumps = [], mswing = 0, mshake = 0;
 // 곡괭이질: 누르면 휘두르기 시작, 곡괭이가 땅에 닿는 순간(휘두르기의 58%쯤) 실제로 캐짐. 그동안 다른 누르기는 받지 않음
 let strikeQ = null, animK = 1;   // animK: 테스트에서 speed(k)로 빨라짐
 const STRIKE_T = .32;
-function strike(fn) { if (strikeQ) return false; mswing = 1; strikeQ = { t: STRIKE_T / animK, fn, scene }; return true; }
+function swingHit(fn) { if (strikeQ) return false; mswing = 1; strikeQ = { t: STRIKE_T / animK, fn, scene }; return true; }
 function strikeTick(dt) { if (!strikeQ || (strikeQ.t -= dt) > 0) return; const q = strikeQ; strikeQ = null; if (q.scene === scene) q.fn(); }
 // 가방(S.carry)은 늘 들고 다님. 창고는 마을마다 숙소에 하나(처음 마을은 집 S.inv, 다른 마을은 여관 S.stash[마을])
 // 어느 마을 안에서는 가방과 그 마을 창고를 함께 씀(쓸 때는 가방부터). 마을 밖이나 다른 마을에서는 가방만
@@ -2049,7 +2049,7 @@ function dig(x, y, force) {
   }
   if (strikeQ) return;
   faceCell(x, y);
-  strike(() => { if (mT(x, y) === t) digHit(x, y, t, ore, cost); });
+  swingHit(() => { if (mT(x, y) === t) digHit(x, y, t, ore, cost); });
 }
 function digHit(x, y, t, ore, cost) {
   const col = ZONES[zoneAt(S.deep.L, x, y)].rock, p = iso(x + .5, y + .5, .6);
@@ -2497,10 +2497,10 @@ function forestAct([x, y, t]) {
   if (t === 'm' || t === 'q') { if (strikeQ) return; faceCell(x, y); }
   if (t === 'm') {
     if (carryN() >= bagCap()) { bagFullMsg(x, y, '캠'); return; }
-    strike(() => { if (S.forest.t[fI(x, y)] === 'm') forestOre(x, y); });
+    swingHit(() => { if (S.forest.t[fI(x, y)] === 'm') forestOre(x, y); });
     return;
   }
-  if (t === 'q') { strike(() => { if (S.forest.t[fI(x, y)] === 'q') cutThorn(x, y); }); return; }
+  if (t === 'q') { swingHit(() => { if (S.forest.t[fI(x, y)] === 'q') cutThorn(x, y); }); return; }
   if (t === 'w') startFish(true);
 }
 function forestOre(x, y) {
@@ -2518,7 +2518,7 @@ function breakBoulder(x, y) {
   if (pickPower() < need) { toast(`파워 ${need} 필요`); SFX.deny(); mark(x, y, '235,95,80'); return; }
   if (strikeQ) return;
   faceCell(x, y);
-  strike(() => { if (S.forest.t[fI(x, y)] === 'B') boulderHit(x, y, z); });
+  swingHit(() => { if (S.forest.t[fI(x, y)] === 'B') boulderHit(x, y, z); });
 }
 function boulderHit(x, y, z) {
   if (!spend(3)) return;
@@ -3683,7 +3683,7 @@ function lineBreaks(el) {
   const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodes = [];
   while (w.nextNode()) nodes.push(w.currentNode);
   nodes.forEach(n => {
-    const parts = n.nodeValue.split(/(?<=[가-힣][.?!])\s+(?=\S)/);
+    const parts = n.nodeValue.split(/(?<=[\uAC00-\uD7A3][.?!])\s+(?=\S)/);
     if (parts.length < 2) return;
     const f = document.createDocumentFragment();
     parts.forEach((t, i) => { if (i) f.appendChild(document.createElement('br')); f.appendChild(document.createTextNode(t)); });
@@ -4379,7 +4379,7 @@ function startGame() {
 // 테스트용 창구: 상태 읽기, 칸과 건물의 화면 위치, 걷는 빠르기
 window.MinerDiary = {
   state: () => S, phaseIndex, untilNext, objects: () => OBJ, scene: () => scene,
-  cellPoint, hero: () => ({ x: hero.x, y: hero.y, moving: hero.path.length > 0 }),
+  cellPoint, hero: () => ({ x: hero.x, y: hero.y, moving: hero.path.length > 0 || !!strikeQ }),   // 곡괭이질 도중도 움직이는 중으로 셈
   // 칸을 화면 가운데로 옮기고 그 위치를 돌려줌 (바위는 윗면 가운데)
   cellSpot: (x, y) => { follow = false; const z = cellZ(x, y); const p = iso(x + .5, y + .5, z); cam.fx = p[0]; cam.fy = p[1]; return { x: W / 2, y: H / 2 }; },
   glintDir: (x, y) => glintDir(x, y),
