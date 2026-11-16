@@ -315,8 +315,7 @@ const shot = process.argv[2];
   const wt = await page.evaluate(() => { const f = S.forest; for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) if (f.t[fI(x, y)] === 'w' && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => f.t[fI(x + dx, y + dy)] === 'g')) return [x, y]; return null; });
   await ftap(wt[0], wt[1]);
   await page.waitForSelector('#sheet [data-a="pull"]', { timeout: 10000 });
-  await page.evaluate(() => window.MinerDiary.fishBite());
-  await page.click('#sheet [data-a="pull"]');
+  await page.evaluate(() => { window.MinerDiary.fishBite(); document.querySelector('#sheet [data-a="pull"]').click(); });   // 무는 시간(0.75초) 안에 바로 당김
   ok(await page.evaluate(() => ['perch', 'carp', 'goldfin'].some(k => S.carry[k] > 0)), '호숫가 숲 물가를 누르면 낚시, 호수 물고기(쏘가리, 붕어, 금빛 송사리)');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { leaveGrove(); S.rod = 0; S.sickle = 0; });
