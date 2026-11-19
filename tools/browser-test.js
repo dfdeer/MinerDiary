@@ -927,6 +927,7 @@ const shot = process.argv[2];
       return homeCost();
     });
     ok(c1 === Math.floor((11 + 30 + 1) / 8), `땅속 두 층에서 집까지 바로 가기 기력은 길 걸음 기력 (${c1})`);
+    ok(await hp.evaluate(() => { const L = S.deep.L, x0 = hero.x, y0 = hero.y; for (let y = 12; y <= 130; y++) { S.deep.dug[dKey(2, 30, y)] = 'f'; seenSet(30, y); } hero.x = 30; hero.y = 130; const c = homeCost(); hero.x = x0; hero.y = y0; return c === Math.floor((129 + 31) / 8); }), '입구에서 100칸 넘게 떨어져도 지나온 길이면 길을 앎');
     await hp.click('#minebar [data-a="homeFastAsk"]');
     const e0 = await hp.evaluate(() => S.energy);
     await hp.click('#sheet [data-a="homeFast"]');
