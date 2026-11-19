@@ -603,7 +603,7 @@ function meteorHit(x, y) {
 const DEBRIS_ORE = [['copper', 'iron'], ['iron', 'silver'], ['silver', 'gold'], ['gold', 'crystal']];
 // 운석: 움푹 팬 자리에 빛나는 금이 간 검보랏빛 돌
 function meteorAt(c, x, y) {
-  const e = evActive('meteor'), M = METEOR[(e && e.size) || 's'], sc = { s: .75, m: 1.05, b: 1.45 }[(e && e.size) || 's'] * (.55 + .45 * ((e && e.hp !== undefined ? e.hp : M.hp) / M.hp));
+  const e = evActive('meteor'), M = METEOR[(e && e.size) || 's'], sc = { s: .7, m: 1.35, b: 2.3 }[(e && e.size) || 's'] * (.5 + .5 * ((e && e.hp !== undefined ? e.hp : M.hp) / M.hp));   // 큰 운석은 두 칸 넘게 차지하는 바위, 칠 때마다 줄어듦
   const q = iso(x + .5, y + .5, 0), u = TW / 100 * sc, ink = Math.max(1.4, TW * .02), gl = .6 + .4 * Math.sin(tnow * 3);
   c.save(); c.translate(q[0], q[1]);
   E(c, 0, 0, u * 40, u * 17, '#5a4a3a'); E(c, 0, -u * 2, u * 32, u * 12, '#3e3228');
