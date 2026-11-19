@@ -118,6 +118,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .hits{display:flex;gap:10px;justify-content:center}.hits b{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.4)}.hits b.h2{background:#ffd27a;border-color:#ffd27a}.hits b.h1{background:#c9a060;border-color:#c9a060}.hits b.h0{background:#6b4a3a;border-color:#6b4a3a}
 .btn.big{min-width:120px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}.chip{display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);font-size:13px}.chip.on{border-color:#e9b04f;background:rgba(233,176,79,.25)}.chip.off{opacity:.35}.chip:disabled{opacity:.4}
+.news.warn{background:rgba(224,74,58,.18)}
 .pill.day{position:relative;color:inherit;font:inherit;border:0;cursor:pointer}.evdot{position:absolute;right:-2px;top:-2px;width:10px;height:10px;border-radius:50%;background:#ff7a5a;border:2px solid #2b1a12}.news b{margin-right:4px;color:#ffd27a}
 .up{color:#8fe08a}.down{color:#f0907a}.news{background:rgba(233,176,79,.15);border-radius:10px;padding:6px 10px}
 .slots{display:flex;gap:8px;margin:2px 0 8px}.slot{flex:1;min-height:52px;border-radius:12px;border:2px dashed rgba(255,255,255,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
@@ -499,6 +500,7 @@ function newDay(kind) {
 const EV = {
   meteor: { ok: () => S.introSeen, first: () => S.day >= 3 },
   boom: { ok: () => S.restored.includes('market'), first: () => S.ev.mkt !== null && S.day >= S.ev.mkt + 2 },
+  raid: { ok: () => S.restored.includes('gate') && stageCleared(0), first: () => true },
 };
 function evState() { const e = S.ev || (S.ev = { list: [], done: {}, mkt: null }); if (e.mkt === null && S.restored.includes('market')) e.mkt = S.day; return e; }
 const evActive = k => (S.ev ? S.ev.list.find(e => e.k === k && S.day >= e.from && S.day <= e.to) || null : null);
@@ -508,19 +510,31 @@ function evAdd(k) {
   const E2 = evState(), d = S.day; E2.done[k] = 1;
   if (k === 'meteor') E2.list.push({ k, warn: d, from: d, to: d + 1, x: null, y: null, dug: false });
   if (k === 'boom') { const os = boomOres(); E2.list.push({ k, warn: d, from: d + 1, to: d + 3, ore: os[rnd(os.length)] }); }
+  if (k === 'raid') E2.list.push({ k, warn: d, from: d + 2, to: d + 2, won: false });
+}
+// 습격을 못 막고 날이 지나면: 고친 건물 하나가 부서짐 (고칠 때까지 못 씀)
+const RAID_HIT = ['smithy', 'kitchen', 'market', 'jewel', 'museum'];
+function raidAftermath(e) {
+  e.hit = true; const c = RAID_HIT.filter(id => S.restored.includes(id) && !(S.damaged || {})[id]);
+  if (!c.length) return `<p class="news">${ico('ic_warn')}<b>촌장</b> 어젯밤 몬스터가 마을을 휩쓸고 갔어요. 다행히 부서진 곳은 없어요.</p>`;
+  const id = c[rnd(c.length)]; S.damaged = S.damaged || {}; S.damaged[id] = 1;
+  return `<p class="news">${ico('ic_warn')}<b>촌장</b> 어젯밤 몬스터들이 들어와서 부서진 곳이 생겼어요. ${OBJ.find(o => o.id === id).name} 말이에요. 고치기 전엔 쓸 수 없어요.</p>`;
 }
 // 아침마다: 지난 일 지우기, 처음 정한 날 이벤트, 가끔 무작위 이벤트, 오늘 알릴 소식
 let evQuiet = false;   // 시험용: 저절로 생기는 이벤트 끔 (evAdd로 직접 만듦)
 function evMorning() {
   const E2 = evState();
+  const hurt = E2.list.filter(e => e.k === 'raid' && e.to < S.day && !e.won && !e.hit).map(raidAftermath).join('');
   E2.list = E2.list.filter(e => e.to >= S.day);
-  if (evQuiet) return E2.list.filter(e => e.warn === S.day).map(evSay).join('');
+  if (evQuiet) return hurt + E2.list.filter(e => e.warn === S.day || (e.k === 'raid' && e.from === S.day)).map(evSay).join('');
   for (const k in EV) if (!E2.done[k] && EV[k].ok() && EV[k].first() && !E2.list.length) evAdd(k);
   if (!E2.list.length && S.day >= 6 && Math.random() < .3) { const ks = Object.keys(EV).filter(k => EV[k].ok()); if (ks.length) evAdd(ks[rnd(ks.length)]); }
-  return E2.list.filter(e => e.warn === S.day).map(evSay).join('');
+  return hurt + E2.list.filter(e => e.warn === S.day || (e.k === 'raid' && e.from === S.day)).map(evSay).join('');
 }
 function evSay(e) {
   if (e.k === 'meteor') return `<p class="news">${ico('ic_star')}<b>촌장</b> 어젯밤 숲 쪽으로 별똥별이 떨어졌어요. 내일까지 가 보면 귀한 돌을 캘 수 있을 거예요.</p>`;
+  if (e.k === 'raid') return e.from === S.day ? `<p class="news warn">${ico('ic_sword')}<b>촌장</b> 오늘 저녁에 몬스터가 몰려와요. 저녁이 되면 성벽 문으로 와 줘요.</p>`
+    : `<p class="news warn">${ico('ic_sword')}<b>촌장</b> 성 밖 몬스터들 움직임이 심상치 않아요. 모레 저녁쯤 마을로 몰려올 것 같으니 성벽 문에서 막아 줘요.</p>`;
   if (e.k === 'boom') return `<p class="news">${ico('ic_up')}<b>떠돌이 상인</b> 이웃 마을에서 <span class="ore ${e.ore}"></span>${ORES[e.ore].name} 찾는 사람이 많대요. 내일부터 사흘 동안 시장 값이 두 배로 뛸 거예요.</p>`;
   return '';
 }
@@ -528,6 +542,7 @@ function evSay(e) {
 function evLine(e) {
   const left = e.to - S.day, until = left ? `${left + 1}일` : '오늘까지';
   if (e.k === 'meteor') return `<div class="rowi"><span class="nm">${ico('ic_star')}숲에 떨어진 운석${e.dug ? ' <small>캠</small>' : ''}</span><b>${until}</b></div>`;
+  if (e.k === 'raid') return `<div class="rowi"><span class="nm">${ico('ic_sword')}몬스터 습격</span><b>${e.won ? '막음' : S.day < e.from ? `${e.from - S.day}일 뒤 저녁` : '오늘 저녁'}</b></div>`;
   if (e.k === 'boom') return `<div class="rowi"><span class="nm">${ico('ic_up')}<span class="ore ${e.ore}"></span>${ORES[e.ore].name} 값 두 배</span><b>${S.day < e.from ? '내일부터' : until}</b></div>`;
   return '';
 }
@@ -1381,6 +1396,11 @@ function drawObj(c, o, night) {
   if (o.door && o.w >= 2) {
     const p0 = INK; INK = Math.max(1.5, TW * .02);
     if (!o.done && o.grow < .3 && o.kind !== 'mine') ruinSite(c, o); else drawBuilding(c, o, night);
+    if ((S.damaged || {})[o.id]) {   // 습격으로 부서짐: 기댄 널빤지와 피어오르는 연기
+      const q = iso(o.gx + o.w / 2, o.gy + o.d, z0), u = TW / 100;
+      for (const [dx, a] of [[-18, -.5], [6, .4], [22, -.2]]) { c.save(); c.translate(q[0] + u * dx, q[1] - u * 6); c.rotate(a); P(c, [[-u * 4, 0], [u * 4, 0], [u * 4, -u * 42], [-u * 4, -u * 42]], '#8a6238'); c.restore(); }
+      for (let k = 0; k < 3; k++) { const t2 = (tnow * .35 + k / 3) % 1, top = iso(o.gx + o.w / 2, o.gy + o.d / 2, z0 + 2.2); c.globalAlpha = (1 - t2) * .8; Cc(c, top[0] + Math.sin(t2 * 6 + k) * u * 10, top[1] - t2 * u * 80, u * (12 + t2 * 22), '#4f4844'); } c.globalAlpha = 1;
+    }
     INK = p0;
     if (o.kind === 'mine' && night) { const q = iso(o.gx + o.w / 2, o.gy + o.d / 2, z0); Cc(c, q[0], q[1] - ZU * .6, TW * .9, 'rgba(255,200,110,.14)'); }
     return;
@@ -3017,6 +3037,9 @@ const stageCleared = n => !!((S.huntClear || {}).home || {})[n];
 const SWORDS = [{ name: '곡괭이', power: 1 }, { name: '구리 검', power: 2, need: { copperBar: 3 }, gold: 150 }, { name: '철 검', power: 4, need: { ironBar: 4 }, gold: 500 }, { name: '은 검', power: 6, need: { silverBar: 4 }, gold: 1200 }];
 const power = () => SWORDS[S.sword || 0].power;
 // 단계 n(0부터)의 싸움터: 가운데가 트인 들판, 아래 가운데가 마을로 가는 길. 몬스터는 위쪽에 모여 있음
+const raidNow = () => { const e = evActive('raid'); return e && !e.won && phaseIndex() >= 2 ? e : null; };
+function raidWave(w) { return w === 0 ? ['boar', 'boar', 'wolf'] : ['wolf', 'wolf', 'boar', 'boar', ...(stageCleared(3) ? ['spirit'] : [])]; }
+function spawnWave(H, kinds) { const cx = HW / 2, cy = HH / 2; kinds.forEach(kind => { for (let tries = 0; tries < 200; tries++) { const x = cx - 5 + rnd(11), y = cy - 8 + rnd(5); if (hBlocked(x, y) || H.mons.some(m => m.hp > 0 && Math.hypot(m.x - x, m.y - y) < 1.5)) continue; H.mons.push(newMon(H.nid++, kind, x, y)); break; } }); }
 function genHunt(n) {
   const I = (x, y) => y * HW + x, t = Array(HW * HH).fill('g'), R0 = (Math.random() * 1e5) | 0, cx = HW / 2, cy = HH / 2;
   for (let y = 0; y < HH; y++) for (let x = 0; x < HW; x++) {
@@ -3024,9 +3047,9 @@ function genHunt(n) {
     t[I(x, y)] = r > edge ? 't' : r > 4 && v < .05 ? 't' : r > 4 && v < .08 ? 'k' : 'g';
   }
   const ex = cx, ey = HH - 4; for (let y = cy + 3; y <= ey; y++) for (let x = ex - 1; x <= ex + 1; x++) t[I(x, y)] = 'g'; t[I(ex, ey)] = 'x';
-  const st = stageOf().list[n], mons = [];
+  const st = n === 'raid' ? { mons: raidWave(0) } : stageOf().list[n], mons = [];
   st.mons.forEach((kind, k) => { for (let tries = 0; tries < 200; tries++) { const x = cx - 5 + rnd(11), y = cy - 7 + rnd(6); if (t[I(x, y)] !== 'g' || mons.some(m => Math.hypot(m.x - x, m.y - y) < 1.5)) continue; mons.push(newMon(k, kind, x, y)); break; } });
-  return { t, mons, ex, ey, steps: 0, stage: n, shots: [], won: false, nid: mons.length };
+  return { t, mons, ex, ey, steps: 0, stage: n, shots: [], won: false, nid: mons.length, raid: n === 'raid', wave: 0 };
 }
 function newMon(id, kind, x, y) { return { id, kind, x, y, hp: MONS[kind].hp, cd: 0, hurt: 0, wx: x, wy: y, st: 'walk', stT: 0, cd2: 1 + Math.random(), sum: 6 }; }
 const hT = (x, y) => (x >= 0 && y >= 0 && x < HW && y < HH ? S.hunt.t[y * HW + x] : 't');
@@ -3124,7 +3147,10 @@ function huntTick(dt) {
   H.shots = H.shots.filter(b => { b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt; if (hBlocked(Math.round(b.x), Math.round(b.y))) return false; if (Math.hypot(b.x - hero.x, b.y - hero.y) < .45) { heroHit(b.hit); return false; } return b.life > 0; });
   if (scene !== 'hunt') return;
   // 다 잡으면 단계를 깸
-  if (!H.won && H.mons.every(o => o.hp <= 0)) { H.won = true; stageClear(H.stage); return; }
+  if (!H.won && H.mons.every(o => o.hp <= 0)) {
+    if (H.raid && H.wave < 1) { H.wave = 1; S.hunt = H; spawnWave(H, raidWave(1)); toast(`${ico('ic_sword')}둘째 무리`); return; }
+    H.won = true; if (H.raid) raidWin(); else stageClear(H.stage); return;
+  }
   // 쫓던 몬스터 옆이면 휘두름
   const tgt = H.mons.find(o => o.id === hero.atk && o.hp > 0);
   if (tgt && !hero.path.length && Math.hypot(tgt.x - hero.x, tgt.y - hero.y) >= 1.35) chaseStep();
@@ -3156,6 +3182,17 @@ function stageClear(n) {
   const next = n + 1 < SG.list.length;
   openSheet(`${ico('ic_flag')}${SG.n} ${n + 1}단계${st.boss ? ' 우두머리' : ''} 토벌`, (st.boss && first ? `<p>${SG.n}이 조용해졌어요. 이제 마음 놓고 다녀도 되겠어요.</p>` : '') + (html || '<p class="dim">처음 보상은 이미 받음</p>'),
     `<button class="btn" data-a="leaveHunt">${ico('ic_village')}마을로</button>` + (next ? `<button class="btn primary" data-a="stage" data-n="${n + 1}">다음 단계</button>` : ''), false);
+}
+function raidWin() {
+  const e = evActive('raid'); if (e) e.won = true;
+  S.gold += 300; addItem('manastone', 1); SFX.fanfare(); save(); renderHud(); renderDock();
+  openSheet(`${ico('ic_flag')}습격을 막음`, `<p>덕분에 마을이 무사해요. 다들 고마워하고 있어요.</p><p class="news">${GOLD}+300 <span class="ore manastone"></span>${ORES.manastone.name} +1</p>`, `<button class="btn primary" data-a="leaveHunt">${ico('ic_village')}마을로</button>`, false);
+}
+// 부서진 건물 고치기
+const FIX = { gold: 200, wood: 10 };
+function fixBuilding(id) {
+  if (S.gold < FIX.gold || have('wood') < FIX.wood) return;
+  S.gold -= FIX.gold; take('wood', FIX.wood); delete S.damaged[id]; SFX.stairs(); toast(`${ico('ic_check')}${OBJ.find(o => o.id === id).name}`); save(); renderHud(); closeSheet();
 }
 // 성벽 문 창: 토벌 단계 목록
 function stageRows() {
@@ -3941,7 +3978,7 @@ function renderDock() {
   if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
   const bagBtn = `<button class="btn small${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
   if (scene === 'town') minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button><b>${ico('ic_village')}${(townHere() || TOWNS.mtn).n}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
-  else if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_sword')}${S.hunt && S.hunt.stage !== undefined ? `${stageOf().n} ${S.hunt.stage + 1}단계` : '성 밖'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  else if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_sword')}${S.hunt && S.hunt.raid ? '습격 막기' : S.hunt && S.hunt.stage !== undefined ? `${stageOf().n} ${S.hunt.stage + 1}단계` : '성 밖'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_tree')}${fPlace(Math.round(hero.x))}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
   else if (mine && S.mine) minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button><b>${S.deep.L ? `${S.deep.town ? TOWNS[S.deep.town].mine + ' ' : ''}${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small>` : '숲 동굴'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
 }
@@ -3988,7 +4025,8 @@ function showCard(o, msg) {
     return;
   }
   if (!o.done) { ruinCard(o); return; }
-  if (o.id === 'gate') { const am = phaseIndex() === 0; openSheet(`${ico('ic_sword')}성 밖 토벌`, `<p>${ico('ic_sword')}${SWORDS[S.sword || 0].name}</p>` + (am ? '<p class="dim">점심부터</p>' : '') + stageRows(), travelOpen() ? `<button class="btn" data-a="world">${ico('ic_map')}지도</button>` : ''); return; }
+  if ((S.damaged || {})[o.id]) { const ok2 = S.gold >= FIX.gold && have('wood') >= FIX.wood; openSheet(`${ico('ic_warn')}부서진 ${o.name}`, '<p class="dim">습격 때 부서짐</p>', `<button class="btn primary" data-a="fix" data-o="${o.id}" ${ok2 ? '' : 'disabled'}>${GOLD}${FIX.gold} <span class="ore wood"></span>${FIX.wood}</button>`); return; }
+  if (o.id === 'gate') { const am = phaseIndex() === 0, rd = raidNow(); openSheet(`${ico('ic_sword')}성 밖 토벌`, (rd ? `<p class="warn">${ico('ic_warn')}몬스터가 몰려옴</p>` : '') + `<p>${ico('ic_sword')}${SWORDS[S.sword || 0].name}</p>` + (am ? '<p class="dim">점심부터</p>' : '') + stageRows(), (travelOpen() ? `<button class="btn" data-a="world">${ico('ic_map')}지도</button>` : '') + (rd ? `<button class="btn primary" data-a="raid">${ico('ic_sword')}막기</button>` : '')); return; }
   if (o.id === 'house') {
     showHouse();
   } else if (o.id === 'chief') {
@@ -4464,6 +4502,8 @@ document.addEventListener('click', e => {
   else if (a === 'toChief') { closeSheet(); const o = OBJ.find(v => v.id === 'chief'); mark(o.gx, o.gy, '233,176,79', o.w, o.d); goTo(o); }
   else if (a === 'hunt') enterHunt(0);
   else if (a === 'stage') { closeSheet(); enterHunt(n); }
+  else if (a === 'raid') { closeSheet(); enterHunt('raid'); }
+  else if (a === 'fix') fixBuilding(b.dataset.o);
   else if (a === 'leaveHunt') { closeSheet(); leaveHunt(); }
   else if (a === 'nbuy') nightBuy(n);
   else if (a === 'board') doBoard(n);

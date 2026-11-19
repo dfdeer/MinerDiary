@@ -874,6 +874,29 @@ const shot = process.argv[2];
     ok(await ev.evaluate(o => boomK(o) === 2 && unitPrice(o) === Math.round(ORES[o].price * S.market.mult[o] * 2), bo.ore), '다음 날 시장에서 그 광석 값이 두 배');
     await ev.evaluate(o => { S.carry[o] = 1; showMarket(); }, bo.ore);
     ok((await ev.textContent('#sheet')).includes('값 두 배'), '시장 창에 「값 두 배」 소식');
+    // 몬스터 습격: 모레 저녁이라고 알리고, 그날 저녁 성벽 문에서 두 무리를 막으면 보상. 못 막으면 건물 하나가 부서지고 고쳐야 씀
+    const evening = () => ev.evaluate(() => { S.minE = S.dayStart - S.max * .62; renderHud(); });
+    await ev.evaluate(() => { closeSheet(); OBJ.forEach(o => { if (['gate', 'smithy', 'market', 'kitchen'].includes(o.id)) { o.done = true; o.grow = 1; if (!S.restored.includes(o.id)) S.restored.push(o.id); } }); S.huntClear = { home: { 0: 1 } }; S.ev.list = []; window.MinerDiary.evAdd('raid'); });
+    let rd = await ev.evaluate(() => window.MinerDiary.events().find(o => o.k === 'raid'));
+    ok(rd && rd.from === rd.warn + 2, '습격은 이틀 뒤 저녁 (미리 알림)');
+    await ev.evaluate(() => { sleep(false); }); await ev.evaluate(() => { closeSheet(); sleep(false); });
+    ok((await ev.textContent('#sheet')).includes('오늘 저녁에 몬스터'), '습격 날 아침에 촌장이 다시 알림');
+    await ev.evaluate(() => closeSheet()); await evening();
+    await ev.evaluate(() => showCard(OBJ.find(o => o.id === 'gate')));
+    await ev.click('#sheet [data-a="raid"]');
+    ok(await ev.evaluate(() => S.hunt && S.hunt.raid && S.hunt.mons.length === 3), '저녁에 성벽 문 「막기」로 습격 싸움 (첫 무리 셋)');
+    await ev.evaluate(() => { S.hunt.mons.forEach(m => { m.hp = 0; }); });
+    await ev.waitForFunction(() => S.hunt && S.hunt.wave === 1 && S.hunt.mons.some(m => m.hp > 0), null, { timeout: 5000 });
+    await ev.evaluate(() => { S.hunt.mons.forEach(m => { m.hp = 0; }); });
+    await ev.waitForSelector('#sheet [data-a="leaveHunt"]', { timeout: 5000 });
+    ok((await ev.textContent('#sheet')).includes('습격을 막음') && await ev.evaluate(() => window.MinerDiary.events().find(o => o.k === 'raid').won), '둘째 무리까지 잡으면 「습격을 막음」');
+    await ev.click('#sheet [data-a="leaveHunt"]');
+    await ev.evaluate(() => { S.ev.list = []; window.MinerDiary.evAdd('raid'); sleep(false); closeSheet(); sleep(false); closeSheet(); sleep(false); });
+    ok((await ev.textContent('#sheet')).includes('부서진 곳') && await ev.evaluate(() => Object.keys(S.damaged || {}).length === 1), '못 막고 날이 지나면 건물 하나가 부서짐');
+    const dmg = await ev.evaluate(() => { closeSheet(); const id = Object.keys(S.damaged)[0]; S.gold += 300; S.carry.wood = 10; showCard(OBJ.find(o => o.id === id)); return id; });
+    ok((await ev.textContent('#sheet')).includes('부서진'), '부서진 건물을 누르면 고치기 창');
+    await ev.click('#sheet [data-a="fix"]');
+    ok(await ev.evaluate(id => !S.damaged[id], dmg), '🪙200과 나뭇가지 10으로 고침');
     await ev.close();
   }
 
