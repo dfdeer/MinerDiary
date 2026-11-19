@@ -508,9 +508,9 @@ const boomK = o => { const b = evActive('boom'); return b && b.ore === o ? 2 : 1
 function boomOres() { const d = S.deepest || 0; return ['copper', 'coal', ...(d >= 3 ? ['iron'] : []), ...(d >= 6 ? ['silver', 'gold'] : []), ...(d >= 10 ? ['crystal', 'amethyst'] : [])]; }
 // 운석 크기 (기획 64번): 작은 것은 자주, 큰 것은 저장마다 두 번. 칠 때마다 작아지고 조각 하나, 둘레에 잔해
 const METEOR = {
-  s: { hp: 2, cost: 3, r: 0, debris: [3, 4], days: 1, n: 1 },
-  m: { hp: 4, cost: 5, r: 2, debris: [5, 6], days: 1, n: 2 },
-  b: { hp: 7, cost: 8, r: 3.2, debris: [8, 10], days: 2, n: 3 },
+  s: { hp: 3, cost: 2, pieces: 3, r: 0, debris: [3, 4], n: 1 },   // 한 번 치는 기력은 보통 바위와 같고, 클수록 여러 번 쳐야 함
+  m: { hp: 8, cost: 2, pieces: 5, r: 2, debris: [5, 6], n: 2 },
+  b: { hp: 15, cost: 2, pieces: 8, r: 3.2, debris: [8, 10], n: 3 },
 };
 // 운석이 차지하는 칸: 작은 것 1×1, 중간 2×2, 큰 것 3×3. e.x, e.y는 왼쪽 위 칸, mc는 가운데
 const mCells = e => { const n = METEOR[e.size || 's'].n, out = []; for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) out.push([e.x + dx, e.y + dy]); return out; };
@@ -555,7 +555,7 @@ function evSay(e) {
 // 날짜 단추: 지금 있는 소식
 function evLine(e) {
   const left = e.to - S.day, until = left ? `${left + 1}일` : '오늘까지';
-  if (e.k === 'meteor') return `<div class="rowi"><span class="nm">${ico('ic_star')}숲에 떨어진 ${{ s: '작은 ', m: '', b: '큰 ' }[e.size || 's']}운석${e.dug ? ' <small>캠</small>' : ''}</span><b>${e.dug ? '' : `${METEOR[e.size || 's'].hp - (e.hp ?? METEOR[e.size || 's'].hp)}/${METEOR[e.size || 's'].hp}`}</b></div>`;
+  if (e.k === 'meteor') return `<div class="rowi"><span class="nm">${ico('ic_star')}숲에 떨어진 ${{ s: '작은 ', m: '', b: '큰 ' }[e.size || 's']}운석${e.dug ? ' <small>캠</small>' : ''}</span></div>`;
   if (e.k === 'raid') return `<div class="rowi"><span class="nm">${ico('ic_sword')}몬스터 습격</span><b>${e.won ? '막음' : S.day < e.from ? `${e.from - S.day}일 뒤 저녁` : '오늘 저녁'}</b></div>`;
   if (e.k === 'boom') return `<div class="rowi"><span class="nm">${ico('ic_up')}<span class="ore ${e.ore}"></span>${ORES[e.ore].name} 값 두 배</span><b>${S.day < e.from ? '내일부터' : until}</b></div>`;
   return '';
@@ -601,15 +601,16 @@ function meteorImpact(f, e) {
     f.it[k] = 'debris'; put++;
   }
 }
-// 칠 때마다 기력을 크게 쓰고 조각 하나, 운석이 작아짐. 다 깨면 마지막에 하나 더
+// 칠 때마다 운석이 작아지고, 조각은 크기마다 정한 수(작은 것 3, 중간 5, 큰 것 8)를 친 횟수에 고르게 나눠 줌
 function meteorHit(x, y) {
   const e = evActive('meteor'), M = METEOR[(e && e.size) || 's']; if (!spend(M.cost)) return;
-  if (e) e.hp = Math.max(0, (e.hp === undefined ? M.hp : e.hp) - 1);
-  const done = !e || e.hp <= 0, n = Math.min(done ? 2 : 1, Math.max(1, bagCap() - carryN()));
-  addItem('meteor', n); mshake = 4;
+  const hp0 = e && e.hp !== undefined ? e.hp : M.hp; if (e) e.hp = Math.max(0, hp0 - 1);
+  const hp1 = e ? e.hp : 0, done = hp1 <= 0, got = Math.floor((M.hp - hp1) * M.pieces / M.hp) - Math.floor((M.hp - hp0) * M.pieces / M.hp);
+  const n = Math.min(got, Math.max(0, bagCap() - carryN()));
+  if (n) addItem('meteor', n); mshake = 4;
   for (let i = 0; i < (done ? 16 : 8); i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .3, y: y + .5 + Math.sin(a) * .3, z: .5, life: 1, col: i % 2 ? '#ffb070' : '#c8b8ff' }); }
   if (done) { (e ? mCells(e) : [[x, y]]).forEach(([a, b]) => { S.forest.t[fI(a, b)] = 'g'; }); if (e) { e.dug = true; e.to = S.day; } SFX.fanfare(); } else SFX.ore(1);   // 다 캐면 오늘로 끝
-  toast(`<span class="ore meteor"></span>${ORES.meteor.name} +${n}`); save(); renderHud(); renderDock();
+  if (n) toast(`<span class="ore meteor"></span>${ORES.meteor.name} +${n}`); save(); renderHud(); renderDock();
 }
 // 운석 잔해: 주우면 그 구역 광석, 드물게 운석 조각
 const DEBRIS_ORE = [['copper', 'iron'], ['iron', 'silver'], ['silver', 'gold'], ['gold', 'crystal']];
