@@ -2753,7 +2753,7 @@ function fBlocked(x, y) {
 function enterForest() {
   hideSheet(); selected = null;
   if (!S.forest || S.forest.day !== S.day || !S.forest.it || S.forest.t.length !== FW * FH) S.forest = genForest(S.day);
-  placeMeteor();
+  placeMeteor(); spawnForestMons();
   const f = S.forest; scene = 'forest'; S.screen = 'forest'; FLAT = true;
   hero.x = f.hx; hero.y = f.hy; hero.path = []; hero.target = null; hero.dig = null; hero.goal = null; hero.fx = -1; hero.back = true;
   forestSee(); cam.s = 1; cam.to = null; follow = true; snapCam(); fade = 1;
@@ -2766,6 +2766,7 @@ function leaveForest() {
 }
 function forestTapCell(x, y) {
   if (strikeQ) return;
+  hero.atk = null;
   const f = S.forest; let seen = f.seen[fI(x, y)];
   hero.goal = null; hero.dig = null; hero.breakAt = null;
   // 동굴 입구는 그림이 위로 솟아 있어 입구 칸과 그 뒤쪽 세 칸(2×2) 아무 데나 눌러도 동굴로 감
@@ -2976,8 +2977,11 @@ function drawForest(c, dt) {
       else if (t === 'q') thornAt(c, x, y); else if (t === 'o') groveGate(c, x, y); else if (t === 'M') meteorAt(c, x, y);
       if (front) ghostEnd(c, .4);
     }
+    // 이 줄에 선 몬스터 (본 곳에 있는 것만, 광부보다 앞뒤를 나눠서)
+    (f.mons || []).forEach(m => { if (m.hp > 0 && Math.floor(m.x + m.y + .5) === s && f.seen[fI(Math.round(m.x), Math.round(m.y))] && (m.x + m.y >= hero.x + hero.y) === (pass === 1)) monsterAt(c, m); });
   }
   }
+  (f.shots || []).forEach(b => { const q = iso(b.x + .5, b.y + .5, .5), g = c.createRadialGradient(q[0], q[1], 1, q[0], q[1], TW * .2); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.4, 'rgba(200,190,255,.9)'); g.addColorStop(1, 'rgba(160,140,255,0)'); Cc(c, q[0], q[1], TW * .2, g); });
   outs.forEach(([x, y]) => { if (x + y >= hero.x + hero.y) treeAt(c, x, y); });   // 광부 앞쪽 나무
   wind.forEach(w => { w.z += dt * .8; const p = iso(w.x, w.y, w.z); c.globalAlpha = Math.min(1, w.life * 1.5); Cc(c, p[0], p[1], TW * .03, w.col || '#eef6ff'); }); c.globalAlpha = 1;
   drawNos(c, dt, 1.1);
@@ -3005,6 +3009,7 @@ function drawPendulum(c) {
 function forestTap(px, py) {
   if (!sheet.hidden) hideSheet();
   const [x, y] = screenToWorld(px, py), vr = viewTiles();
+  if (!strikeQ && tapMonster(S.forest, x, y)) return;
   for (let s = Math.min(FW + FH - 2, vr.x1 + vr.y1 + 2); s >= 0; s--) for (let tx = Math.max(0, s - FH + 1); tx <= Math.min(FW - 1, s); tx++) {
     const ty = s - tx;
     if (inPoly(x, y, [iso(tx, ty, 0), iso(tx + 1, ty, 0), iso(tx + 1, ty + 1, 0), iso(tx, ty + 1, 0)])) { forestTapCell(tx, ty); return; }
@@ -3070,9 +3075,7 @@ let hunts = [];   // 맞을 때 뜨는 숫자
 function huntTap(px, py) {
   if (!sheet.hidden) hideSheet();
   const [x, y] = screenToWorld(px, py);
-  // 몬스터 먼저 (그림 둘레를 누르면)
-  const m = S.hunt.mons.filter(o => o.hp > 0).map(o => { const q = iso(o.x + .5, o.y + .5, 0); return [Math.hypot(q[0] - x, (q[1] - TW * .3) - y), o]; }).sort((a, b) => a[0] - b[0])[0];
-  if (m && m[0] < TW * .55) { hero.atk = m[1].id; hero.goal = null; chaseStep(); mark(Math.round(m[1].x), Math.round(m[1].y), '235,95,80'); return; }
+  if (tapMonster(S.hunt, x, y)) return;
   const vr = viewTiles();
   for (let s = Math.min(HW + HH - 2, vr.x1 + vr.y1 + 2); s >= 0; s--) for (let tx = Math.max(0, s - HH + 1); tx <= Math.min(HW - 1, s); tx++) {
     const ty = s - tx;
@@ -3085,9 +3088,24 @@ function huntTap(px, py) {
     return;
   }
 }
+// 몬스터를 누르면 다가가 저절로 휘두름 (그림 둘레를 누르면). 성 밖과 숲에서 같이 씀
+function tapMonster(F, x, y) {
+  if (!F || !F.mons) return false;
+  const m = F.mons.filter(o => o.hp > 0 && (scene !== 'forest' || S.forest.seen[fI(Math.round(o.x), Math.round(o.y))])).map(o => { const q = iso(o.x + .5, o.y + .5, 0); return [Math.hypot(q[0] - x, (q[1] - TW * .3) - y), o]; }).sort((a, b) => a[0] - b[0])[0];
+  if (!m || m[0] >= TW * .55) return false;
+  hero.atk = m[1].id; hero.goal = null; hero.actAt = null; hero.breakAt = null; chaseStep(); mark(Math.round(m[1].x), Math.round(m[1].y), '255,220,150'); return true;
+}
+// 숲 몬스터 (기획 61번): 초입엔 없음. 깊은 숲은 저녁과 새벽에만 늑대, 오래된 숲은 늘 늑대(밤엔 더), 신비한 숲은 늑대와 달빛 정령. 들어갈 때마다 새로 생김
+function spawnForestMons() {
+  const f = S.forest; f.mons = []; f.shots = []; f.nid = 0; if (f.grove || f.road) return;
+  const night = phaseIndex() >= 2, open = z => z === 0 || (S.forestOpen || {})[z];
+  const plan = [[1, night ? ['wolf', 'wolf', 'wolf'] : []], [2, ['wolf', 'wolf', 'wolf', ...(night ? ['wolf', 'boar'] : [])]], [3, ['wolf', 'wolf', 'spirit', 'spirit']]];
+  plan.forEach(([z, kinds]) => { if (!open(z)) return; const x0 = F_ZONES[z].x, x1 = z ? F_ZONES[z - 1].x : FW;
+    kinds.forEach(kind => { for (let tries = 0; tries < 300; tries++) { const x = x0 + 2 + rnd(Math.max(1, x1 - x0 - 4)), y = 2 + rnd(FH - 4); if (f.t[fI(x, y)] !== 'g' || f.mons.some(m => Math.hypot(m.x - x, m.y - y) < 3)) continue; const m = newMon(f.nid++, kind, x, y); m.wild = 1; f.mons.push(m); break; } }); });
+}
 // 쫓아갈 몬스터 옆까지 길을 다시 짬
 function chaseStep() {
-  const m = S.hunt.mons.find(o => o.id === hero.atk && o.hp > 0); if (!m) { hero.atk = null; return; }
+  const F = curFight(), m = F && F.mons ? F.mons.find(o => o.id === hero.atk && o.hp > 0) : null; if (!m) { hero.atk = null; return; }
   const mx = Math.round(m.x), my = Math.round(m.y);
   if (Math.hypot(m.x - hero.x, m.y - hero.y) < 1.3) { hero.path = []; return; }
   const path = bfs(Math.round(hero.x), Math.round(hero.y), (a, b) => Math.abs(a - mx) + Math.abs(b - my) === 1);
@@ -3105,14 +3123,18 @@ function huntArrive() {
 // 매 장면: 몬스터 움직임과 공격, 광부의 휘두르기
 let swingCd = 0;
 function heroHit(n) { SFX.deny(); buzz(30); cam.shake = 4; hunts.push({ x: hero.x, y: hero.y, text: `${PWR}-${n}`, col: '#ff9a8a', life: 1 }); if (!spend(n)) return false; renderHud(); return true; }
+let FB = hBlocked;   // 지금 싸우는 곳의 막힌 칸 (성 밖 또는 숲)
+const curFight = () => (scene === 'hunt' ? S.hunt : scene === 'forest' ? S.forest : null);
+// 숲 몬스터가 못 가는 칸: 풀밭과 길, 동굴 입구 말고 모두
+const fMonBlocked = (x, y) => !fIn(x, y) || !'gxzv'.includes(S.forest.t[fI(x, y)]);
 function monMove(m, tx, ty, sp) {
   const dx = tx - m.x, dy = ty - m.y, l = Math.hypot(dx, dy) || 1, st = Math.min(l, sp);
   const nx = m.x + dx / l * st, ny = m.y + dy / l * st;
-  if (!hBlocked(Math.round(nx), Math.round(ny))) { m.x = nx; m.y = ny; return true; }
+  if (!FB(Math.round(nx), Math.round(ny))) { m.x = nx; m.y = ny; return true; }
   m.wx = m.x; m.wy = m.y; return false;
 }
-function huntTick(dt) {
-  const H = S.hunt; if (!H) return;
+function huntTick(dt, H = S.hunt, blk = hBlocked) {
+  if (!H || !H.mons) return; FB = blk;
   swingCd = Math.max(0, swingCd - dt);
   H.shots = H.shots || [];
   for (const m of H.mons) {
@@ -3144,10 +3166,10 @@ function huntTick(dt) {
     else if (m.cd <= 0) { m.cd = 1.4; if (!heroHit(M.hit)) return; }   // 옆에 붙으면 때림
   }
   // 빛 구슬: 곧게 날아가 광부에 닿으면 기력이 깎임, 나무와 바위에 막힘
-  H.shots = H.shots.filter(b => { b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt; if (hBlocked(Math.round(b.x), Math.round(b.y))) return false; if (Math.hypot(b.x - hero.x, b.y - hero.y) < .45) { heroHit(b.hit); return false; } return b.life > 0; });
-  if (scene !== 'hunt') return;
-  // 다 잡으면 단계를 깸
-  if (!H.won && H.mons.every(o => o.hp <= 0)) {
+  H.shots = H.shots.filter(b => { b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt; if (FB(Math.round(b.x), Math.round(b.y))) return false; if (Math.hypot(b.x - hero.x, b.y - hero.y) < .45) { heroHit(b.hit); return false; } return b.life > 0; });
+  if (scene !== 'hunt' && scene !== 'forest') return;
+  // 다 잡으면 단계를 깸 (성 밖만)
+  if (scene === 'hunt' && !H.won && H.mons.every(o => o.hp <= 0)) {
     if (H.raid && H.wave < 1) { H.wave = 1; S.hunt = H; spawnWave(H, raidWave(1)); toast(`${ico('ic_sword')}둘째 무리`); return; }
     H.won = true; if (H.raid) raidWin(); else stageClear(H.stage); return;
   }
@@ -4623,6 +4645,8 @@ function frame(ms) {
       const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,20,8,.35)'); R(ctx, 0, 0, W, H, v);
     }
   } else if (scene === 'forest' && S.forest) {
+    if (S.forest.mons && S.forest.mons.length) huntTick(dt, S.forest, fMonBlocked);
+    if (scene === 'forest') {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0); R(ctx, 0, 0, W, H, '#1a2b1a');
     ctx.setTransform(DPR * cam.s, 0, 0, DPR * cam.s, DPR * (W / 2 - cam.fx * cam.s), DPR * (H / 2 - cam.fy * cam.s));
     drawForest(ctx, dt);
@@ -4631,6 +4655,7 @@ function frame(ms) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0); if (SKY[phase].tint) R(ctx, 0, 0, W, H, SKY[phase].tint);
     const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,20,8,.4)'); R(ctx, 0, 0, W, H, v);
     drawArrows(ctx); drawForestMap(ctx);
+    }
   } else {
     // 마을은 따로 그린 뒤, 위아래만 흐리게 해서 작은 모형처럼
     oc.setTransform(DPR, 0, 0, DPR, 0, 0); drawSky(oc);

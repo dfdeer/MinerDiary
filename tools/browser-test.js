@@ -900,6 +900,18 @@ const shot = process.argv[2];
     await ev.close();
   }
 
+  /* ===== 숲 몬스터: 초입엔 없고, 깊은 숲은 밤에만, 오래된 숲부터는 늘 나옴. 눌러서 잡음 ===== */
+  {
+    const fp = await open(390, 844);
+    const r1 = await fp.evaluate(() => { closeSheet(); S.introSeen = true; S.sword = 2; window.MinerDiary.speed(10); S.forestOpen = { 1: 1 }; enterForest(); const day = S.forest.mons.length; leaveForest(); S.forestOpen = { 1: 1, 2: 1 }; enterForest(); const f = S.forest; return { day, n: f.mons.length, deep: f.mons.every(m => m.x < F_ZONES[1].x) }; });
+    ok(r1.day === 0 && r1.n >= 3 && r1.deep, '숲 초입과 낮의 깊은 숲엔 몬스터가 없고, 오래된 숲엔 늑대가 있음');
+    const wp = await fp.evaluate(() => { const f = S.forest, m = f.mons[0]; f.mons.forEach(o => { if (o !== m) o.hp = 0; }); const hx = Math.round(hero.x), hy = Math.round(hero.y); for (let i = 0; i < f.seen.length; i++) f.seen[i] = 1; for (let y = hy - 3; y <= hy; y++) for (let x = hx - 3; x <= hx; x++) if (fIn(x, y) && f.t[fI(x, y)] !== 'x') f.t[fI(x, y)] = 'g'; m.x = m.wx = hx - 2; m.y = m.wy = hy - 2; m.cd2 = 99; return [m.x, m.y, m.id]; });
+    { const p = await fp.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), wp); await fp.mouse.click(p.x, p.y); }
+    await fp.waitForFunction(id => S.forest.mons.find(o => o.id === id).hp <= 0, wp[2], { timeout: 15000 });
+    ok(await fp.evaluate(() => (S.killN || 0) >= 1 && window.MinerDiary.scene() === 'forest'), '숲 몬스터를 누르면 다가가 휘둘러 잡음');
+    await fp.close();
+  }
+
   /* ===== 좁은 길: 바닥을 가리는 바위는 반투명, 그 위쪽(비쳐 보이는 바닥)을 누르면 캐지 않고 걸어감 ===== */
   {
     const cp = await open(390, 844);
