@@ -519,7 +519,7 @@ const inMeteor = (e, x, y) => !!e && e.x !== null && mCells(e).some(([a, b]) => 
 function meteorSize() { const E2 = evState(); if (!E2.bigN) return 'b'; if ((E2.bigN || 0) < 2 && (S.forestOpen || {})[1] && Math.random() < .25) return 'b'; return Math.random() < .35 ? 'm' : 's'; }
 function evAdd(k, size) {
   const E2 = evState(), d = S.day; E2.done[k] = 1;
-  if (k === 'meteor') { const sz = size || meteorSize(), M = METEOR[sz]; if (sz === 'b') E2.bigN = (E2.bigN || 0) + 1; E2.list.push({ k, warn: d, from: d, to: d + M.days, x: null, y: null, dug: false, size: sz, hp: M.hp }); }
+  if (k === 'meteor') { const sz = size || meteorSize(), M = METEOR[sz]; if (sz === 'b') E2.bigN = (E2.bigN || 0) + 1; E2.list.push({ k, warn: d, from: d, to: 1e9, x: null, y: null, dug: false, size: sz, hp: M.hp }); }   // 다 캘 때까지 남음
   if (k === 'boom') { const os = boomOres(); E2.list.push({ k, warn: d, from: d + 1, to: d + 3, ore: os[rnd(os.length)] }); }
   if (k === 'raid') E2.list.push({ k, warn: d, from: d + 2, to: d + 2, won: false });
 }
@@ -538,13 +538,15 @@ function evMorning() {
   const hurt = E2.list.filter(e => e.k === 'raid' && e.to < S.day && !e.won && !e.hit).map(raidAftermath).join('');
   E2.list = E2.list.filter(e => e.to >= S.day);
   if (evQuiet) return hurt + E2.list.filter(e => e.warn === S.day || (e.k === 'raid' && e.from === S.day)).map(evSay).join('');
-  for (const k in EV) if (!E2.done[k] && EV[k].ok() && EV[k].first() && !E2.list.length) evAdd(k);
-  if (!E2.list.length && S.day >= 6 && Math.random() < .3) { const ks = Object.keys(EV).filter(k => EV[k].ok()); if (ks.length) evAdd(ks[rnd(ks.length)]); }
+  // 운석은 다른 이벤트와 따로 셈: 떨어진 운석을 다 캐기 전엔 새 운석이 없고, 다른 이벤트는 운석이 있어도 생김
+  const busy = k => (k === 'meteor' ? E2.list.some(e => e.k === 'meteor') : E2.list.some(e => e.k !== 'meteor'));
+  for (const k in EV) if (!E2.done[k] && EV[k].ok() && EV[k].first() && !busy(k)) evAdd(k);
+  if (S.day >= 6 && Math.random() < .3) { const ks = Object.keys(EV).filter(k => EV[k].ok() && !busy(k)); if (ks.length) evAdd(ks[rnd(ks.length)]); }
   return hurt + E2.list.filter(e => e.warn === S.day || (e.k === 'raid' && e.from === S.day)).map(evSay).join('');
 }
 function evSay(e) {
-  if (e.k === 'meteor') return e.size === 'b' ? `<p class="news">${ico('ic_star')}<b>촌장</b> 어젯밤 숲 쪽에서 쾅 하고 땅이 울렸어요. 커다란 별똥별이 떨어져서 숲이 패었대요. 며칠은 남아 있을 테니 가 봐요.</p>`
-    : `<p class="news">${ico('ic_star')}<b>촌장</b> 어젯밤 숲 쪽으로 ${e.size === 's' ? '작은 ' : ''}별똥별이 떨어졌어요. ${e.size === 'm' ? '내일까지' : '오늘 안에'} 가 보면 귀한 돌을 캘 수 있을 거예요.</p>`;
+  if (e.k === 'meteor') return e.size === 'b' ? `<p class="news">${ico('ic_star')}<b>촌장</b> 어젯밤 숲 쪽에서 쾅 하고 땅이 울렸어요. 커다란 별똥별이 떨어져서 숲이 패었대요. 다 캘 때까지는 그대로 있을 거예요.</p>`
+    : `<p class="news">${ico('ic_star')}<b>촌장</b> 어젯밤 숲 쪽으로 ${e.size === 's' ? '작은 ' : ''}별똥별이 떨어졌어요. 가 보면 귀한 돌을 캘 수 있을 거예요.</p>`;
   if (e.k === 'raid') return e.from === S.day ? `<p class="news warn">${ico('ic_sword')}<b>촌장</b> 오늘 저녁에 몬스터가 몰려와요. 저녁이 되면 성벽 문으로 와 줘요.</p>`
     : `<p class="news warn">${ico('ic_sword')}<b>촌장</b> 성 밖 몬스터들 움직임이 심상치 않아요. 모레 저녁쯤 마을로 몰려올 것 같으니 성벽 문에서 막아 줘요.</p>`;
   if (e.k === 'boom') return `<p class="news">${ico('ic_up')}<b>떠돌이 상인</b> 이웃 마을에서 <span class="ore ${e.ore}"></span>${ORES[e.ore].name} 찾는 사람이 많대요. 내일부터 사흘 동안 시장 값이 두 배로 뛸 거예요.</p>`;
@@ -553,7 +555,7 @@ function evSay(e) {
 // 날짜 단추: 지금 있는 소식
 function evLine(e) {
   const left = e.to - S.day, until = left ? `${left + 1}일` : '오늘까지';
-  if (e.k === 'meteor') return `<div class="rowi"><span class="nm">${ico('ic_star')}숲에 떨어진 ${{ s: '작은 ', m: '', b: '큰 ' }[e.size || 's']}운석${e.dug ? ' <small>캠</small>' : ''}</span><b>${until}</b></div>`;
+  if (e.k === 'meteor') return `<div class="rowi"><span class="nm">${ico('ic_star')}숲에 떨어진 ${{ s: '작은 ', m: '', b: '큰 ' }[e.size || 's']}운석${e.dug ? ' <small>캠</small>' : ''}</span><b>${e.dug ? '' : `${METEOR[e.size || 's'].hp - (e.hp ?? METEOR[e.size || 's'].hp)}/${METEOR[e.size || 's'].hp}`}</b></div>`;
   if (e.k === 'raid') return `<div class="rowi"><span class="nm">${ico('ic_sword')}몬스터 습격</span><b>${e.won ? '막음' : S.day < e.from ? `${e.from - S.day}일 뒤 저녁` : '오늘 저녁'}</b></div>`;
   if (e.k === 'boom') return `<div class="rowi"><span class="nm">${ico('ic_up')}<span class="ore ${e.ore}"></span>${ORES[e.ore].name} 값 두 배</span><b>${S.day < e.from ? '내일부터' : until}</b></div>`;
   return '';
@@ -570,7 +572,11 @@ function placeMeteor() {
     const reach = new Set([fI(f.ex, f.ey)]), q = [[f.ex, f.ey]];
     while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = x + dx, b = y + dy; if (!fIn(a, b) || reach.has(fI(a, b)) || !'gxzv'.includes(f.t[fI(a, b)])) continue; reach.add(fI(a, b)); q.push([a, b]); } }
     const wall = new Set(f.wall || []), n = METEOR[e.size || 's'].n;
-    const fits = (x, y) => { for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) { const a = x + dx, b = y + dy; if (a < 2 || b < 2 || a > FW - 3 || b > FH - 3 || wall.has(fI(a, b)) || !'gtsk'.includes(f.t[fI(a, b)]) || fZone(a) !== fZone(x)) return false; } return true; };
+    const z0 = x => fZone(x), zx0 = z => F_ZONES[z].x, zx1 = z => (z ? F_ZONES[z - 1].x : FW) - 1;
+    const keep = []; for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) if ('voxz'.includes(f.t[fI(x, y)])) keep.push([x, y]);   // 동굴 입구, 곁가지 숲 입구, 들머리
+    const fits = (x, y) => { const z = z0(x); if (x < zx0(z) + 3 || x + n - 1 > zx1(z) - 3 || y < 3 || y + n - 1 > FH - 4) return false;   // 구역 경계와 숲 가장자리에서 3칸 안쪽
+      for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) { const a = x + dx, b = y + dy; if (wall.has(fI(a, b)) || !'gtsk'.includes(f.t[fI(a, b)])) return false; }
+      const [cx, cy] = [x + (n - 1) / 2, y + (n - 1) / 2]; return keep.every(([u, v]) => Math.hypot(u - cx, v - cy) > 3 + n / 2 + (METEOR[e.size || 's'].r || 0)); };
     const c = []; for (let y = 2; y < FH - 2; y++) for (let x = 2; x < FW - 2; x++) { const z = fZone(x); if (f.t[fI(x, y)] === 'g' && reach.has(fI(x, y)) && fits(x, y) && (z === 0 || (S.forestOpen || {})[z]) && Math.hypot(x - f.ex, y - f.ey) > 9 + n && Math.hypot(x - (f.ex - 5), y - (f.ey - 3)) > 3 + n) c.push([x, y]); }
     if (!c.length) return; [e.x, e.y] = c[rnd(c.length)];
     meteorImpact(f, e);
@@ -602,7 +608,7 @@ function meteorHit(x, y) {
   const done = !e || e.hp <= 0, n = Math.min(done ? 2 : 1, Math.max(1, bagCap() - carryN()));
   addItem('meteor', n); mshake = 4;
   for (let i = 0; i < (done ? 16 : 8); i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .3, y: y + .5 + Math.sin(a) * .3, z: .5, life: 1, col: i % 2 ? '#ffb070' : '#c8b8ff' }); }
-  if (done) { (e ? mCells(e) : [[x, y]]).forEach(([a, b]) => { S.forest.t[fI(a, b)] = 'g'; }); if (e) e.dug = true; SFX.fanfare(); } else SFX.ore(1);
+  if (done) { (e ? mCells(e) : [[x, y]]).forEach(([a, b]) => { S.forest.t[fI(a, b)] = 'g'; }); if (e) { e.dug = true; e.to = S.day; } SFX.fanfare(); } else SFX.ore(1);   // 다 캐면 오늘로 끝
   toast(`<span class="ore meteor"></span>${ORES.meteor.name} +${n}`); save(); renderHud(); renderDock();
 }
 // 운석 잔해: 주우면 그 구역 광석, 드물게 운석 조각
