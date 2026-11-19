@@ -941,6 +941,31 @@ const shot = process.argv[2];
     await hp.close();
   }
 
+  /* ===== 숲 모양은 그대로, 채집물만 날마다. 굴 모양과 층은 그대로, 광석만 사흘마다 조금씩 ===== */
+  {
+    const gp = await open(390, 844);
+    const r = await gp.evaluate(() => {
+      closeSheet(); S.introSeen = true; S.sickle = 1;
+      const a = genForest(S.day), b = genForest(S.day + 1), same = a.t.every((t, i) => t === b.t[i]), itDiff = JSON.stringify(a.it) !== JSON.stringify(b.it);
+      enterForest(); const f = S.forest; f.seen[fI(40, 3)] = 1; cutThorn(40, 3); f.seen[fI(10, 10)] = 1;
+      const c = genForest(S.day + 3);
+      return { same, itDiff, cut: c.t[fI(40, 3)] === 'g', seen: c.seen[fI(10, 10)] === 1 };
+    });
+    ok(r.same && r.itDiff, '숲 모양은 날이 바뀌어도 같고 채집물만 새로 생김');
+    ok(r.cut && r.seen, '쳐 낸 가시덤불과 본 곳은 다음 날에도 그대로');
+    const cv = await gp.evaluate(() => {
+      leaveForest(); enterForest(); enterCave(); const D = S.deep;
+      for (let x = 1; x <= 8; x++) { D.dug[dKey(0, x, 0)] = 'f'; for (let y = -1; y <= 1; y++) seenSet(x, y); }
+      for (let x = 1; x <= 8; x++) for (const y of [-1, 1]) { D.dug[dKey(0, x, y)] = 'r'; D.ore = D.ore || {}; D.ore[dKey(0, x, y)] = ''; }
+      const before = Object.keys(D.ore).filter(k => D.ore[k]).length;
+      leaveCave(); leaveForest(); S.day = 2; sleep(false); closeSheet();
+      const after = Object.keys(D.ore).filter(k => D.ore[k]).length;
+      return { kept: D.dug[dKey(0, 5, 0)] === 'f', grew: after - before };
+    });
+    ok(cv.kept && cv.grew === 6, `사흘째 아침: 숲 동굴에 판 굴은 그대로, 굴 둘레 벽에 광석 여섯 (${cv.grew})`);
+    await gp.close();
+  }
+
   /* ===== 좁은 길: 바닥을 가리는 바위는 반투명, 그 위쪽(비쳐 보이는 바닥)을 누르면 캐지 않고 걸어감 ===== */
   {
     const cp = await open(390, 844);
