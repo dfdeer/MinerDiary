@@ -941,6 +941,39 @@ const shot = process.argv[2];
     await hp.close();
   }
 
+  /* ===== 숲 모양은 그대로, 채집물만 날마다. 굴 모양과 층은 그대로, 광석만 사흘마다 조금씩 ===== */
+  {
+    const gp = await open(390, 844);
+    const r = await gp.evaluate(() => {
+      closeSheet(); S.introSeen = true; S.sickle = 1;
+      const a = genForest(S.day), at = a.t.slice(), base = Object.keys(a.it).length;
+      Object.keys(a.it).forEach(k => delete a.it[k]);   // 다 주웠다고 치고 다음 날
+      const b = genForest(S.day + 1), same = at.every((t, i) => t === b.t[i]), n1 = Object.keys(b.it).length;
+      const c10 = genForest(S.day + 30), n10 = Object.keys(c10.it).length;
+      const itDiff = n1 >= base * .4 && n1 <= base * .6 && n10 <= base * 2.2 && n10 > n1;   // 날마다 하루치 수가 조금씩 달라 넉넉히 봄
+      enterForest(); const f = S.forest; f.seen[fI(40, 3)] = 1; cutThorn(40, 3); f.seen[fI(10, 10)] = 1;
+      const c = genForest(S.day + 33);
+      return { same, itDiff, cut: c.t[fI(40, 3)] === 'g', seen: c.seen[fI(10, 10)] === 1 };
+    });
+    ok(r.same && r.itDiff, '숲 모양은 날이 바뀌어도 같고, 채집물은 날마다 하루치의 절반씩 쌓여 두 배까지만');
+    ok(r.cut && r.seen, '쳐 낸 가시덤불과 본 곳은 다음 날에도 그대로');
+    const cv = await gp.evaluate(() => {
+      leaveForest(); enterForest(); enterCave(); const D = S.deep;
+      for (let x = 1; x <= 8; x++) { D.dug[dKey(0, x, 0)] = 'f'; for (let y = -1; y <= 1; y++) seenSet(x, y); }
+      for (let x = 1; x <= 8; x++) for (const y of [-1, 1]) { D.dug[dKey(0, x, y)] = 'r'; D.ore = D.ore || {}; D.ore[dKey(0, x, y)] = ''; }
+      for (let y = -16; y <= 16; y++) for (let x = -16; x <= 16; x++) if (Math.abs(y) > 1 || x > 8 || x < 1) D.ore[dKey(0, x, y)] = '';   // 다 캐 간 숲 동굴
+      const before = Object.keys(D.ore).filter(k => D.ore[k]).length;
+      leaveCave(); leaveForest(); S.day = 2; sleep(false); closeSheet();
+      const after = Object.keys(D.ore).filter(k => D.ore[k]).length;
+      const grew = after - before; for (let k = 0; k < 40; k++) regrowOre(D); const capped = Object.keys(D.ore).filter(k => D.ore[k]).length;
+      let first = 0; S.deep = D; D.L = 0; for (let y = -16; y <= 16; y++) for (let x = -16; x <= 16; x++) if (dBase(0, x, y) === 'r' && dOre(0, x, y)) first++;
+      return { kept: D.dug[dKey(0, 5, 0)] === 'f', grew, capped, first };
+    });
+    ok(cv.kept && cv.grew === 6, `사흘째 아침: 숲 동굴에 판 굴은 그대로, 굴 둘레 벽에 광석 여섯 (${cv.grew})`);
+    ok(cv.capped <= cv.first, `숲 동굴 광석은 오래 둬도 처음 수까지만 (${cv.capped}/${cv.first})`);
+    await gp.close();
+  }
+
   /* ===== 좁은 길: 바닥을 가리는 바위는 반투명, 그 위쪽(비쳐 보이는 바닥)을 누르면 캐지 않고 걸어감 ===== */
   {
     const cp = await open(390, 844);

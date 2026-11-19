@@ -336,7 +336,7 @@ const INTRO = [
 const CHIEF_TIPS = [
   '가방이 무거우면 집 창고에 넣어 둬요. 창고 것은 마을 안이라면 어디서든 쓸 수 있어요. 마을 밖으로 가져가려면 다시 꺼내 가방에 담아야 하고요.',
   '반짝이는 틈이 보이면 그 벽을 파 봐요. 안쪽에 광석이 숨어 있거든요.',
-  '숲 동굴은 사흘쯤 지나면 광석이 다시 차올라요. 바쁠 땐 가볍게 들러 봐요.',
+  '사흘쯤 지나면 판 굴 둘레 벽에 광석이 조금씩 다시 생겨요. 숲 동굴도 광산도 그래요.',
   '바위 틈이 금빛으로 반짝이면 그 너머에 숨은 방이 있어요. 옛 광부들이 숨겨 둔 상자가 남아 있대요.',
   '광석은 줄기처럼 이어져 있어요. 하나를 찾으면 그 둘레를 이어서 캐 봐요. 쉬지 않고 캐면 더 잘 나오고요.',
   '계단은 굴 깊숙한 곳에 있어요. 깊을수록 비싼 광석이 나와요.',
@@ -484,7 +484,7 @@ function spend(n) {
 function addItem(o, n) { if (storeHere()) give(o, n); else S.carry[o] = (S.carry[o] || 0) + n; S.today[o] = (S.today[o] || 0) + n; questEvent('ore', n); }
 function newDay(kind) {
   let smelted = null;
-  if (S.deep && (S.day + 1) % 3 === 0) Object.keys(S.deep.dug).forEach(k => { if (k.startsWith('0,')) delete S.deep.dug[k]; });   // 숲 동굴은 사흘마다 다시 채워짐
+  if ((S.day + 1) % 3 === 0) [...new Set([S.deep, S.deepMain, ...Object.values(S.townDeep || {})])].forEach(D => D && D.dug && regrowOre(D));   // 사흘마다 판 굴 둘레 바위에 광석이 조금씩 새로 생김 (굴 모양과 층은 그대로)
   if (S.market) rollMarket(false);
   growFarm();
   if (S.furnace) { smelted = S.furnace; S.inv[smelted.bar] = (S.inv[smelted.bar] || 0) + smelted.n; S.furnace = null; }
@@ -554,7 +554,10 @@ function showNews() {
 function placeMeteor() {
   const e = evActive('meteor'), f = S.forest; if (!e || e.dug || f.grove || f.road) return;
   if (e.x === null) {
-    const c = []; for (let y = 2; y < FH - 2; y++) for (let x = 2; x < FW - 2; x++) { const z = fZone(x); if (f.t[fI(x, y)] === 'g' && (z === 0 || (S.forestOpen || {})[z]) && Math.hypot(x - f.ex, y - f.ey) > 9 && Math.hypot(x - (f.ex - 5), y - (f.ey - 3)) > 3) c.push([x, y]); }
+    // 들머리에서 걸어갈 수 있는 풀밭만 (나무에 둘러싸인 곳 말고)
+    const reach = new Set([fI(f.ex, f.ey)]), q = [[f.ex, f.ey]];
+    while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = x + dx, b = y + dy; if (!fIn(a, b) || reach.has(fI(a, b)) || !'gxzv'.includes(f.t[fI(a, b)])) continue; reach.add(fI(a, b)); q.push([a, b]); } }
+    const c = []; for (let y = 2; y < FH - 2; y++) for (let x = 2; x < FW - 2; x++) { const z = fZone(x); if (f.t[fI(x, y)] === 'g' && reach.has(fI(x, y)) && (z === 0 || (S.forestOpen || {})[z]) && Math.hypot(x - f.ex, y - f.ey) > 9 && Math.hypot(x - (f.ex - 5), y - (f.ey - 3)) > 3) c.push([x, y]); }
     if (!c.length) return; [e.x, e.y] = c[rnd(c.length)];
   }
   f.t[fI(e.x, e.y)] = 'M';
@@ -585,6 +588,28 @@ function meteorBeam(c) {
   const q = iso(e.x + .5, e.y + .5, 0), h = TW * 3.2, w = TW * .28, a = .35 + .15 * Math.sin(tnow * 2.5);
   const g = c.createLinearGradient(0, q[1], 0, q[1] - h); g.addColorStop(0, `rgba(255,190,110,${a})`); g.addColorStop(1, 'rgba(255,190,110,0)');
   c.fillStyle = g; c.beginPath(); c.moveTo(q[0] - w * .5, q[1] - TW * .1); c.lineTo(q[0] - w, q[1] - h); c.lineTo(q[0] + w, q[1] - h); c.lineTo(q[0] + w * .5, q[1] - TW * .1); c.closePath(); c.fill();
+}
+// 광석 다시 생기기 (기획 63번): 층마다 판 굴에 맞닿은, 광석 없는 본 바위 몇 칸에 그 구역 광석이 생김. 숲 동굴은 여섯 칸(구리와 석탄), 광산 층은 세 칸
+function regrowOre(D) {
+  const S0 = S.deep, L0 = D.L; S.deep = D;
+  try {
+    const byL = {};
+    Object.keys(D.dug).forEach(k => { const [L, x, y] = k.split(',').map(Number); if (FLOORISH(D.dug[k])) (byL[L] = byL[L] || []).push([x, y]); });
+    Object.entries(byL).forEach(([Ls, fl]) => {
+      const L = +Ls; D.L = L; const cand = [], seenC = new Set();
+      fl.forEach(([x, y]) => [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => { const a = x + dx, b = y + dy, k = dKey(L, a, b); if (seenC.has(k)) return; seenC.add(k);
+        const t = mT(a, b); if ((t === 'r' || t === 'h') && seenGet(a, b) && !mO(a, b)) cand.push([a, b]); }));
+      D.ore = D.ore || {};
+      // 상한: 숲 동굴은 처음 광석 수까지, 광산 층은 굴 둘레 벽의 3분의 1까지
+      let room;
+      if (L === 0) { let first = 0, now = 0; for (let y = -16; y <= 16; y++) for (let x = -16; x <= 16; x++) { if (dBase(0, x, y) === 'r' && dOre(0, x, y)) first++; const t = mT(x, y); if ((t === 'r' || t === 'h') && mO(x, y)) now++; } room = first - now; }
+      else { const wall = [...seenC].filter(k => { const [, a, b] = k.split(',').map(Number); const t = mT(a, b); return (t === 'r' || t === 'h') && seenGet(a, b); }); room = Math.floor(wall.length / 3) - (wall.length - cand.length); }
+      for (let n = Math.min(L === 0 ? 6 : 3, room); n > 0 && cand.length; n--) {
+        const [a, b] = cand.splice(rnd(cand.length), 1)[0];
+        D.ore[dKey(L, a, b)] = L === 0 ? (Math.random() < .6 ? 'copper' : 'coal') : pickFrom(D.town ? TOWNS[D.town].ores[zoneAt(L, a, b)] : ZONES[zoneAt(L, a, b)].ores, Math.random());
+      }
+    });
+  } finally { D.L = L0; S.deep = S0; }
 }
 // 하루 정산: 그날 얻은 것과 값. 기록을 깨면 최고 기록 표시
 function daySummary() {
@@ -2294,7 +2319,7 @@ function burst(x, y, c1, c2, n) { for (let k = 0; k < n; k++) { const a = Math.r
 function pitchTent() {
   if (scene !== 'mine' || !(S.items.tent > 0)) return;
   const x = Math.round(hero.x), y = Math.round(hero.y), D = S.deep;
-  if (mT(x, y) !== 'f' || D.L === 0) { toast('여기는 못 침'); return; }   // 숲 동굴은 사흘마다 다시 채워져 길이 막히므로 야영 안 됨
+  if (mT(x, y) !== 'f') { toast('여기는 못 침'); return; }
   S.items.tent--; D.dug[dKey(D.L, x, y)] = 'c'; D.camps.push([D.L, x, y]); D.lastCamp = [D.L, x, y];
   SFX.stairs(); hideSheet(); toast(`${ico('ic_tent')}야영지`); save(); renderDock();
 }
@@ -2618,8 +2643,8 @@ const fGround = x => (S.forest && S.forest.grove ? GROVES[S.forest.grove].ground
 const fPlace = x => (S.forest.grove ? GROVES[S.forest.grove].n : F_ZONES[fZone(x)].n);
 const LAKE_FISH = [['perch', .55], ['carp', .3], ['goldfin', .15]];
 function genGrove(kind, day) {
-  const I = (x, y) => y * FW + x, t = Array(FW * FH).fill('t'), it = {}, R0 = H32(day * 131 + (kind === 'mush' ? 7 : 19)) * 1e5 | 0;
-  const h = (x, y, k) => H32(x * 92821 + y * 68917 + R0 + k * 7), cx = 32, cy = 18;
+  const I = (x, y) => y * FW + x, t = Array(FW * FH).fill('t'), it = {}, R0 = H32(worldSeed() * 131 + (kind === 'mush' ? 7 : 19)) * 1e5 | 0, Rd = H32(day * 131 + (kind === 'mush' ? 7 : 19)) * 1e5 | 0;
+  const h = (x, y, k) => H32(x * 92821 + y * 68917 + R0 + k * 7), hi = (x, y, k) => H32(x * 92821 + y * 68917 + Rd + k * 7), cx = 32, cy = 18;
   for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) {
     const r = Math.hypot((x - cx) / 1.35, y - cy), lim = 9 + vnoise(Math.atan2(y - cy, x - cx) * 2 + 5, 0, R0) * 4;
     if (r > lim) continue;
@@ -2629,16 +2654,17 @@ function genGrove(kind, day) {
   if (kind === 'lake') for (let y = cy - 4; y <= cy + 4; y++) for (let x = cx - 7; x <= cx + 3; x++) if (Math.hypot((x - cx + 2) / 1.6, y - cy) < 3.4 + vnoise(x / 3, y / 3, R0 + 4) * .9) t[I(x, y)] = 'w';
   for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) {
     if (t[I(x, y)] !== 'g' || Math.hypot(x - ex, y - ey) < 3) continue;
-    const r = h(x, y, 9); let acc = 0;
+    const r = hi(x, y, 9); let acc = 0;
     for (const [k, p2] of Object.entries(GROVES[kind].items)) { acc += p2; if (r < acc) { it[x + ',' + y] = k; break; } }
     if (!it[x + ',' + y] && r > .985) it[x + ',' + y] = 'sparkle';
   }
-  for (let n = 0; n < 300; n++) { const x = cx - 10 + (h(n, 3, 61) * 14 | 0), y = cy - 7 + (h(3, n, 62) * 14 | 0); if (t[I(x, y)] === 'g' && !it[x + ',' + y]) { it[x + ',' + y] = 'chest'; break; } }
-  return { day, t, it, seen: Array(FW * FH).fill(0), ex, ey, hx: ex - 1, hy: ey, steps: 0, grove: kind };
+  for (let n = 0; n < 300; n++) { const x = cx - 10 + (hi(n, 3, 61) * 14 | 0), y = cy - 7 + (hi(3, n, 62) * 14 | 0); if (t[I(x, y)] === 'g' && !it[x + ',' + y]) { it[x + ',' + y] = 'chest'; break; } }
+  return applyMem({ day, t, it, ex, ey, hx: ex - 1, hy: ey, steps: 0, grove: kind }, kind);
 }
 // 첫 길: 오른쪽(마을 쪽)에서 왼쪽 끝(그 마을)까지 구불구불한 길. 길가엔 광석 바위(m)와 그 지역 재료
 function genRoad(dest, day) {
-  const I = (x, y) => y * FW + x, t = Array(FW * FH).fill('t'), it = {}, R0 = H32(day * 211 + dest.length * 37) * 1e5 | 0, volc = dest === 'volcano';
+  const I = (x, y) => y * FW + x, t = Array(FW * FH).fill('t'), it = {}, R0 = H32(worldSeed() * 211 + dest.length * 37) * 1e5 | 0, Rd = H32(day * 211 + dest.length * 37) * 1e5 | 0, volc = dest === 'volcano';
+  const hi = (x, y, k) => H32(x * 92821 + y * 68917 + Rd + k * 7);
   const h = (x, y, k) => H32(x * 92821 + y * 68917 + R0 + k * 7), mid = x => 18 + Math.round((vnoise(x / 9, 3, R0) - .5) * 18);
   for (let x = 2; x <= FW - 3; x++) { const my = mid(x); for (let y = my - 2; y <= my + 2; y++) t[I(x, y)] = 'g'; }
   for (let y = 2; y < FH - 2; y++) for (let x = 3; x < FW - 3; x++) { if (t[I(x, y)] === 'g') continue; if (vnoise(x / 4, y / 4, R0 + 9) > .62 && Math.abs(y - mid(x)) < 9) t[I(x, y)] = 'g'; }
@@ -2648,12 +2674,12 @@ function genRoad(dest, day) {
   const G = GROVES['road_' + dest];
   for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) {
     if (t[I(x, y)] !== 'g' || Math.hypot(x - ex, y - ey) < 3 || x <= zx + 1) continue;
-    const r = h(x, y, 9); let acc = 0;
+    const r = hi(x, y, 9); let acc = 0;
     // 길가 바위 칸 가운데 일부는 광석 바위
     if (r > .955 && Math.abs(y - mid(x)) >= 2) { t[I(x, y)] = 'm'; continue; }
     for (const [k, p2] of Object.entries(G.items)) { acc += p2; if (r < acc) { it[x + ',' + y] = k; break; } }
   }
-  return { day, t, it, seen: Array(FW * FH).fill(0), ex, ey, hx: ex - 1, hy: ey, zx, zy, steps: 0, grove: 'road_' + dest, road: dest };
+  return applyMem({ day, t, it, ex, ey, hx: ex - 1, hy: ey, zx, zy, steps: 0, grove: 'road_' + dest, road: dest }, 'road_' + dest);
 }
 function enterRoad(dest) {
   hideSheet(); const f = S.forest && !S.forest.road && !S.forest.grove ? S.forest : null;
@@ -2683,9 +2709,28 @@ function leaveGrove() {
 }
 const SPARKLE = ['plumb', 'feather', 'insole', 'clover', 'firefly', 'honey'];   // 반짝이는 덤불에서
 const CHEST = ['plumb', 'charm', 'feather', 'insole', 'honey', 'leather', 'leather'];   // 낡은 상자에서
+// 숲 모양(나무, 덤불, 바위, 길)은 저장마다 한 번 정해져 늘 같고, 채집물만 날마다 새로 생김 (기획 63번)
+const worldSeed = () => (S.deep && S.deep.seed) || 7;
+// 숲마다 기억: 본 칸과 쳐 낸 가시덤불 (모양이 같으니 날이 바뀌어도 그대로)
+function fMem(place) { S.fmem = S.fmem || {}; const m = S.fmem[place] || (S.fmem[place] = { seen: Array(FW * FH).fill(0), cut: {} }); return m; }
+// 채집물은 쌓임: 안 주운 건 남고, 날마다 빈 풀밭에 하루치의 절반씩 새로 생김(며칠 비웠으면 그만큼, 사흘치까지). 한 숲에 하루치의 두 배까지만
+function applyMem(f, place) {
+  const m = fMem(place); f.seen = m.seen; Object.keys(m.cut).forEach(i => { f.t[+i] = 'g'; });
+  if (!m.it) { m.it = f.it; m.day = f.day; }
+  else if (f.day > m.day) {
+    const base = Object.keys(f.it).length, cap = base * 2, days = Math.min(3, f.day - m.day);
+    Object.keys(m.it).forEach(k => { const [x, y] = k.split(',').map(Number); if (f.t[fI(x, y)] !== 'g') delete m.it[k]; });
+    const fresh = Object.entries(f.it).filter(([k]) => !m.it[k]);
+    for (let i = fresh.length - 1; i > 0; i--) { const j = rnd(i + 1); [fresh[i], fresh[j]] = [fresh[j], fresh[i]]; }
+    let n = Object.keys(m.it).length, add = Math.round(base * .5 * days);
+    for (const [k, v] of fresh) { if (add <= 0 || n >= cap) break; m.it[k] = v; n++; add--; }
+    m.day = f.day;
+  }
+  f.it = m.it; return f;
+}
 function genForest(day) {
-  const I = (x, y) => y * FW + x, t = Array(FW * FH).fill('g'), R0 = H32(day * 7919 + 13) * 1e5 | 0, it = {};
-  const h = (x, y, k) => H32(x * 92821 + y * 68917 + R0 + k * 7);
+  const I = (x, y) => y * FW + x, t = Array(FW * FH).fill('g'), R0 = H32(worldSeed() * 7919 + 13) * 1e5 | 0, Rd = H32(day * 7919 + 13) * 1e5 | 0, it = {};
+  const h = (x, y, k) => H32(x * 92821 + y * 68917 + R0 + k * 7), hi = (x, y, k) => H32(x * 92821 + y * 68917 + Rd + k * 7);
   for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
     const v = h(x, y, 1); t[I(x, y)] = v < .3 ? 't' : v < .34 ? 's' : v < .36 ? 'k' : 'g';
     // 가장자리는 두께가 들쭉날쭉한 빽빽한 숲 (네모 테두리로 안 보이게)
@@ -2706,14 +2751,14 @@ function genForest(day) {
   t[I(vx, vy)] = 'v';   // 오솔길이 지나가도 동굴 입구는 그대로
   for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) {
     if (t[I(x, y)] !== 'g' || Math.hypot(x - ex, y - ey) < 3) continue;
-    const r = h(x, y, 9); let acc = 0;
+    const r = hi(x, y, 9); let acc = 0;
     for (const [k, p] of Object.entries(GATHER)) { acc += p; if (r < acc) { it[x + ',' + y] = k; break; } }
     if (!it[x + ',' + y] && r > .992) it[x + ',' + y] = 'sparkle';
   }
   // 구역마다 그 구역에서만 나는 것
   for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) {
     if (t[I(x, y)] !== 'g' || it[x + ',' + y]) continue;
-    const z = fZone(x), r = h(x, y, 31); let acc = 0;
+    const z = fZone(x), r = hi(x, y, 31); let acc = 0;
     for (const [k, p] of Object.entries(F_ZONES[z].extra)) { acc += p; if (r < acc) { it[x + ',' + y] = k; break; } }
     if (!it[x + ',' + y] && z && r > .996 - z * .002) it[x + ',' + y] = 'sparkle';
   }
@@ -2731,13 +2776,13 @@ function genForest(day) {
   for (let y = ey; y <= FH - 3; y++) t[I(24, y)] = 'g'; t[I(24, FH - 3)] = 'o';
   [[40, 2], [40, 3], [24, FH - 3]].forEach(([x, y]) => delete it[x + ',' + y]);
   // 깊은 구역마다 상자 하나
-  for (let z = 1; z < F_ZONES.length; z++) for (let n = 0; n < 200; n++) { const x = F_ZONES[z].x + 2 + (h(n, z, 41) * 12 | 0), y = 2 + (h(z, n, 42) * (FH - 4) | 0); if (t[I(x, y)] === 'g' && !it[x + ',' + y] && y !== ey) { it[x + ',' + y] = 'chest'; break; } }
+  for (let z = 1; z < F_ZONES.length; z++) for (let n = 0; n < 200; n++) { const x = F_ZONES[z].x + 2 + (hi(n, z, 41) * 12 | 0), y = 2 + (hi(z, n, 42) * (FH - 4) | 0); if (t[I(x, y)] === 'g' && !it[x + ',' + y] && y !== ey) { it[x + ',' + y] = 'chest'; break; } }
   // 낡은 상자 둘: 먼 곳에
-  for (let k = 0, n = 0; k < 2 && n < 400; n++) { const x = 2 + (h(n, k, 21) * (FW - 4) | 0), y = 2 + (h(k, n, 22) * (FH - 4) | 0); if (t[I(x, y)] === 'g' && Math.hypot(x - ex, y - ey) > 14 && !it[x + ',' + y]) { it[x + ',' + y] = 'chest'; k++; } }
-  const seen = Array(FW * FH).fill(0);
+  for (let k = 0, n = 0; k < 2 && n < 400; n++) { const x = 2 + (hi(n, k, 21) * (FW - 4) | 0), y = 2 + (hi(k, n, 22) * (FH - 4) | 0); if (t[I(x, y)] === 'g' && Math.hypot(x - ex, y - ey) > 14 && !it[x + ',' + y]) { it[x + ',' + y] = 'chest'; k++; } }
+  const f = applyMem({ day, t, it, ex, ey, hx: ex - 1, hy: ey, steps: 0 }, 'main'), seen = f.seen;
   for (let y = vy - 1; y <= vy + 2; y++) for (let x = vx - 1; x <= ex; x++) seen[I(x, y)] = 1;   // 동굴 입구 둘레는 처음부터 보임
   for (let y = vy + 1; y <= ey; y++) seen[I(ex - 1, y)] = 1;
-  return { day, t, it, seen, ex, ey, hx: ex - 1, hy: ey, steps: 0 };
+  return f;
 }
 const fI = (x, y) => y * FW + x;
 const fIn = (x, y) => x >= 0 && y >= 0 && x < FW && y < FH;
@@ -2768,7 +2813,7 @@ function forestOre(x, y) {
   }
 }
 function cutThorn(x, y) {
-  { if (!spend(2)) return; S.forest.t[fI(x, y)] = 'g'; SFX.dig(); for (let i = 0; i < 10; i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .3, y: y + .5 + Math.sin(a) * .3, z: .3, life: .8, col: '#7aa04a' }); } save(); renderHud(); return; }
+  { if (!spend(2)) return; S.forest.t[fI(x, y)] = 'g'; fMem(S.forest.grove || 'main').cut[fI(x, y)] = 1; SFX.dig(); for (let i = 0; i < 10; i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .3, y: y + .5 + Math.sin(a) * .3, z: .3, life: .8, col: '#7aa04a' }); } save(); renderHud(); return; }
 }
 function breakBoulder(x, y) {
   const z = fZone(x - 1), need = F_ZONES[z].need;
@@ -2802,6 +2847,7 @@ function fBlocked(x, y) {
 function enterForest() {
   hideSheet(); selected = null;
   if (!S.forest || S.forest.day !== S.day || !S.forest.it || S.forest.t.length !== FW * FH) S.forest = genForest(S.day);
+  { const m = fMem(S.forest.grove || 'main'); if (m.it) S.forest.it = m.it; S.forest.seen = m.seen; }   // 저장했다 불러오면 따로 떨어지므로 다시 이음
   placeMeteor(); spawnForestMons();
   const f = S.forest; scene = 'forest'; S.screen = 'forest'; FLAT = true;
   hero.x = f.hx; hero.y = f.hy; hero.path = []; hero.target = null; hero.dig = null; hero.goal = null; hero.fx = -1; hero.back = true;
