@@ -506,9 +506,20 @@ function evState() { const e = S.ev || (S.ev = { list: [], done: {}, mkt: null }
 const evActive = k => (S.ev ? S.ev.list.find(e => e.k === k && S.day >= e.from && S.day <= e.to) || null : null);
 const boomK = o => { const b = evActive('boom'); return b && b.ore === o ? 2 : 1; };
 function boomOres() { const d = S.deepest || 0; return ['copper', 'coal', ...(d >= 3 ? ['iron'] : []), ...(d >= 6 ? ['silver', 'gold'] : []), ...(d >= 10 ? ['crystal', 'amethyst'] : [])]; }
-function evAdd(k) {
+// 운석 크기 (기획 64번): 작은 것은 자주, 큰 것은 저장마다 두 번. 칠 때마다 작아지고 조각 하나, 둘레에 잔해
+const METEOR = {
+  s: { hp: 2, cost: 3, r: 0, debris: [3, 4], days: 1, n: 1 },
+  m: { hp: 4, cost: 5, r: 2, debris: [5, 6], days: 1, n: 2 },
+  b: { hp: 7, cost: 8, r: 3.2, debris: [8, 10], days: 2, n: 3 },
+};
+// 운석이 차지하는 칸: 작은 것 1×1, 중간 2×2, 큰 것 3×3. e.x, e.y는 왼쪽 위 칸, mc는 가운데
+const mCells = e => { const n = METEOR[e.size || 's'].n, out = []; for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) out.push([e.x + dx, e.y + dy]); return out; };
+const mCenter = e => { const h = (METEOR[e.size || 's'].n - 1) / 2; return [e.x + h, e.y + h]; };
+const inMeteor = (e, x, y) => !!e && e.x !== null && mCells(e).some(([a, b]) => a === x && b === y);
+function meteorSize() { const E2 = evState(); if (!E2.bigN) return 'b'; if ((E2.bigN || 0) < 2 && (S.forestOpen || {})[1] && Math.random() < .25) return 'b'; return Math.random() < .35 ? 'm' : 's'; }
+function evAdd(k, size) {
   const E2 = evState(), d = S.day; E2.done[k] = 1;
-  if (k === 'meteor') E2.list.push({ k, warn: d, from: d, to: d + 1, x: null, y: null, dug: false });
+  if (k === 'meteor') { const sz = size || meteorSize(), M = METEOR[sz]; if (sz === 'b') E2.bigN = (E2.bigN || 0) + 1; E2.list.push({ k, warn: d, from: d, to: 1e9, x: null, y: null, dug: false, size: sz, hp: M.hp }); }   // 다 캘 때까지 남음
   if (k === 'boom') { const os = boomOres(); E2.list.push({ k, warn: d, from: d + 1, to: d + 3, ore: os[rnd(os.length)] }); }
   if (k === 'raid') E2.list.push({ k, warn: d, from: d + 2, to: d + 2, won: false });
 }
@@ -527,12 +538,15 @@ function evMorning() {
   const hurt = E2.list.filter(e => e.k === 'raid' && e.to < S.day && !e.won && !e.hit).map(raidAftermath).join('');
   E2.list = E2.list.filter(e => e.to >= S.day);
   if (evQuiet) return hurt + E2.list.filter(e => e.warn === S.day || (e.k === 'raid' && e.from === S.day)).map(evSay).join('');
-  for (const k in EV) if (!E2.done[k] && EV[k].ok() && EV[k].first() && !E2.list.length) evAdd(k);
-  if (!E2.list.length && S.day >= 6 && Math.random() < .3) { const ks = Object.keys(EV).filter(k => EV[k].ok()); if (ks.length) evAdd(ks[rnd(ks.length)]); }
+  // 운석은 다른 이벤트와 따로 셈: 떨어진 운석을 다 캐기 전엔 새 운석이 없고, 다른 이벤트는 운석이 있어도 생김
+  const busy = k => (k === 'meteor' ? E2.list.some(e => e.k === 'meteor') : E2.list.some(e => e.k !== 'meteor'));
+  for (const k in EV) if (!E2.done[k] && EV[k].ok() && EV[k].first() && !busy(k)) evAdd(k);
+  if (S.day >= 6 && Math.random() < .3) { const ks = Object.keys(EV).filter(k => EV[k].ok() && !busy(k)); if (ks.length) evAdd(ks[rnd(ks.length)]); }
   return hurt + E2.list.filter(e => e.warn === S.day || (e.k === 'raid' && e.from === S.day)).map(evSay).join('');
 }
 function evSay(e) {
-  if (e.k === 'meteor') return `<p class="news">${ico('ic_star')}<b>촌장</b> 어젯밤 숲 쪽으로 별똥별이 떨어졌어요. 내일까지 가 보면 귀한 돌을 캘 수 있을 거예요.</p>`;
+  if (e.k === 'meteor') return e.size === 'b' ? `<p class="news">${ico('ic_star')}<b>촌장</b> 어젯밤 숲 쪽에서 쾅 하고 땅이 울렸어요. 커다란 별똥별이 떨어져서 숲이 패었대요. 다 캘 때까지는 그대로 있을 거예요.</p>`
+    : `<p class="news">${ico('ic_star')}<b>촌장</b> 어젯밤 숲 쪽으로 ${e.size === 's' ? '작은 ' : ''}별똥별이 떨어졌어요. 가 보면 귀한 돌을 캘 수 있을 거예요.</p>`;
   if (e.k === 'raid') return e.from === S.day ? `<p class="news warn">${ico('ic_sword')}<b>촌장</b> 오늘 저녁에 몬스터가 몰려와요. 저녁이 되면 성벽 문으로 와 줘요.</p>`
     : `<p class="news warn">${ico('ic_sword')}<b>촌장</b> 성 밖 몬스터들 움직임이 심상치 않아요. 모레 저녁쯤 마을로 몰려올 것 같으니 성벽 문에서 막아 줘요.</p>`;
   if (e.k === 'boom') return `<p class="news">${ico('ic_up')}<b>떠돌이 상인</b> 이웃 마을에서 <span class="ore ${e.ore}"></span>${ORES[e.ore].name} 찾는 사람이 많대요. 내일부터 사흘 동안 시장 값이 두 배로 뛸 거예요.</p>`;
@@ -541,7 +555,7 @@ function evSay(e) {
 // 날짜 단추: 지금 있는 소식
 function evLine(e) {
   const left = e.to - S.day, until = left ? `${left + 1}일` : '오늘까지';
-  if (e.k === 'meteor') return `<div class="rowi"><span class="nm">${ico('ic_star')}숲에 떨어진 운석${e.dug ? ' <small>캠</small>' : ''}</span><b>${until}</b></div>`;
+  if (e.k === 'meteor') return `<div class="rowi"><span class="nm">${ico('ic_star')}숲에 떨어진 ${{ s: '작은 ', m: '', b: '큰 ' }[e.size || 's']}운석${e.dug ? ' <small>캠</small>' : ''}</span><b>${e.dug ? '' : `${METEOR[e.size || 's'].hp - (e.hp ?? METEOR[e.size || 's'].hp)}/${METEOR[e.size || 's'].hp}`}</b></div>`;
   if (e.k === 'raid') return `<div class="rowi"><span class="nm">${ico('ic_sword')}몬스터 습격</span><b>${e.won ? '막음' : S.day < e.from ? `${e.from - S.day}일 뒤 저녁` : '오늘 저녁'}</b></div>`;
   if (e.k === 'boom') return `<div class="rowi"><span class="nm">${ico('ic_up')}<span class="ore ${e.ore}"></span>${ORES[e.ore].name} 값 두 배</span><b>${S.day < e.from ? '내일부터' : until}</b></div>`;
   return '';
@@ -557,21 +571,54 @@ function placeMeteor() {
     // 들머리에서 걸어갈 수 있는 풀밭만 (나무에 둘러싸인 곳 말고)
     const reach = new Set([fI(f.ex, f.ey)]), q = [[f.ex, f.ey]];
     while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = x + dx, b = y + dy; if (!fIn(a, b) || reach.has(fI(a, b)) || !'gxzv'.includes(f.t[fI(a, b)])) continue; reach.add(fI(a, b)); q.push([a, b]); } }
-    const c = []; for (let y = 2; y < FH - 2; y++) for (let x = 2; x < FW - 2; x++) { const z = fZone(x); if (f.t[fI(x, y)] === 'g' && reach.has(fI(x, y)) && (z === 0 || (S.forestOpen || {})[z]) && Math.hypot(x - f.ex, y - f.ey) > 9 && Math.hypot(x - (f.ex - 5), y - (f.ey - 3)) > 3) c.push([x, y]); }
+    const wall = new Set(f.wall || []), n = METEOR[e.size || 's'].n;
+    const z0 = x => fZone(x), zx0 = z => F_ZONES[z].x, zx1 = z => (z ? F_ZONES[z - 1].x : FW) - 1;
+    const keep = []; for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) if ('voxz'.includes(f.t[fI(x, y)])) keep.push([x, y]);   // 동굴 입구, 곁가지 숲 입구, 들머리
+    const fits = (x, y) => { const z = z0(x); if (x < zx0(z) + 3 || x + n - 1 > zx1(z) - 3 || y < 3 || y + n - 1 > FH - 4) return false;   // 구역 경계와 숲 가장자리에서 3칸 안쪽
+      for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) { const a = x + dx, b = y + dy; if (wall.has(fI(a, b)) || !'gtsk'.includes(f.t[fI(a, b)])) return false; }
+      const [cx, cy] = [x + (n - 1) / 2, y + (n - 1) / 2]; return keep.every(([u, v]) => Math.hypot(u - cx, v - cy) > 3 + n / 2 + (METEOR[e.size || 's'].r || 0)); };
+    const c = []; for (let y = 2; y < FH - 2; y++) for (let x = 2; x < FW - 2; x++) { const z = fZone(x); if (f.t[fI(x, y)] === 'g' && reach.has(fI(x, y)) && fits(x, y) && (z === 0 || (S.forestOpen || {})[z]) && Math.hypot(x - f.ex, y - f.ey) > 9 + n && Math.hypot(x - (f.ex - 5), y - (f.ey - 3)) > 3 + n) c.push([x, y]); }
     if (!c.length) return; [e.x, e.y] = c[rnd(c.length)];
+    meteorImpact(f, e);
   }
-  f.t[fI(e.x, e.y)] = 'M';
+  mCells(e).forEach(([x, y]) => { f.t[fI(x, y)] = 'M'; delete f.it[x + ',' + y]; });
 }
+// 떨어진 자리: 둘레 나무, 덤불, 바위가 날아가 구덩이가 영영 남음 (구역 경계, 큰 바위, 동굴 입구, 곁가지 숲 입구, 가시덤불은 그대로). 구덩이 가장자리에 잔해
+function meteorImpact(f, e) {
+  const M = METEOR[e.size || 's'], m = fMem('main'), wall = new Set(f.wall || []), R = M.r, [cx, cy] = mCenter(e);
+  if (R) {
+    for (let y = Math.floor(cy - R - 1); y <= Math.ceil(cy + R + 1); y++) for (let x = Math.floor(cx - R - 1); x <= Math.ceil(cx + R + 1); x++) {
+      if (!fIn(x, y) || x < 1 || y < 1 || x > FW - 2 || y > FH - 2 || Math.hypot(x - cx, y - cy) > R + .45) continue;   // 그림 구덩이 안에 걸치는 칸까지
+      const i = fI(x, y); if (wall.has(i) || !'tsk'.includes(f.t[i])) continue;
+      f.t[i] = 'g'; m.cut[i] = 1;
+    }
+    (m.craters = m.craters || []).push({ x: cx, y: cy, r: R });
+  }
+  const want = M.debris[0] + rnd(M.debris[1] - M.debris[0] + 1), ring = Math.max(1.2, R * .8 + .6);
+  for (let n = 0, put = 0; put < want && n < 300; n++) {
+    const a = Math.random() * 6.283, d = ring * (.7 + Math.random() * .6), x = Math.round(cx + Math.cos(a) * d), y = Math.round(cy + Math.sin(a) * d), k = x + ',' + y;
+    if (!fIn(x, y) || f.t[fI(x, y)] !== 'g' || f.it[k] || inMeteor(e, x, y)) continue;
+    f.it[k] = 'debris'; put++;
+  }
+}
+// 칠 때마다 기력을 크게 쓰고 조각 하나, 운석이 작아짐. 다 깨면 마지막에 하나 더
 function meteorHit(x, y) {
-  const e = evActive('meteor'); if (!spend(4)) return;
-  const n = Math.min(2 + (Math.random() < .4 ? 1 : 0), Math.max(1, bagCap() - carryN()));
-  S.forest.t[fI(x, y)] = 'g'; if (e) e.dug = true; addItem('meteor', n);
-  for (let i = 0; i < 16; i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .3, y: y + .5 + Math.sin(a) * .3, z: .5, life: 1, col: i % 2 ? '#ffb070' : '#c8b8ff' }); }
-  SFX.ore(n); SFX.fanfare(); toast(`<span class="ore meteor"></span>${ORES.meteor.name} +${n}`); save(); renderHud(); renderDock();
+  const e = evActive('meteor'), M = METEOR[(e && e.size) || 's']; if (!spend(M.cost)) return;
+  if (e) e.hp = Math.max(0, (e.hp === undefined ? M.hp : e.hp) - 1);
+  const done = !e || e.hp <= 0, n = Math.min(done ? 2 : 1, Math.max(1, bagCap() - carryN()));
+  addItem('meteor', n); mshake = 4;
+  for (let i = 0; i < (done ? 16 : 8); i++) { const a = Math.random() * 6.3; wind.push({ x: x + .5 + Math.cos(a) * .3, y: y + .5 + Math.sin(a) * .3, z: .5, life: 1, col: i % 2 ? '#ffb070' : '#c8b8ff' }); }
+  if (done) { (e ? mCells(e) : [[x, y]]).forEach(([a, b]) => { S.forest.t[fI(a, b)] = 'g'; }); if (e) { e.dug = true; e.to = S.day; } SFX.fanfare(); } else SFX.ore(1);   // 다 캐면 오늘로 끝
+  toast(`<span class="ore meteor"></span>${ORES.meteor.name} +${n}`); save(); renderHud(); renderDock();
 }
+// 운석 잔해: 주우면 그 구역 광석, 드물게 운석 조각
+const DEBRIS_ORE = [['copper', 'iron'], ['iron', 'silver'], ['silver', 'gold'], ['gold', 'crystal']];
 // 운석: 움푹 팬 자리에 빛나는 금이 간 검보랏빛 돌
 function meteorAt(c, x, y) {
-  const q = iso(x + .5, y + .5, 0), u = TW / 100, ink = Math.max(1.4, TW * .02), gl = .6 + .4 * Math.sin(tnow * 3);
+  const e = evActive('meteor'), M = METEOR[(e && e.size) || 's'];
+  if (e && e.x !== null) { const n = M.n; if (x !== e.x + n - 1 || y !== e.y + n - 1) return; [x, y] = mCenter(e); }   // 여러 칸이면 가장 앞 칸 차례에 가운데에 한 번
+  const sc = { s: .75, m: 1.6, b: 2.5 }[(e && e.size) || 's'] * (.55 + .45 * ((e && e.hp !== undefined ? e.hp : M.hp) / M.hp));   // 칸 수에 맞춘 크기, 칠 때마다 줄어듦
+  const q = iso(x + .5, y + .5, 0), u = TW / 100 * sc, ink = Math.max(1.4, TW * .02), gl = .6 + .4 * Math.sin(tnow * 3);
   c.save(); c.translate(q[0], q[1]);
   E(c, 0, 0, u * 40, u * 17, '#5a4a3a'); E(c, 0, -u * 2, u * 32, u * 12, '#3e3228');
   const g = c.createRadialGradient(0, -u * 16, 1, 0, -u * 16, u * 44); g.addColorStop(0, `rgba(255,170,90,${.45 * gl})`); g.addColorStop(1, 'rgba(255,170,90,0)'); Cc(c, 0, -u * 16, u * 44, g);
@@ -582,10 +629,19 @@ function meteorAt(c, x, y) {
   for (let k = 0; k < 2; k++) { const t2 = (tnow * .5 + k * .5) % 1; c.globalAlpha = (1 - t2) * .5; Cc(c, u * (6 - k * 10), -u * (30 + t2 * 36), u * (4 + t2 * 6), '#8a8090'); } c.globalAlpha = 1;
   c.restore();
 }
+// 운석 구덩이: 둥글게 팬 땅, 바깥으로 흩어진 흙덩이, 바닥의 작은 돌
+function craterAt(c, CR) {
+  const q = iso(CR.x + .5, CR.y + .5, 0), R = CR.r, ex = TW * .5 * R * 1.42, ey = TH * .5 * R * 1.42, p0 = INK; INK = 0;
+  for (let k = 0; k < 14; k++) { const a = k / 14 * 6.283 + H32(k + CR.x) * .4, d = 1.05 + H32(k * 7 + CR.y) * .3; E(c, q[0] + Math.cos(a) * ex * d, q[1] + Math.sin(a) * ey * d, TW * (.08 + H32(k * 3) * .08) * R / 2, TH * (.08 + H32(k * 3) * .08) * R / 2, '#9a8262'); }
+  E(c, q[0], q[1], ex, ey, '#a08868'); E(c, q[0], q[1] + ey * .06, ex * .86, ey * .84, '#6e5840'); E(c, q[0], q[1] + ey * .12, ex * .6, ey * .56, '#54422f');
+  c.beginPath(); c.ellipse(q[0], q[1], ex, ey, 0, 0, 7); c.strokeStyle = '#2b1a12'; c.lineWidth = Math.max(1.2, TW * .018); c.stroke();
+  for (let k = 0; k < Math.round(R * 4); k++) { const a = H32(k * 11 + CR.x * 5) * 6.283, d = .35 + H32(k * 13 + CR.y) * .5; E(c, q[0] + Math.cos(a) * ex * d, q[1] + Math.sin(a) * ey * d, TW * .045, TW * .028, '#8a7a6a'); }
+  INK = p0;
+}
 // 운석 자리에서 하늘로 솟는 빛 기둥 (안개 너머에서도 보임)
 function meteorBeam(c) {
   const e = evActive('meteor'); if (!e || e.dug || e.x === null || scene !== 'forest' || S.forest.grove || S.forest.road) return;
-  const q = iso(e.x + .5, e.y + .5, 0), h = TW * 3.2, w = TW * .28, a = .35 + .15 * Math.sin(tnow * 2.5);
+  const [bx, by] = mCenter(e), q = iso(bx + .5, by + .5, 0), h = TW * 3.2, w = TW * .28 * METEOR[e.size || 's'].n ** .5, a = .35 + .15 * Math.sin(tnow * 2.5);
   const g = c.createLinearGradient(0, q[1], 0, q[1] - h); g.addColorStop(0, `rgba(255,190,110,${a})`); g.addColorStop(1, 'rgba(255,190,110,0)');
   c.fillStyle = g; c.beginPath(); c.moveTo(q[0] - w * .5, q[1] - TW * .1); c.lineTo(q[0] - w, q[1] - h); c.lineTo(q[0] + w, q[1] - h); c.lineTo(q[0] + w * .5, q[1] - TW * .1); c.closePath(); c.fill();
 }
@@ -2763,11 +2819,12 @@ function genForest(day) {
     if (!it[x + ',' + y] && z && r > .996 - z * .002) it[x + ',' + y] = 'sparkle';
   }
   // 구역 사이 바위 줄과 큰 바위 (부순 곳은 길)
+  const wall = [];
   F_ZONES.slice(1).forEach((z, i) => {
     const bx = F_ZONES[i].x, wx = {}; wx[ey] = bx;
     // 큰 바위 자리에서 위아래로 한 줄씩 조금씩 휘어 감 (한 줄에 한 칸까지만 휘어 틈이 안 생김)
     for (const dir of [1, -1]) for (let y = ey + dir; y >= 0 && y < FH; y += dir) { const want = bx + Math.round((vnoise(y / 4, i * 9, R0 + 17) - .5) * 6); const prev = wx[y - dir]; wx[y] = prev + Math.max(-1, Math.min(1, want - prev)); }
-    for (let y = 0; y < FH; y++) for (let x = wx[y] - 1; x <= wx[y]; x++) { if (y === ey && x === bx - 1) continue; const r = h(x, y, 51); t[I(x, y)] = r < .62 ? 'k' : r < .86 ? 't' : 's'; delete it[x + ',' + y]; }
+    for (let y = 0; y < FH; y++) for (let x = wx[y] - 1; x <= wx[y]; x++) { wall.push(I(x, y)); if (y === ey && x === bx - 1) continue; const r = h(x, y, 51); t[I(x, y)] = r < .62 ? 'k' : r < .86 ? 't' : 's'; delete it[x + ',' + y]; }
     t[I(bx, ey)] = (S.forestOpen || {})[i + 1] ? 'g' : 'B'; t[I(bx - 1, ey)] = (S.forestOpen || {})[i + 1] ? 'g' : 'k'; t[I(bx - 2, ey)] = 'g'; t[I(bx + 1, ey)] = 'g';
     if (!(S.forestOpen || {})[i + 1]) t[I(bx - 1, ey)] = 'g';
   });
@@ -2779,7 +2836,7 @@ function genForest(day) {
   for (let z = 1; z < F_ZONES.length; z++) for (let n = 0; n < 200; n++) { const x = F_ZONES[z].x + 2 + (hi(n, z, 41) * 12 | 0), y = 2 + (hi(z, n, 42) * (FH - 4) | 0); if (t[I(x, y)] === 'g' && !it[x + ',' + y] && y !== ey) { it[x + ',' + y] = 'chest'; break; } }
   // 낡은 상자 둘: 먼 곳에
   for (let k = 0, n = 0; k < 2 && n < 400; n++) { const x = 2 + (hi(n, k, 21) * (FW - 4) | 0), y = 2 + (hi(k, n, 22) * (FH - 4) | 0); if (t[I(x, y)] === 'g' && Math.hypot(x - ex, y - ey) > 14 && !it[x + ',' + y]) { it[x + ',' + y] = 'chest'; k++; } }
-  const f = applyMem({ day, t, it, ex, ey, hx: ex - 1, hy: ey, steps: 0 }, 'main'), seen = f.seen;
+  const f = applyMem({ day, t, it, ex, ey, hx: ex - 1, hy: ey, steps: 0, wall }, 'main'), seen = f.seen;
   for (let y = vy - 1; y <= vy + 2; y++) for (let x = vx - 1; x <= ex; x++) seen[I(x, y)] = 1;   // 동굴 입구 둘레는 처음부터 보임
   for (let y = vy + 1; y <= ey; y++) seen[I(ex - 1, y)] = 1;
   return f;
@@ -2871,8 +2928,11 @@ function forestTapCell(x, y) {
     if (tt === 'q' && !S.sickle) { toast('낫 필요'); SFX.deny(); mark(x, y, '235,95,80'); return; }
     const hx = Math.round(hero.x), hy = Math.round(hero.y), act = [x, y, tt];
     if (tt !== 'w') mark(x, y, '255,220,150');
-    if (Math.abs(hx - x) + Math.abs(hy - y) === 1) { forestAct(act); return; }
-    const path = bfs(hx, hy, (a, b) => Math.abs(a - x) + Math.abs(b - y) === 1 && !fBlocked(a, b));
+    // 운석은 여러 칸이라, 어느 칸이든 옆에 서면 침 (가운데 칸을 눌러도)
+    const em = tt === 'M' ? evActive('meteor') : null, cells = em && em.x !== null ? mCells(em) : [[x, y]];
+    const nextTo = (a, b) => cells.find(([u, v]) => Math.abs(a - u) + Math.abs(b - v) === 1);
+    if (nextTo(hx, hy)) { const [u, v] = nextTo(hx, hy); forestAct([u, v, tt]); return; }
+    const path = bfs(hx, hy, (a, b) => !!nextTo(a, b) && !fBlocked(a, b));
     if (path) { hero.path = path; hero.actAt = act; follow = true; } else mark(x, y, '235,95,80');
     return;
   }
@@ -2906,7 +2966,9 @@ function gather(x, y) {
   if (carryN() >= bagCap()) { bagFullMsg(x, y, '주움'); return; }
   delete f.it[k];
   const p = iso(x + .5, y + .5, .5);
-  if (what === 'sparkle' || what === 'chest') {
+  if (what === 'debris') {
+    const o = Math.random() < .12 ? 'meteor' : DEBRIS_ORE[Math.min(3, fZone(x))][rnd(2)]; addItem(o, 1); SFX.ore(1); toast(`<span class="ore ${o}"></span>${ORES[o].name} +1`);
+  } else if (what === 'sparkle' || what === 'chest') {
     const pool = what === 'sparkle' ? SPARKLE.filter(a => a !== 'firefly' || phase >= 2) : CHEST, got = what === 'chest' && fZone(x) === 3 && Math.random() < .1 ? 'plenty' : pool[rnd(pool.length)];
     if (ACC[got]) { gainAcc(got); toast(`${accIco(got)}${ACC[got].n}`); }
     else { const n = got === 'leather' ? 2 + rnd(2) : 1; addItem(got, n); toast(`<span class="ore ${got}"></span>${ORES[got].name} +${n}`); }
@@ -2919,7 +2981,7 @@ function gather(x, y) {
 function forestArrive() {
   const f = S.forest, x = Math.round(hero.x), y = Math.round(hero.y), t = f.t[fI(x, y)];
   if (hero.breakAt) { const [bx, by] = hero.breakAt; hero.breakAt = null; if (Math.abs(bx - x) + Math.abs(by - y) === 1) breakBoulder(bx, by); return; }
-  if (hero.actAt) { const a = hero.actAt; hero.actAt = null; if (Math.abs(a[0] - x) + Math.abs(a[1] - y) === 1) forestAct(a); return; }
+  if (hero.actAt) { const a = hero.actAt; hero.actAt = null; const em = a[2] === 'M' ? evActive('meteor') : null, cells = em && em.x !== null ? mCells(em) : [[a[0], a[1]]], n = cells.find(([u, v]) => Math.abs(u - x) + Math.abs(v - y) === 1); if (n) forestAct([n[0], n[1], a[2]]); return; }
   if (hero.goal && hero.goal[0] === x && hero.goal[1] === y && t === 'o') { hero.goal = null; enterGrove(y < FH / 2 ? 'mush' : 'lake'); return; }
   if (!f.grove && f.zone !== fZone(x)) { if (f.zone !== undefined && fZone(x) > f.zone) toast(F_ZONES[fZone(x)].n); f.zone = fZone(x); renderDock(); }
   const goal = hero.goal && hero.goal[0] === x && hero.goal[1] === y; hero.goal = null;
@@ -3015,7 +3077,8 @@ function gatherAt(c, x, y, what) {
   const q = iso(x + .5, y + .55, 0), u = TW / 100, ink = Math.max(1.2, TW * .018), bob = Math.sin(tnow * 3 + x + y) * u * 2;
   c.save(); c.translate(q[0], q[1]);
   E(c, 0, u * 2, u * 16, u * 6, 'rgba(0,0,0,.18)');
-  if (what === 'herb') { blobs(c, [[-u * 7, -u * 8, u * 7], [u * 7, -u * 9, u * 7], [0, -u * 15, u * 7]], '#4fae55', ink * .8); Cc(c, u * 2, -u * 12, u * 3.2, '#e0405a'); }
+  if (what === 'debris') { const gl = .5 + .5 * Math.sin(tnow * 3 + x * 2 + y), g = c.createRadialGradient(0, -u * 8, 1, 0, -u * 8, u * 20); g.addColorStop(0, `rgba(255,160,80,${.35 * gl})`); g.addColorStop(1, 'rgba(255,160,80,0)'); Cc(c, 0, -u * 8, u * 20, g); inkPoly(c, [[-u * 12, -u * 2], [-u * 8, -u * 13], [u * 3, -u * 17], [u * 12, -u * 9], [u * 11, 0]], '#4a3e58', ink * .9); L(c, -u * 6, -u * 7, u * 1, -u * 9, '#ff9a3a', u * 2.6); L(c, u * 1, -u * 9, u * 6, -u * 13, '#ff9a3a', u * 2.6); Cc(c, u * 1, -u * 9, u * 1.6, '#fff0b0'); }
+  else if (what === 'herb') { blobs(c, [[-u * 7, -u * 8, u * 7], [u * 7, -u * 9, u * 7], [0, -u * 15, u * 7]], '#4fae55', ink * .8); Cc(c, u * 2, -u * 12, u * 3.2, '#e0405a'); }
   else if (what === 'mush') { mushAt(c, 0, 0); }
   else if (what === 'wood') { L(c, -u * 14, -u * 2, u * 12, -u * 8, OUT, u * 6); L(c, -u * 14, -u * 2, u * 12, -u * 8, '#a8703a', u * 3.6); L(c, -u * 10, -u * 8, u * 10, -u * 1, OUT, u * 5); L(c, -u * 10, -u * 8, u * 10, -u * 1, '#c08a52', u * 3); }
   else if (what === 'fiber') { for (let k = -2; k <= 2; k++) { L(c, k * u * 3, 0, k * u * 6, -u * 22, OUT, u * 3.4); L(c, k * u * 3, 0, k * u * 6, -u * 22, '#d8c46a', u * 1.8); } }
@@ -3036,6 +3099,7 @@ function drawForest(c, dt) {
       const what = f.it[x + ',' + y]; if (what) gatherAt(c, x, y, what);
     }
   }
+  if (!f.grove && !f.road) ((S.fmem || {}).main || {}).craters?.forEach(CR => craterAt(c, CR));
   // 호수: 칸마다 칠하지 않고 둥근 물방울을 겹쳐 매끄러운 물가로
   const wcs = [];
   for (let y = Math.max(0, vr.y0); y <= Math.min(FH - 1, vr.y1); y++) for (let x = Math.max(0, vr.x0); x <= Math.min(FW - 1, vr.x1); x++) if (f.t[fI(x, y)] === 'w') wcs.push(iso(x + .5, y + .5, 0));
@@ -4849,7 +4913,7 @@ window.MinerDiary = {
     return { x: W / 2, y: H / 2 };
   },
   speed: k => { hero.speed = 5.2 * k; animK = k; },
-  quietEvents: () => { evQuiet = true; }, evAdd: k => evAdd(k), events: () => (S.ev ? S.ev.list : []),
+  quietEvents: () => { evQuiet = true; }, evAdd: (k, sz) => evAdd(k, sz), events: () => (S.ev ? S.ev.list : []),
   bgm: () => bgm.mood,
   combo: () => combo.n,
   mfloats: () => mfloats.map(f => f.text),
