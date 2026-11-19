@@ -17,6 +17,7 @@ const shot = process.argv[2];
     await page.goto(url);
     await page.evaluate(() => localStorage.clear());
     await page.reload(); await page.waitForFunction(() => window.MinerDiary && window.MinerDiary.ready, null, { timeout: 15000 });
+    await page.evaluate(() => window.MinerDiary.quietEvents());   // 저절로 생기는 이벤트는 따로 시험
     await page.waitForTimeout(500);
     return page;
   }
@@ -210,7 +211,8 @@ const shot = process.argv[2];
     await page.evaluate(([x, y]) => { window.MinerDiary.setCell(x, y, 'r', 'iron'); S.carry.coal = 99; }, r);
     await tap(r[0], r[1]);
     ok((await cell(r[0], r[1])).t === 'r', '가방이 가득이면 광석을 캐지 않음');
-    ok(/가방이 가득 차 더 못 캠/.test(await page.textContent('#toast')) && (await page.evaluate(() => window.MinerDiary.mfloats())).includes('가방 가득') && await page.locator('#minebar [data-a="bag"].full').count() === 1, '가방이 가득이면 알림과 바위 위 가방 가득 글자, 가방 단추가 붉게 깜빡임');
+    { const t1 = /가방이 가득 차 더 못 캠/.test(await page.textContent('#toast')), t2 = (await page.evaluate(() => window.MinerDiary.mfloats())).includes('가방 가득'), t3 = await page.locator('#minebar [data-a="bag"].full').count() === 1;
+      ok(t1 && t2 && t3, `가방이 가득이면 알림과 바위 위 가방 가득 글자, 가방 단추가 붉게 깜빡임 (${t1} ${t2} ${t3})`); }
     // 버리기: 고르고 수량 막대로 정함
     await page.evaluate(() => showBag());
     await page.click('#sheet [data-a="dropPick"]');
@@ -399,7 +401,8 @@ const shot = process.argv[2];
     if (s.day !== dayBefore) break;
     const r = await page.evaluate(() => window.MinerDiary.nearRock());
     if (!r) break;
-    await page.evaluate(([x, y]) => { window.MinerDiary.setCell(x, y, 'r', ''); S.deep.steps = 0; }, r);   // 걸음 기력으로 쓰러지지 않게 (캐기에서 물어보는지만 봄)
+    await page.evaluate(([x, y]) => { window.MinerDiary.setCell(x, y, 'r', ''); S.deep.steps = 0;   // 걸음 기력으로 쓰러지지 않게 (캐기에서 물어보는지만 봄): 바위 바로 옆 바닥에 세움
+      const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [x + dx, y + dy]).find(([a, b]) => seenGet(a, b) && FLOORISH(mT(a, b))); if (nb) { hero.x = nb[0]; hero.y = nb[1]; hero.path = []; } }, r);
     await tap(r[0], r[1]);
     if (await page.locator('#sheet [data-a="digForce"]').count()) { guarded = true; await page.click('#sheet [data-a="digForce"]'); }
   }
@@ -413,6 +416,7 @@ const shot = process.argv[2];
 
   // 12. 저장
   await page.reload(); await page.waitForFunction(() => window.MinerDiary && window.MinerDiary.ready, null, { timeout: 15000 }); await page.waitForTimeout(400);
+  await page.evaluate(() => window.MinerDiary.quietEvents());
   ok((await st()).day === s.day, '새로고침 후에도 날짜 유지');
 
   // 13. 곡괭이 강화: 망치질 세 번, 품질
@@ -605,13 +609,13 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="sword"]');
   ok((await st()).sword === 1 && !P(await st(), 'copperBar'), '대장간에서 구리 주괴로 구리 검');
   await page.click('#sheet [data-a="close"]');
-  await visit('gate', '#sheet [data-a="hunt"]');
-  ok(await page.locator('#sheet [data-a="hunt"]').isDisabled() === (await page.evaluate(() => phaseIndex())) < 1, '성벽 문은 점심부터 열림');
+  await visit('gate', '#sheet [data-a="stage"][data-n="0"]');
+  ok(await page.locator('#sheet [data-a="stage"][data-n="0"]').isDisabled() === (await page.evaluate(() => phaseIndex())) < 1 && await page.locator('#sheet [data-a="stage"][data-n="1"]').isDisabled(), '성벽 문은 점심부터 열리고, 토벌 2단계는 1단계를 깨야 열림');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { S.minE = S.dayStart - S.max * .35; renderHud(); });
-  await visit('gate', '#sheet [data-a="hunt"]:not([disabled])');
-  await page.click('#sheet [data-a="hunt"]');
-  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'hunt' && (await page.evaluate(() => window.MinerDiary.mons())).length >= 3, '성벽 문으로 나가면 몬스터가 있는 성 밖');
+  await visit('gate', '#sheet [data-a="stage"][data-n="0"]:not([disabled])');
+  await page.click('#sheet [data-a="stage"][data-n="0"]');
+  ok(await page.evaluate(() => window.MinerDiary.scene()) === 'hunt' && (await page.evaluate(() => window.MinerDiary.mons())).length === 3, '토벌 1단계: 성 밖 들판에 멧돼지 셋');
   if (shot) await page.screenshot({ path: path.join(shot, 'hunt.png') });
   await page.waitForFunction(() => window.MinerDiary.bgm() === 'hunt', null, { timeout: 5000 });
   ok(true, '성 밖에선 배경음이 사냥 곡으로 바뀜');
@@ -625,6 +629,19 @@ const shot = process.argv[2];
   }
   s = await st();
   ok(s.killN === 3 && (s.carry.meat || 0) + (s.carry.bone || 0) >= 1 && s.energy < e0 && (await quest()).includes('깊이 10') === false, `몬스터를 누르면 다가가 휘둘러 셋을 잡고 고기를 얻고 기력이 듦 (${e0}→${s.energy})`);
+  await page.waitForSelector('#sheet [data-a="leaveHunt"]', { timeout: 5000 }); s = await st();
+  ok((await page.textContent('#sheet')).includes('1단계') && s.huntClear.home[0] === 1 && (s.carry.leather || 0) >= 2, '다 잡으면 「들판 1단계 토벌」, 처음 보상(가죽 둘)');
+  await page.click('#sheet [data-a="stage"][data-n="1"]');
+  ok(await page.evaluate(() => window.MinerDiary.scene() === 'hunt' && S.hunt.stage === 1 && S.hunt.mons.some(m => m.kind === 'wolf')), '다음 단계 단추로 2단계 (늑대가 섞임)');
+  // 돌진과 빛 구슬, 왕 멧돼지의 부름
+  const beh = await page.evaluate(async () => {
+    const H = S.hunt, b = H.mons.find(m => m.kind === 'boar'); H.mons.forEach(m => { if (m !== b) m.hp = 0; }); b.hp = 99; b.x = hero.x + 3; b.y = hero.y; b.cd2 = 0; b.st = 'walk';
+    const seen = new Set(); for (let i = 0; i < 120; i++) { huntTick(.02); seen.add(b.st); } b.hp = 0;
+    H.won = true; H.mons.push(newMon(H.nid++, 'spirit', hero.x + 4, hero.y)); const sp = H.mons[H.mons.length - 1]; sp.cd2 = 0; huntTick(.02); const shot = H.shots.length > 0; sp.hp = 0; H.shots = [];
+    const k = newMon(H.nid++, 'king', hero.x + 5, hero.y - 2); k.sum = 0; k.cd2 = 9; H.mons.push(k); const n0 = H.mons.length; huntTick(.02); const called = H.mons.length > n0; H.mons.forEach(m => { m.hp = 0; });
+    return { wind: seen.has('wind'), dash: seen.has('dash'), shot, called };
+  });
+  ok(beh.wind && beh.dash && beh.shot && beh.called, '멧돼지는 멈칫했다가 돌진, 정령은 빛 구슬을 쏨, 왕 멧돼지는 멧돼지를 부름');
   await page.click('#minebar [data-a="leave"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 15000 });
   s = await st();
@@ -840,6 +857,62 @@ const shot = process.argv[2];
   ok(await page.evaluate(() => follow && !bubble), '스페이스바로 광부에게 돌아옴');
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '가로 스크롤 없음');
   await page.close();
+
+  /* ===== 돌발 이벤트: 처음 운석은 3일차 아침에 촌장이 알림, 숲에서 캐면 운석 조각. 시세 폭등은 하루 전에 알리고 다음 날부터 시장 값 두 배 ===== */
+  {
+    const ev = await open(390, 844);
+    await ev.evaluate(() => { evQuiet = false; closeSheet(); S.introSeen = true; S.day = 2; window.MinerDiary.speed(10); sleep(false); });
+    ok((await ev.textContent('#sheet')).includes('별똥별') && await ev.evaluate(() => window.MinerDiary.events().some(e => e.k === 'meteor' && e.from === S.day)), '3일차 아침 촌장이 숲에 떨어진 별똥별을 알림 (첫 운석은 정한 날)');
+    ok(await ev.locator('#hud .evdot').count() === 1, '소식이 있으면 날짜 단추에 점');
+    await ev.evaluate(() => closeSheet()); await ev.click('#hud [data-a="news"]');
+    ok((await ev.textContent('#sheet')).includes('운석'), '날짜 단추를 누르면 소식 창에 운석');
+    const mp = await ev.evaluate(() => { closeSheet(); enterForest(); const e = window.MinerDiary.events().find(o => o.k === 'meteor'); for (let i = 0; i < S.forest.seen.length; i++) S.forest.seen[i] = 1; return S.forest.t[fI(e.x, e.y)] === 'M' ? [e.x, e.y] : null; });
+    ok(!!mp, '숲 열린 구역 풀밭에 운석이 떨어져 있음');
+    { const p = await ev.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), mp); await ev.mouse.click(p.x, p.y); await ev.waitForTimeout(80); await ev.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 30000 }); await ev.waitForTimeout(100); }
+    ok(await ev.evaluate(([x, y]) => S.carry.meteor >= 2 && S.forest.t[fI(x, y)] === 'g' && window.MinerDiary.events().find(o => o.k === 'meteor').dug, mp), '운석을 누르면 걸어가 캐서 운석 조각 둘 이상');
+    const bo = await ev.evaluate(() => { leaveForest(); S.restored.push('market'); S.ev.list = []; window.MinerDiary.quietEvents(); window.MinerDiary.evAdd('boom'); return window.MinerDiary.events().find(o => o.k === 'boom'); });
+    ok(bo && bo.from === bo.warn + 1 && bo.to === bo.from + 2 && await ev.evaluate(o => boomK(o) === 1, bo.ore), '시세 폭등은 알린 다음 날부터 사흘');
+    await ev.evaluate(() => { closeSheet(); sleep(false); closeSheet(); if (!S.market) rollMarket(true); S.market.sold = {}; });
+    ok(await ev.evaluate(o => boomK(o) === 2 && unitPrice(o) === Math.round(ORES[o].price * S.market.mult[o] * 2), bo.ore), '다음 날 시장에서 그 광석 값이 두 배');
+    await ev.evaluate(o => { S.carry[o] = 1; showMarket(); }, bo.ore);
+    ok((await ev.textContent('#sheet')).includes('값 두 배'), '시장 창에 「값 두 배」 소식');
+    // 몬스터 습격: 모레 저녁이라고 알리고, 그날 저녁 성벽 문에서 두 무리를 막으면 보상. 못 막으면 건물 하나가 부서지고 고쳐야 씀
+    const evening = () => ev.evaluate(() => { S.minE = S.dayStart - S.max * .62; renderHud(); });
+    await ev.evaluate(() => { closeSheet(); OBJ.forEach(o => { if (['gate', 'smithy', 'market', 'kitchen'].includes(o.id)) { o.done = true; o.grow = 1; if (!S.restored.includes(o.id)) S.restored.push(o.id); } }); S.huntClear = { home: { 0: 1 } }; S.ev.list = []; window.MinerDiary.evAdd('raid'); });
+    let rd = await ev.evaluate(() => window.MinerDiary.events().find(o => o.k === 'raid'));
+    ok(rd && rd.from === rd.warn + 2, '습격은 이틀 뒤 저녁 (미리 알림)');
+    await ev.evaluate(() => { sleep(false); }); await ev.evaluate(() => { closeSheet(); sleep(false); });
+    ok((await ev.textContent('#sheet')).includes('오늘 저녁에 몬스터'), '습격 날 아침에 촌장이 다시 알림');
+    await ev.evaluate(() => closeSheet()); await evening();
+    await ev.evaluate(() => showCard(OBJ.find(o => o.id === 'gate')));
+    await ev.click('#sheet [data-a="raid"]');
+    ok(await ev.evaluate(() => S.hunt && S.hunt.raid && S.hunt.mons.length === 3), '저녁에 성벽 문 「막기」로 습격 싸움 (첫 무리 셋)');
+    await ev.evaluate(() => { S.hunt.mons.forEach(m => { m.hp = 0; }); });
+    await ev.waitForFunction(() => S.hunt && S.hunt.wave === 1 && S.hunt.mons.some(m => m.hp > 0), null, { timeout: 5000 });
+    await ev.evaluate(() => { S.hunt.mons.forEach(m => { m.hp = 0; }); });
+    await ev.waitForSelector('#sheet [data-a="leaveHunt"]', { timeout: 5000 });
+    ok((await ev.textContent('#sheet')).includes('습격을 막음') && await ev.evaluate(() => window.MinerDiary.events().find(o => o.k === 'raid').won), '둘째 무리까지 잡으면 「습격을 막음」');
+    await ev.click('#sheet [data-a="leaveHunt"]');
+    await ev.evaluate(() => { S.ev.list = []; window.MinerDiary.evAdd('raid'); sleep(false); closeSheet(); sleep(false); closeSheet(); sleep(false); });
+    ok((await ev.textContent('#sheet')).includes('부서진 곳') && await ev.evaluate(() => Object.keys(S.damaged || {}).length === 1), '못 막고 날이 지나면 건물 하나가 부서짐');
+    const dmg = await ev.evaluate(() => { closeSheet(); const id = Object.keys(S.damaged)[0]; S.gold += 300; S.carry.wood = 10; showCard(OBJ.find(o => o.id === id)); return id; });
+    ok((await ev.textContent('#sheet')).includes('부서진'), '부서진 건물을 누르면 고치기 창');
+    await ev.click('#sheet [data-a="fix"]');
+    ok(await ev.evaluate(id => !S.damaged[id], dmg), '🪙200과 나뭇가지 10으로 고침');
+    await ev.close();
+  }
+
+  /* ===== 숲 몬스터: 초입엔 없고, 깊은 숲은 밤에만, 오래된 숲부터는 늘 나옴. 눌러서 잡음 ===== */
+  {
+    const fp = await open(390, 844);
+    const r1 = await fp.evaluate(() => { closeSheet(); S.introSeen = true; S.sword = 2; window.MinerDiary.speed(10); S.forestOpen = { 1: 1 }; enterForest(); const day = S.forest.mons.length; leaveForest(); S.forestOpen = { 1: 1, 2: 1 }; enterForest(); const f = S.forest; return { day, n: f.mons.length, deep: f.mons.every(m => m.x < F_ZONES[1].x) }; });
+    ok(r1.day === 0 && r1.n >= 3 && r1.deep, '숲 초입과 낮의 깊은 숲엔 몬스터가 없고, 오래된 숲엔 늑대가 있음');
+    const wp = await fp.evaluate(() => { const f = S.forest, m = f.mons[0]; f.mons.forEach(o => { if (o !== m) o.hp = 0; }); const hx = Math.round(hero.x), hy = Math.round(hero.y); for (let i = 0; i < f.seen.length; i++) f.seen[i] = 1; for (let y = hy - 3; y <= hy; y++) for (let x = hx - 3; x <= hx; x++) if (fIn(x, y) && f.t[fI(x, y)] !== 'x') f.t[fI(x, y)] = 'g'; m.x = m.wx = hx - 2; m.y = m.wy = hy - 2; m.cd2 = 99; return [m.x, m.y, m.id]; });
+    { const p = await fp.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), wp); await fp.mouse.click(p.x, p.y); }
+    await fp.waitForFunction(id => S.forest.mons.find(o => o.id === id).hp <= 0, wp[2], { timeout: 15000 });
+    ok(await fp.evaluate(() => (S.killN || 0) >= 1 && window.MinerDiary.scene() === 'forest'), '숲 몬스터를 누르면 다가가 휘둘러 잡음');
+    await fp.close();
+  }
 
   /* ===== 좁은 길: 바닥을 가리는 바위는 반투명, 그 위쪽(비쳐 보이는 바닥)을 누르면 캐지 않고 걸어감 ===== */
   {
