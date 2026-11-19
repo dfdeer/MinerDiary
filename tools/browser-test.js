@@ -300,7 +300,7 @@ const shot = process.argv[2];
   await page.evaluate(() => { S.sharp = 0; });
   // 10-2c. 곁가지 숲: 버섯 골짜기(가시덤불은 낫으로), 호숫가 숲(낚시)
   ok(await page.evaluate(() => [window.MinerDiary.fcell(40, 2), window.MinerDiary.fcell(40, 3), window.MinerDiary.fcell(24, FH - 3)].join('')) === 'oqo', '깊은 숲 위에 버섯 골짜기 입구(가시덤불), 오래된 숲 아래에 호숫가 숲 입구');
-  await page.evaluate(() => { for (let y = 1; y <= S.forest.ey; y++) for (let x = 39; x <= 41; x++) S.forest.seen[fI(x, y)] = 1; });
+  await page.evaluate(() => { S.forest.mons = []; for (let y = 1; y <= S.forest.ey; y++) for (let x = 39; x <= 41; x++) S.forest.seen[fI(x, y)] = 1; });   // 밤이면 깊은 숲 늑대가 끼어드니 이 시험에선 치움
   const ftap = async (x, y) => { const p = await page.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), [x, y]); await page.mouse.click(p.x, p.y); await page.waitForTimeout(80); await page.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 20000 }); await page.waitForTimeout(100); };
   await ftap(40, 3);
   ok(await page.evaluate(() => window.MinerDiary.fcell(40, 3)) === 'q' && (await page.textContent('#toast')).includes('낫 필요'), '낫이 없으면 가시덤불을 못 침');
