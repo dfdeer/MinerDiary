@@ -868,15 +868,15 @@ const shot = process.argv[2];
     ok((await ev.textContent('#sheet')).includes('운석'), '날짜 단추를 누르면 소식 창에 운석');
     const mp = await ev.evaluate(() => { closeSheet(); enterForest(); const e = window.MinerDiary.events().find(o => o.k === 'meteor'); for (let i = 0; i < S.forest.seen.length; i++) S.forest.seen[i] = 1; return S.forest.t[fI(e.x, e.y)] === 'M' ? [e.x, e.y] : null; });
     ok(!!mp, '숲 열린 구역 풀밭에 운석이 떨어져 있음');
-    const big = await ev.evaluate(([x, y]) => { const e = window.MinerDiary.events().find(o => o.k === 'meteor'), m = S.fmem.main; S.energy = S.max; return { size: e.size, crater: (m.craters || []).length, debris: Object.values(S.forest.it).filter(v => v === 'debris').length, open: ['t', 's', 'k'].every(t => S.forest.t[fI(x + 1, y)] !== t) }; }, mp);
-    ok(big.size === 'b' && big.crater === 1 && big.debris >= 8 && big.open, `첫 운석은 큰 운석: 둘레가 패어 구덩이, 잔해 ${big.debris}개`);
+    const big = await ev.evaluate(([x, y]) => { const e = window.MinerDiary.events().find(o => o.k === 'meteor'), m = S.fmem.main; S.energy = S.max; return { cells: S.forest.t.filter(t => t === 'M').length, size: e.size, crater: (m.craters || []).length, debris: Object.values(S.forest.it).filter(v => v === 'debris').length, open: ['t', 's', 'k'].every(t => S.forest.t[fI(x + 1, y)] !== t) }; }, mp);
+    ok(big.size === 'b' && big.cells === 9 && big.crater === 1 && big.debris >= 8, `첫 운석은 3×3 칸 큰 운석: 둘레가 패어 구덩이, 잔해 ${big.debris}개`);
     const hits = [];
     for (let k = 0; k < 9; k++) {
       const p = await ev.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), mp); await ev.mouse.click(p.x, p.y); await ev.waitForTimeout(80); await ev.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 30000 }); await ev.waitForTimeout(60);
       hits.push(await ev.evaluate(() => window.MinerDiary.events().find(o => o.k === 'meteor').hp));
       if (hits[hits.length - 1] === 0) break;
     }
-    ok(hits.join() === '6,5,4,3,2,1,0' && await ev.evaluate(([x, y]) => S.carry.meteor === 8 && S.forest.t[fI(x, y)] === 'g' && window.MinerDiary.events().find(o => o.k === 'meteor').dug, mp), `큰 운석은 일곱 번 쳐서 깸, 칠 때마다 조각 하나와 마지막에 하나 더 (${hits.join()})`);
+    ok(hits.join() === '6,5,4,3,2,1,0' && await ev.evaluate(([x, y]) => S.carry.meteor === 8 && !S.forest.t.includes('M') && window.MinerDiary.events().find(o => o.k === 'meteor').dug, mp), `큰 운석은 일곱 번 쳐서 깸, 칠 때마다 조각 하나와 마지막에 하나 더 (${hits.join()})`);
     const db = await ev.evaluate(() => { const k = Object.keys(S.forest.it).find(k2 => S.forest.it[k2] === 'debris'); const [x, y] = k.split(',').map(Number); const n0 = carryN(); gather(x, y); return carryN() === n0 + 1 && !S.forest.it[k]; });
     ok(db, '운석 잔해를 주우면 광석 하나');
     ok(await ev.evaluate(() => { const g = genForest(S.day + 1); return (S.fmem.main.craters || []).length === 1 && Object.values(g.it).some(v => v === 'debris'); }), '구덩이와 남은 잔해는 다음 날에도 그대로');
