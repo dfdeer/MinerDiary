@@ -211,7 +211,8 @@ const shot = process.argv[2];
     await page.evaluate(([x, y]) => { window.MinerDiary.setCell(x, y, 'r', 'iron'); S.carry.coal = 99; }, r);
     await tap(r[0], r[1]);
     ok((await cell(r[0], r[1])).t === 'r', '가방이 가득이면 광석을 캐지 않음');
-    ok(/가방이 가득 차 더 못 캠/.test(await page.textContent('#toast')) && (await page.evaluate(() => window.MinerDiary.mfloats())).includes('가방 가득') && await page.locator('#minebar [data-a="bag"].full').count() === 1, '가방이 가득이면 알림과 바위 위 가방 가득 글자, 가방 단추가 붉게 깜빡임');
+    { const t1 = /가방이 가득 차 더 못 캠/.test(await page.textContent('#toast')), t2 = (await page.evaluate(() => window.MinerDiary.mfloats())).includes('가방 가득'), t3 = await page.locator('#minebar [data-a="bag"].full').count() === 1;
+      ok(t1 && t2 && t3, `가방이 가득이면 알림과 바위 위 가방 가득 글자, 가방 단추가 붉게 깜빡임 (${t1} ${t2} ${t3})`); }
     // 버리기: 고르고 수량 막대로 정함
     await page.evaluate(() => showBag());
     await page.click('#sheet [data-a="dropPick"]');
