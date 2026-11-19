@@ -1723,8 +1723,8 @@ function heroZ() {
 function bfs(sx, sy, goal) {
   const mine = scene === 'mine', forest = scene === 'forest', hunt = scene === 'hunt', town = scene === 'town';
   const key = (x, y) => x + ',' + y, prev = new Map([[key(sx, sy), null]]), q = [[sx, sy]];
-  // 땅속은 끝이 없으므로 찾는 범위를 묶음 (못 본 곳을 지나갈 수 있다고 보기 때문)
-  const lim = mine ? 9000 : 1e9, far = mine ? 70 : 1e9;
+  // 땅속 길은 본 바닥으로만 찾으니(본 곳은 끝이 있음) 거리로 묶지 않음. 아주 오래 놀아 본 곳이 많아져도 멈추지 않게 칸 수만 넉넉히 묶음
+  const lim = mine ? 200000 : 1e9, far = 1e9;
   for (let qi = 0; qi < q.length && prev.size < lim; qi++) {
     const [x, y] = q[qi];
     if (goal(x, y)) { const out = []; let k = key(x, y); while (k) { const [a, b] = k.split(',').map(Number); out.unshift([a, b]); k = prev.get(k); } return out.slice(1); }
@@ -2294,7 +2294,7 @@ function burst(x, y, c1, c2, n) { for (let k = 0; k < n; k++) { const a = Math.r
 function pitchTent() {
   if (scene !== 'mine' || !(S.items.tent > 0)) return;
   const x = Math.round(hero.x), y = Math.round(hero.y), D = S.deep;
-  if (mT(x, y) !== 'f') { toast('여기는 못 침'); return; }
+  if (mT(x, y) !== 'f' || D.L === 0) { toast('여기는 못 침'); return; }   // 숲 동굴은 사흘마다 다시 채워져 길이 막히므로 야영 안 됨
   S.items.tent--; D.dug[dKey(D.L, x, y)] = 'c'; D.camps.push([D.L, x, y]); D.lastCamp = [D.L, x, y];
   SFX.stairs(); hideSheet(); toast(`${ico('ic_tent')}야영지`); save(); renderDock();
 }
