@@ -632,6 +632,7 @@ const ICONS = {
   ic_rail: [['M7 3 4.6 21M17 3l2.4 18', 'none', 2, '#5a5f68'], ['M5.6 7h12.8M5.2 11h13.6M4.8 15h14.4M4.4 19h15.2', 'none', 2.2, '#8a5a32']],
   ic_quest: [['M12 2.4a8.6 8.6 0 1 0 .01 0Z', '#f0b64f', 1.6, '#7a4f12'], ['M10.6 6h2.8l-.5 7.6h-1.8Z', '#2b1d0c', 0], ['M12 15.4a1.6 1.6 0 1 0 .01 0Z', '#2b1d0c', 0], ['M9.4 19.6 12 23l2.6-3.4Z', '#f0b64f', 1.2, '#7a4f12']],
   ic_go: [['M8.5 4.5 16 12l-7.5 7.5', 'none', 3, '#f0b64f']],
+  ic_homefast: [['M4 12.5h11v8H4Z', '#e8c99a'], ['M2 13.1 9.5 6.5l7.5 6.6Z', '#d4473a'], ['M8 15.5h3v5H8Z', '#8a5a32'], ['M18.6 2.2 15 10h3l-2 6.8 5.6-8.8h-3.2l2-5.8Z', '#f2c230']],
   ic_tap: [['M9 21c-2-2-4-5-4-7.4 0-1.2 1-1.8 1.9-1.1L9 14V4.6a1.4 1.4 0 0 1 2.8 0V11l.2-.1V9.6a1.4 1.4 0 0 1 2.8 0v1.6a1.4 1.4 0 0 1 2.6.6v.8a1.4 1.4 0 0 1 2.6.7V16c0 2.4-1 4-2 5Z', '#f6ecdd', 1.4, '#2b1a12'], ['M7 3.6 5.4 2M13.6 3.6 15.2 2M10.4 2.4V.6', 'none', 1.4, '#ffe27a']],
   ic_skip: [['M4 5.5 12 12 4 18.5Z', '#f6ecdd'], ['M12 5.5l8 6.5-8 6.5Z', '#f6ecdd']],
   ic_map: [['M3 6.5 8.6 4l6.8 2.6L21 4v13.5l-5.6 2.5-6.8-2.6L3 20Z', '#e8dcc0'], ['M8.6 4v13.4M15.4 6.6V20', 'none', 1.2, '#2b1a12'], ['M5.6 14c2-1 3.6-.6 5 .4s3.2 1.4 5.2.2', 'none', 1.3, '#d4473a'], ['M17.6 9.4l1.4 1.4M19 9.4l-1.4 1.4', 'none', 1.3, '#d4473a']],
@@ -2087,6 +2088,54 @@ function goExit() {
   const up = nearest(upsHere()); if (!up) { toast('길 모름'); return; }
   S.exiting = true; walkTo(up[0], up[1], () => ascendAt(up[0], up[1]));
 }
+/* ===== 집으로 바로 가기 (기획 62번): 마을 들머리까지 가장 짧은 길로 걸었을 때 드는 걸음 기력만큼 쓰고 집 앞으로 =====
+   땅속은 층마다 위로 가는 사다리까지(맨 위는 입구), 숲 동굴은 숲 들머리까지 더함. 곁가지 숲과 첫 길은 본 숲 들머리까지 더함. 마을 안 걸음은 기력이 안 듦 */
+function stepsOn(sc, sx, sy, goal) { const s0 = scene; scene = sc; try { const p = bfs(sx, sy, goal); return p ? p.length : null; } finally { scene = s0; } }
+function homeCost() {
+  const hx = Math.round(hero.x), hy = Math.round(hero.y);
+  if (scene === 'mine' && S.mine) {
+    if (S.deep.town) return null;
+    const D = S.deep, L0 = D.L, spe = stepsPerEnergy(); let x = hx, y = hy, n = 0;
+    try {
+      for (let L = L0; L >= Math.min(L0, 1); L--) {
+        D.L = L; const ups = L <= 1 ? [[0, 0]] : (D.ups[L] || []);
+        const p = bfs(x, y, (a, b) => ups.some(([u, v]) => u === a && v === b)); if (!p) return null;
+        n += p.length; if (p.length) [x, y] = p[p.length - 1];
+      }
+    } finally { D.L = L0; }
+    let e = Math.floor(((D.steps || 0) % spe + n) / spe);
+    if (L0 === 0 && S.forest) { const f = S.forest, m = stepsOn('forest', f.ex - 5, f.ey - 3, (a, b) => a === f.ex && b === f.ey); if (m === null) return null; if (!accEff('forestFree')) e += Math.floor(m / F_STEP); }
+    return e;
+  }
+  if (scene === 'forest') {
+    const f = S.forest; let n = stepsOn('forest', hx, hy, (a, b) => a === f.ex && b === f.ey); if (n === null) return null;
+    if (S.forestMain && f.grove) { const m = S.forestMain; S.forest = m; try { const n2 = stepsOn('forest', m.hx, m.hy, (a, b) => a === m.ex && b === m.ey); if (n2 === null) return null; n += n2; } finally { S.forest = f; } }
+    return accEff('forestFree') ? 0 : Math.floor(((f.steps || 0) % F_STEP + n) / F_STEP);
+  }
+  if (scene === 'hunt' && S.hunt) { const H = S.hunt, n = stepsOn('hunt', hx, hy, (a, b) => a === H.ex && b === H.ey); return n === null ? null : Math.floor(((H.steps || 0) % 8 + n) / 8); }
+  return null;
+}
+function showHomeFast() {
+  const c = homeCost();
+  if (c === null) { toast('길 모름'); SFX.deny(); return; }
+  openSheet(ico('ic_homefast') + '집으로', '', `<button class="btn primary" data-a="homeFast" ${S.energy > c ? '' : 'disabled'}>${PWR}${c}</button>`);
+}
+function homeFast() {
+  const c = homeCost(); if (c === null || S.energy <= c) return;
+  if (c && !spend(c)) return;
+  hideSheet(); SFX.stairs(); hero.path = []; hero.atk = null; strikeQ = null;
+  trip = { dest: 'home', house: true, mode: 'walk', t: 0, dur: 2 };
+  const sk = document.getElementById('skip'); sk.innerHTML = `${ico('ic_skip')}<small>건너뛰기</small>`; sk.hidden = false;
+  renderHud(); renderDock();
+}
+// 바로 가기 끝: 지금 있는 곳을 정리하고 집 앞에서
+function arriveHouse() {
+  if (scene === 'mine') { toVillage('home'); return; }
+  if (S.forestMain) { S.forest = S.forestMain; S.forestMain = null; }
+  S.hunt = null; S.loc = 'home'; S.screen = 'village'; scene = 'village'; FLAT = false;
+  hero.x = HOME[0]; hero.y = HOME[1]; hero.path = []; hero.goal = null; hero.atk = null; selected = null; cam.to = null; cam.s = 1; follow = true; snapCam();
+  save(); renderHud(); renderDock();
+}
 function walkTo(x, y, done) {
   const path = bfs(Math.round(hero.x), Math.round(hero.y), (a, b) => a === x && b === y);
   hero.dig = null; hero.goal = [x, y]; follow = true;
@@ -3437,8 +3486,8 @@ function travel(dest) {
 /* ===== 이동 장면 (기획 51번): 바로 가기 때 2~3초. 걷기, 손수레, 당나귀 수레, 열차가 다르게 보임. 화면을 누르면 바로 도착 ===== */
 let trip = null;
 function endTrip() {
-  if (!trip) return; const d = trip.dest; trip = null; fade = 1.2; document.getElementById('skip').hidden = true;
-  if (d === 'home') homeFromTown(); else enterTown(d, 'road');
+  if (!trip) return; const d = trip.dest, house = trip.house; trip = null; fade = 1.2; document.getElementById('skip').hidden = true;
+  if (house) arriveHouse(); else if (d === 'home') homeFromTown(); else enterTown(d, 'road');
 }
 const TRIP_SKY = { home: ['#9fd0f0', '#d8ecc8', '#7fb05a'], mtn: ['#b8cce0', '#eef3f8', '#dfe8f0'], volcano: ['#6a4a52', '#c8806a', '#7a6a62'], port: ['#8cc8ec', '#e8f4fa', '#ecdcae'] };
 function drawTrip(c, dt) {
@@ -3473,7 +3522,7 @@ function drawTrip(c, dt) {
   }
   hero.fx = pFx; hero.back = pBack; hero.path = pPath;
   // 위쪽 이름과 진행 막대
-  const name = trip.dest === 'home' ? '마을' : TOWNS[trip.dest].n;
+  const name = trip.house ? '집' : trip.dest === 'home' ? '마을' : TOWNS[trip.dest].n;
   label(c, '이동 중', W / 2, hudH() + 64 * z, Math.max(15, 20 * z), '#ffe27a', 'rgba(20,14,9,.8)');
   label(c, name, W / 2, hudH() + 112 * z, Math.max(12, 14 * z), '#f6ecdd', 'rgba(20,14,9,.65)');
   R(c, W * .25, hudH() + 86 * z, W * .5, 6 * z, 'rgba(0,0,0,.25)'); R(c, W * .25, hudH() + 86 * z, W * .5 * trip.t / trip.dur, 6 * z, '#ffd27a');
@@ -3999,10 +4048,11 @@ function renderDock() {
   dock.hidden = mine || !sheet.hidden || !!trip;
   if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
   const bagBtn = `<button class="btn small${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
-  if (scene === 'town') minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button><b>${ico('ic_village')}${(townHere() || TOWNS.mtn).n}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
-  else if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_sword')}${S.hunt && S.hunt.raid ? '습격 막기' : S.hunt && S.hunt.stage !== undefined ? `${stageOf().n} ${S.hunt.stage + 1}단계` : '성 밖'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
-  else if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button><b>${ico('ic_tree')}${fPlace(Math.round(hero.x))}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
-  else if (mine && S.mine) minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button><b>${S.deep.L ? `${S.deep.town ? TOWNS[S.deep.town].mine + ' ' : ''}${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small>` : '숲 동굴'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  const fastBtn = `<button class="btn small" data-a="homeFastAsk" aria-label="집으로">${ico('ic_homefast')}</button>`;
+  if (scene === 'town') { minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button><b>${ico('ic_village')}${(townHere() || TOWNS.mtn).n}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`; }
+  else if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button>${fastBtn}<b>${ico('ic_sword')}${S.hunt && S.hunt.raid ? '습격 막기' : S.hunt && S.hunt.stage !== undefined ? `${stageOf().n} ${S.hunt.stage + 1}단계` : '성 밖'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  else if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button>${fastBtn}<b>${ico('ic_tree')}${fPlace(Math.round(hero.x))}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  else if (mine && S.mine) minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button>${S.deep.town ? '' : fastBtn}<b>${S.deep.L ? `${S.deep.town ? TOWNS[S.deep.town].mine + ' ' : ''}${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small>` : '숲 동굴'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
 }
 let sheetClosable = true;
 function openSheet(title, body, btns, closable = true) {
@@ -4566,6 +4616,8 @@ document.addEventListener('click', e => {
   else if (a === 'bag') showBag();
   else if (a === 'stats') showStats();
   else if (a === 'menu') showMenu();
+  else if (a === 'homeFastAsk') showHomeFast();
+  else if (a === 'homeFast') homeFast();
   else if (a === 'news') showNews();
   else if (a === 'quest') { const q = questNow(); if (!S.qTap) { S.qTap = 1; save(); renderHud(); }
     if (q && scene !== 'village') { const o = OBJ.find(v => v.id === q.target); toast(`${ico('ic_quest')}${o ? o.name : q.text}`); }   // 밖에선 어디로 가야 하는지 이름만

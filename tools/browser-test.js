@@ -914,6 +914,32 @@ const shot = process.argv[2];
     await fp.close();
   }
 
+  /* ===== 집으로 바로 가기: 땅속(두 층)과 숲에서, 가장 짧은 길로 마을 들머리까지 걸을 때 드는 기력만큼 쓰고 집 앞으로 ===== */
+  {
+    const hp = await open(390, 844);
+    await hp.evaluate(() => { closeSheet(); S.introSeen = true; S.restored.push('mine'); applyRestored(); window.MinerDiary.speed(10); enterMine(); });
+    await hp.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 15000 });
+    const c1 = await hp.evaluate(() => {   // 깊이 1에서 오른쪽으로 긴 굴을 판 뒤 깊이 2로 내려가 그 아래로 더 감
+      for (let x = 0; x <= 30; x++) { S.deep.dug[dKey(1, x, 1)] = 'f'; seenSet(x, 1); }
+      S.deep.dug[dKey(1, 30, 1)] = 'd'; hero.x = 30; hero.y = 1; descendAt(30, 1);
+      for (let y = 2; y <= 12; y++) { S.deep.dug[dKey(2, 30, y)] = 'f'; seenSet(30, y); }
+      hero.x = 30; hero.y = 12; hero.path = []; S.deep.steps = 0; renderDock();
+      return homeCost();
+    });
+    ok(c1 === Math.floor((11 + 30 + 1) / 8), `땅속 두 층에서 집까지 바로 가기 기력은 길 걸음 기력 (${c1})`);
+    await hp.click('#minebar [data-a="homeFastAsk"]');
+    const e0 = await hp.evaluate(() => S.energy);
+    await hp.click('#sheet [data-a="homeFast"]');
+    ok(await hp.locator('#skip').isVisible(), '바로 가기는 이동 장면');
+    await hp.click('#skip');
+    ok(await hp.evaluate(([e0, c]) => window.MinerDiary.scene() === 'village' && Math.round(hero.x) === HOME[0] && Math.round(hero.y) === HOME[1] && S.energy === e0 - c, [e0, c1]), '건너뛰면 집 앞, 기력은 그만큼만 듦');
+    const c2 = await hp.evaluate(() => { enterForest(); const f = S.forest; hero.x = f.ex - 12; hero.y = f.ey; f.t[fI(hero.x, hero.y)] = 'g'; for (let x = f.ex - 12; x <= f.ex; x++) f.t[fI(x, f.ey)] = f.t[fI(x, f.ey)] === 'x' ? 'x' : 'g'; f.steps = 0; renderDock(); return homeCost(); });
+    ok(c2 === Math.floor(12 / 5), `숲에서도 바로 가기 기력은 숲 걸음 기력 (${c2})`);
+    await hp.click('#minebar [data-a="homeFastAsk"]'); await hp.click('#sheet [data-a="homeFast"]'); await hp.click('#skip');
+    ok(await hp.evaluate(() => window.MinerDiary.scene() === 'village' && Math.round(hero.x) === HOME[0]), '숲에서도 집 앞으로');
+    await hp.close();
+  }
+
   /* ===== 좁은 길: 바닥을 가리는 바위는 반투명, 그 위쪽(비쳐 보이는 바닥)을 누르면 캐지 않고 걸어감 ===== */
   {
     const cp = await open(390, 844);
