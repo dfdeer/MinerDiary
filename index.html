@@ -714,7 +714,6 @@ const ICONS = {
   ic_rail: [['M7 3 4.6 21M17 3l2.4 18', 'none', 2, '#5a5f68'], ['M5.6 7h12.8M5.2 11h13.6M4.8 15h14.4M4.4 19h15.2', 'none', 2.2, '#8a5a32']],
   ic_quest: [['M12 2.4a8.6 8.6 0 1 0 .01 0Z', '#f0b64f', 1.6, '#7a4f12'], ['M10.6 6h2.8l-.5 7.6h-1.8Z', '#2b1d0c', 0], ['M12 15.4a1.6 1.6 0 1 0 .01 0Z', '#2b1d0c', 0], ['M9.4 19.6 12 23l2.6-3.4Z', '#f0b64f', 1.2, '#7a4f12']],
   ic_go: [['M8.5 4.5 16 12l-7.5 7.5', 'none', 3, '#f0b64f']],
-  ic_homefast: [['M4 12.5h11v8H4Z', '#e8c99a'], ['M2 13.1 9.5 6.5l7.5 6.6Z', '#d4473a'], ['M8 15.5h3v5H8Z', '#8a5a32'], ['M18.6 2.2 15 10h3l-2 6.8 5.6-8.8h-3.2l2-5.8Z', '#f2c230']],
   ic_tap: [['M9 21c-2-2-4-5-4-7.4 0-1.2 1-1.8 1.9-1.1L9 14V4.6a1.4 1.4 0 0 1 2.8 0V11l.2-.1V9.6a1.4 1.4 0 0 1 2.8 0v1.6a1.4 1.4 0 0 1 2.6.6v.8a1.4 1.4 0 0 1 2.6.7V16c0 2.4-1 4-2 5Z', '#f6ecdd', 1.4, '#2b1a12'], ['M7 3.6 5.4 2M13.6 3.6 15.2 2M10.4 2.4V.6', 'none', 1.4, '#ffe27a']],
   ic_skip: [['M4 5.5 12 12 4 18.5Z', '#f6ecdd'], ['M12 5.5l8 6.5-8 6.5Z', '#f6ecdd']],
   ic_map: [['M3 6.5 8.6 4l6.8 2.6L21 4v13.5l-5.6 2.5-6.8-2.6L3 20Z', '#e8dcc0'], ['M8.6 4v13.4M15.4 6.6V20', 'none', 1.2, '#2b1a12'], ['M5.6 14c2-1 3.6-.6 5 .4s3.2 1.4 5.2.2', 'none', 1.3, '#d4473a'], ['M17.6 9.4l1.4 1.4M19 9.4l-1.4 1.4', 'none', 1.3, '#d4473a']],
@@ -2199,8 +2198,8 @@ function homeCost() {
 }
 function showHomeFast() {
   const c = homeCost();
-  if (c === null) { toast('길 모름'); SFX.deny(); return; }
-  openSheet(ico('ic_homefast') + '집으로', '', `<button class="btn primary" data-a="homeFast" ${S.energy > c ? '' : 'disabled'}>${PWR}${c}</button>`);
+  if (c === null) { goExit(); return; }   // 바로 가기 기력을 셀 수 없으면 걸어서 나감
+  openSheet(ico('ic_village') + '집으로', '', `<button class="btn primary" data-a="homeFast" ${S.energy > c ? '' : 'disabled'}>${PWR}${c}</button>`);
 }
 function homeFast() {
   const c = homeCost(); if (c === null || S.energy <= c) return;
@@ -4159,11 +4158,11 @@ function renderDock() {
   dock.hidden = mine || !sheet.hidden || !!trip;
   if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
   const bagBtn = `<button class="btn small${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
-  const fastBtn = `<button class="btn small" data-a="homeFastAsk" aria-label="집으로">${ico('ic_homefast')}</button>`;
+  const fastBtn = `<button class="btn small" data-a="homeFastAsk" aria-label="집으로">${ico('ic_village')}</button>`;   // 마을로 가는 단추는 이것 하나 (걸어서 나가기 단추는 없앰, 11/20)
   if (scene === 'town') { minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button><b>${ico('ic_village')}${(townHere() || TOWNS.mtn).n}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`; }
-  else if (scene === 'hunt') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button>${fastBtn}<b>${ico('ic_sword')}${S.hunt && S.hunt.raid ? '습격 막기' : S.hunt && S.hunt.stage !== undefined ? `${stageOf().n} ${S.hunt.stage + 1}단계` : '성 밖'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
-  else if (scene === 'forest') minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="마을로">${ico('ic_village')}</button>${fastBtn}<b>${ico('ic_tree')}${fPlace(Math.round(hero.x))}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
-  else if (mine && S.mine) minebar.innerHTML = `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button>${S.deep.town ? '' : fastBtn}<b>${S.deep.L ? `${S.deep.town ? TOWNS[S.deep.town].mine + ' ' : ''}${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small>` : '숲 동굴'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  else if (scene === 'hunt') minebar.innerHTML = `${fastBtn}<b>${ico('ic_sword')}${S.hunt && S.hunt.raid ? '습격 막기' : S.hunt && S.hunt.stage !== undefined ? `${stageOf().n} ${S.hunt.stage + 1}단계` : '성 밖'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  else if (scene === 'forest') minebar.innerHTML = `${fastBtn}<b>${ico('ic_tree')}${fPlace(Math.round(hero.x))}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  else if (mine && S.mine) minebar.innerHTML = `${S.deep.town ? `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button>` : fastBtn}<b>${S.deep.L ? `${S.deep.town ? TOWNS[S.deep.town].mine + ' ' : ''}${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small>` : '숲 동굴'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
 }
 let sheetClosable = true;
 function openSheet(title, body, btns, closable = true) {
