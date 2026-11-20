@@ -150,48 +150,63 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 <script>
 'use strict';
 function H32(n) { n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n = Math.imul(n ^ (n >>> 12), 0x297a2d39); return ((n ^ (n >>> 15)) >>> 0) / 4294967296; }
-/* ===== 마을 지도 (32×32). 가운데 넓은 광장에서 길이 네 갈래로 뻗음 =====
-   북쪽: 큰길 끝 성문, 길 왼쪽 대장간, 오른쪽 시장.  북동 언덕: 박물관.  동쪽: 세공소를 지나 광산.
-   서쪽: 낡은 집을 지나 숲(통나무로 막힘).  남쪽: 식당, 굽이치는 강과 다리, 강 건너 밭. */
-const N = 32;
-var FLAT = false;   // 숲과 굴은 평평함 (마을의 언덕 높이를 쓰지 않음)
-const hgt = (x, y) => FLAT ? 0 : (x >= 24 && y <= 7 ? 2 : x >= 23 && y <= 8 ? 1 : 0);
-const riverY = x => 22 + Math.round(1.6 * Math.sin(x * 0.38 + 0.6));     // 강은 두 칸 폭으로 굽이침
-const riverC = x => 23 + 1.6 * Math.sin((x - .5) * 0.38 + 0.6);           // 그림용 강 가운데 (계단 없이 매끄럽게)
+/* ===== 마을 지도 (40×40 안의 자유 모양, 기획 67번). 넓은 북쪽, 둥근 남쪽, 서쪽 숲 자락을 겹친 모양 =====
+   강 북쪽: 가운데 광장 큰 나무, 큰길 끝 성문, 성문 길 옆 세공소와 대장간, 동쪽 길 끝 광산, 서쪽 길 끝 숲, 강가 떠돌이 상인.
+   강 남쪽: 다리를 건너 식당, 시장, 밭 둘, 왼쪽 구석 박물관. */
+const N = 40;
+var FLAT = false;   // 숲과 굴은 평평함 (쓰는 곳이 남아 있어 둠, 마을도 지금은 평평함)
+const hgt = (x, y) => 0;
+const riverY = x => 20 + Math.round(1.4 * Math.sin(x * 0.33 + 0.6));     // 강은 두 칸 폭으로 굽이침
+const riverC = x => 21 + 1.4 * Math.sin((x - .5) * 0.33 + 0.6);           // 그림용 강 가운데 (계단 없이 매끄럽게)
 const nearRiver = (x, y) => Math.abs(y + .5 - riverC(x + .5)) < 1.75;      // 그림 강 띠에 걸치는 칸
 const isWater = (x, y) => { const r = riverY(x); return y === r || y === r + 1; };
-const PLAZA = { x0: 14, y0: 12, x1: 18, y1: 16, cx: 16, cy: 14 };
+// 마을 모양: 타원 셋을 겹치고 가장자리를 살짝 흔듦. 한 번만 계산해 둠
+const TOWN = new Uint8Array(N * N);
+for (let x = 1; x < N - 1; x++) for (let y = 1; y < N - 1; y++) {
+  const w = (Math.sin(x * .9 + y * .4) + Math.sin(y * .7 - x * .5 + 2)) * .07, e = (cx, cy, rx, ry) => 1 - Math.hypot((x - cx) / rx, (y - cy) / ry);
+  TOWN[y * N + x] = Math.max(e(21, 11.5, 17, 9.3), e(19, 27.5, 14, 9), e(9, 17, 7, 8)) + w > 0 ? 1 : 0;
+}
+const inTown = (x, y) => x >= 0 && y >= 0 && x < N && y < N && TOWN[y * N + x] === 1;
+const PLAZA = { x0: 18, y0: 10, x1: 23, y1: 14, cx: 20, cy: 12 };
 const inPlaza = (x, y) => x >= PLAZA.x0 && x <= PLAZA.x1 && y >= PLAZA.y0 && y <= PLAZA.y1;
-const inForest = (x, y) => x >= 0 && x <= 5 && y >= 0 && y < riverY(x);
+const inForest = (x, y) => inTown(x, y) && x <= 6 && y < riverY(x);
+// 성벽: 마을 테두리 바로 바깥 한 줄. 성문은 북쪽 큰길 끝
+const isWall = (x, y) => !inTown(x, y) && [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]].some(([a, b]) => inTown(x + a, y + b));
+const GATE = (() => { let y = 0; while (!inTown(PLAZA.cx, y)) y++; return [PLAZA.cx, y - 1]; })();
 const PAVED = new Set();
 const pave = (x, y) => PAVED.add(x + ',' + y);
 for (let x = PLAZA.x0; x <= PLAZA.x1; x++) for (let y = PLAZA.y0; y <= PLAZA.y1; y++) pave(x, y);
-for (let y = 0; y < PLAZA.y0; y++) pave(16, y);                     // 북쪽 큰길 (성문까지)
-for (let x = 0; x < PLAZA.x0; x++) pave(x, 14);                     // 서쪽 길 (집, 숲)
-for (let x = PLAZA.x1 + 1; x <= 28; x++) pave(x, 14);               // 동쪽 길 (세공소, 광산)
-for (let y = PLAZA.y1 + 1; y <= 27; y++) if (!isWater(16, y)) pave(16, y);   // 남쪽 길 (식당, 다리, 밭)
+for (let y = GATE[1] + 1; y < PLAZA.y0; y++) pave(PLAZA.cx, y);            // 북쪽 큰길 (성문까지)
+for (let x = 7; x < PLAZA.x0; x++) pave(x, PLAZA.cy);                      // 서쪽 길 (집, 숲)
+for (let x = PLAZA.x1 + 1; x <= 33; x++) pave(x, PLAZA.cy);                // 동쪽 길 (대장간, 광산)
+for (let x = PLAZA.cx + 1; x <= 21; x++) pave(x, 9);                       // 성문 길에서 세공소로
+for (let y = PLAZA.y1 + 1; y <= 19; y++) pave(PLAZA.cx, y);                // 남쪽 길: 강 앞에서 왼쪽으로 꺾어 다리로
+for (let x = 17; x < PLAZA.cx; x++) pave(x, 19);
+for (let y = 19; y <= 26; y++) if (!isWater(17, y)) pave(17, y);
+for (let x = 9; x <= 28; x++) pave(x, 27);                                 // 강 남쪽 가로길 (식당, 시장, 밭, 박물관)
 // 건물: gx, gy는 뒤쪽 모서리, w×d는 차지하는 칸, door는 문 앞 칸
 const OBJ = [
-  { id: 'house', gx: 9, gy: 16, w: 2, d: 2, stage: 0, kind: 'house', name: '낡은 집', icon: 'ic_village', door: [9, 18] },
-  { id: 'chief', gx: 18, gy: 10, w: 1, d: 1, stage: 0, kind: 'npc', name: '촌장', shirt: '#6a4d8c' },
-  { id: 'merchant', gx: 13, gy: 18, w: 1, d: 1, stage: 0, kind: 'wagon', name: '떠돌이 상인' },
-  { id: 'mine', gx: 27, gy: 10, w: 3, d: 3, stage: 1, kind: 'mine', name: '광산', ruin: '무너진 광산 입구', icon: 'ic_pick', feat: ['끝없는 땅속', '깊이마다 다른 구역'], door: [28, 13] },
+  { id: 'house', gx: 11, gy: 9, w: 2, d: 2, stage: 0, kind: 'house', name: '낡은 집', icon: 'ic_village', door: [11, 11] },
+  { id: 'chief', gx: 23, gy: 16, w: 1, d: 1, stage: 0, kind: 'npc', name: '촌장', shirt: '#6a4d8c' },
+  { id: 'merchant', gx: 12, gy: 17, w: 1, d: 1, stage: 0, kind: 'wagon', name: '떠돌이 상인' },
+  { id: 'mine', gx: 32, gy: 6, w: 3, d: 3, stage: 1, kind: 'mine', name: '광산', ruin: '무너진 광산 입구', icon: 'ic_pick', feat: ['끝없는 땅속', '깊이마다 다른 구역'], door: [33, 9] },
   { id: 'tree', gx: PLAZA.cx, gy: PLAZA.cy, w: 1, d: 1, stage: 0, kind: 'bigtree', name: '광장 큰 나무' },
-  { id: 'smithy', gx: 9, gy: 5, w: 3, d: 3, stage: 3, kind: 'smithy', name: '대장간', ruin: '부서진 대장간', icon: 'ic_hearth', feat: ['제련', '곡괭이 강화'], door: [12, 6] },
-  { id: 'bridge', gx: 16, gy: riverY(16), w: 1, d: 2, stage: 4, kind: 'bridge', name: '강가 다리', ruin: '무너진 강가 다리', feat: ['강 건너 밭', '낚시'] },
-  { id: 'field', gx: 8, gy: 27, w: 6, d: 3, stage: 5, kind: 'field', name: '밭', ruin: '거친 밭', feat: ['농사'] },
-  { id: 'forest', gx: 5, gy: 14, w: 1, d: 1, stage: 0, kind: 'logs', name: '숲', ruin: '막힌 숲길', icon: 'ic_tree', feat: ['숲 탐험', '채집'] },
-  { id: 'kitchen', gx: 20, gy: 17, w: 3, d: 3, stage: 7, kind: 'kitchen', name: '식당', ruin: '닫힌 식당', icon: 'ic_rest', feat: ['요리', '주민 의뢰'], door: [21, 20] },
-  { id: 'market', gx: 17, gy: 2, w: 5, d: 4, stage: 4, kind: 'market', name: '시장', ruin: '빈 시장 터', icon: 'ic_shop', feat: ['매일 바뀌는 시세', '음식 상인', '재료 상인'], door: [19, 6] },
-  { id: 'gate', gx: 16, gy: -1, w: 1, d: 1, stage: 9, kind: 'gate', name: '성벽 문', ruin: '닫힌 성벽 문', feat: ['성 밖 사냥터'] },
-  { id: 'jewel', gx: 22, gy: 10, w: 2, d: 2, stage: 6, kind: 'jewel', name: '세공소', ruin: '부서진 세공소', icon: 'ic_shard', feat: ['보석 세공'], door: [22, 12] },
-  { id: 'museum', gx: 26, gy: 2, w: 4, d: 4, stage: 12, kind: 'museum', name: '박물관', ruin: '무너진 박물관', icon: 'ic_treasure', feat: ['광석 도감', '기증'], door: [27, 6] },
+  { id: 'smithy', gx: 26, gy: 6, w: 3, d: 3, stage: 3, kind: 'smithy', name: '대장간', ruin: '부서진 대장간', icon: 'ic_hearth', feat: ['제련', '곡괭이 강화'], door: [27, 9] },
+  { id: 'bridge', gx: 17, gy: riverY(17), w: 1, d: 2, stage: 4, kind: 'bridge', name: '강가 다리', ruin: '무너진 강가 다리', feat: ['강 건너 시장과 밭', '낚시'] },
+  { id: 'field', gx: 22, gy: 29, w: 6, d: 3, stage: 5, kind: 'field', name: '밭', ruin: '거친 밭', feat: ['농사'] },
+  { id: 'field2', gx: 14, gy: 30, w: 6, d: 3, stage: 8, kind: 'field', name: '넓힌 밭', ruin: '거친 밭', feat: ['농사'] },
+  { id: 'forest', gx: 6, gy: 12, w: 1, d: 1, stage: 0, kind: 'logs', name: '숲', ruin: '막힌 숲길', icon: 'ic_tree', feat: ['숲 탐험', '채집'] },
+  { id: 'kitchen', gx: 12, gy: 23, w: 3, d: 3, stage: 7, kind: 'kitchen', name: '식당', ruin: '닫힌 식당', icon: 'ic_rest', feat: ['요리', '주민 의뢰'], door: [13, 26] },
+  { id: 'market', gx: 22, gy: 23, w: 5, d: 4, stage: 4, kind: 'market', name: '시장', ruin: '빈 시장 터', icon: 'ic_shop', feat: ['매일 바뀌는 시세', '음식 상인', '재료 상인'], door: [23, 27] },
+  { id: 'gate', gx: GATE[0], gy: GATE[1], w: 1, d: 1, stage: 9, kind: 'gate', name: '성벽 문', ruin: '닫힌 성벽 문', feat: ['성 밖 사냥터'] },
+  { id: 'jewel', gx: 21, gy: 6, w: 2, d: 2, stage: 6, kind: 'jewel', name: '세공소', ruin: '부서진 세공소', icon: 'ic_shard', feat: ['보석 세공'], door: [21, 8] },
+  { id: 'museum', gx: 8, gy: 30, w: 4, d: 4, stage: 12, kind: 'museum', name: '박물관', ruin: '무너진 박물관', icon: 'ic_treasure', feat: ['광석 도감', '기증'], door: [12, 31] },
 ];
 OBJ.forEach(o => { o.done = o.stage === 0; o.grow = o.done || o.kind === 'mine' ? 1 : 0; });   // 광산 산은 무너졌을 때도 그대로 보임
 const inside = (o, x, y) => x >= o.gx && x < o.gx + o.w && y >= o.gy && y < o.gy + o.d;
 const objAt = (x, y) => OBJ.find(o => inside(o, x, y));
-const field = OBJ.find(o => o.id === 'field');
-const inField = (x, y) => inside(field, x, y);
+const FIELDS = OBJ.filter(o => o.kind === 'field');
+const inField = (x, y) => FIELDS.some(o => inside(o, x, y));
 const nearObj = (x, y) => OBJ.some(o => x >= o.gx - 1 && x <= o.gx + o.w && y >= o.gy - 1 && y <= o.gy + o.d);
 // 문 앞에서 가장 가까운 길까지 길을 이어 깖 (건물을 옮겨도 길이 따라옴)
 OBJ.forEach(o => {
@@ -202,44 +217,42 @@ OBJ.forEach(o => {
     if (PAVED.has(key(x, y))) { let k = key(x, y); while (k) { PAVED.add(k); k = prev.get(k); } return; }
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = x + dx, ny = y + dy, k = key(nx, ny);
-      if (prev.has(k) || nx < 0 || ny < 0 || nx >= N || ny >= N || isWater(nx, ny) || objAt(nx, ny) || Math.abs(hgt(nx, ny) - hgt(x, y)) > 1) continue;
+      if (prev.has(k) || !inTown(nx, ny) || isWater(nx, ny) || objAt(nx, ny) || Math.abs(hgt(nx, ny) - hgt(x, y)) > 1) continue;
       prev.set(k, key(x, y)); q.push([nx, ny]);
     }
   }
 });
 // 소품 (장식, 지나갈 수 없음)
-const PROPS = [[12, 12, 'bench'], [19, 11, 'bench'], [12, 9, 'well'], [24, 20, 'barrel'], [25, 15, 'barrel'], [15, 28, 'hay'], [6, 28, 'hay']];
+const PROPS = [[17, 9, 'bench'], [24, 10, 'bench'], [16, 15, 'well'], [28, 24, 'barrel'], [10, 24, 'barrel'], [29, 30, 'hay'], [12, 28, 'hay']];
 const propAtXY = (x, y) => PROPS.some(([a, b]) => a === x && b === y);
-// 나무: 서쪽 숲은 빽빽하게, 마을 가장자리는 드문드문. 마을 안쪽(건물과 길 둘레)은 비움
+// 나무: 서쪽 숲은 빽빽하게, 성벽 가까운 가장자리는 드문드문. 마을 안쪽(건물과 길 둘레)은 비움
 const DECO_TREES = [];
 for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) {
-  // 숲 울타리: 숲은 서쪽 길 끝의 막힌 숲길(5,14)을 치워야 들어감
-  if (x === 6 && y < riverY(x) && y !== 14) { DECO_TREES.push([x, y]); continue; }
+  if (!inTown(x, y)) continue;
+  // 숲 울타리: 숲은 서쪽 길 끝의 막힌 숲길(6,12)을 치워야 들어감
+  if (x === 7 && y < riverY(x) && y !== PLAZA.cy) { DECO_TREES.push([x, y]); continue; }
   if (PAVED.has(x + ',' + y) || isWater(x, y) || nearRiver(x, y) || nearObj(x, y) || propAtXY(x, y) || inField(x, y)) continue;
-  if (x >= 8 && x <= 25 && y >= 2 && y <= 21) continue;
-  if (Math.abs(x - 16) <= 1) continue;
+  if (!inForest(x, y) && [[2, 0], [-2, 0], [0, 2], [0, -2]].every(([a, b]) => inTown(x + a, y + b))) continue;
+  if (Math.abs(x - PLAZA.cx) <= 1 || inField(x, y - 1) || inField(x, y - 2)) continue;
   const h = H32(x * 131 + y * 17);
   if (inForest(x, y) ? h < .6 : h < .12) DECO_TREES.push([x, y]);
 }
-const ROCKS = [[26, 9], [30, 9], [31, 13], [26, 12], [3, 29], [22, 28], [28, 27]];
+const ROCKS = [[35, 14], [9, 21], [30, 33], [4, 15], [34, 5]];
 // 덤불과 꽃: 건물과 길에서 한 칸 떨어진 풀밭에
 const BUSHES = [];
 for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) {
-  if (PAVED.has(x + ',' + y) || isWater(x, y) || nearRiver(x, y) || nearObj(x, y) || propAtXY(x, y) || inForest(x, y) || x === 6 || inField(x, y)) continue;
+  if (!inTown(x, y) || PAVED.has(x + ',' + y) || isWater(x, y) || nearRiver(x, y) || nearObj(x, y) || propAtXY(x, y) || inForest(x, y) || x === 7 || inField(x, y)) continue;
   if (DECO_TREES.some(([a, b]) => a === x && b === y) || ROCKS.some(([a, b]) => a === x && b === y)) continue;
   if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => PAVED.has((x + dx) + ',' + (y + dy)))) continue;
   if (H32(x * 977 + y * 613 + 11) < .07) BUSHES.push([x, y]);
 }
-const LAMPS = [[14, 12], [19, 12], [14, 17], [19, 17], [16, 6], [23, 14], [10, 14], [16, 20]];
-// 성벽: 마을(0~17) 바깥 한 줄. 성벽 밖은 끝없이 이어지는 들판과 숲
-const inTown = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
-const isWall = (x, y) => ((x === -1 || x === N) && y >= -1 && y <= N) || ((y === -1 || y === N) && x >= -1 && x <= N);
-const GATE = [16, -1];
-const isRoad = (x, y) => x === GATE[0] && y < -1;
+const LAMPS = [[18, 10], [23, 10], [18, 14], [23, 14], [20, 5], [10, 12], [30, 12], [20, 17], [11, 27], [27, 27]];
+// 성벽 밖은 끝없이 이어지는 들판과 숲. 성문에서 북쪽으로 길
+const isRoad = (x, y) => x === GATE[0] && y < GATE[1];
 const wildTree = (x, y) => !inTown(x, y) && !isWall(x, y) && !isWater(x, y) && !nearRiver(x, y) && !isRoad(x, y) && H32(x * 7919 + y * 104729 + 7) < .3;
 const wildRock = (x, y) => !inTown(x, y) && !isWall(x, y) && !isWater(x, y) && !nearRiver(x, y) && !isRoad(x, y) && !wildTree(x, y) && H32(x * 3571 + y * 2909) < .03;
 const blocked = (x, y) => {
-  if (Math.abs(x - 16) > 50 || Math.abs(y - 16) > 50) return true;
+  if (Math.abs(x - N / 2) > 50 || Math.abs(y - N / 2) > 50) return true;
   if (isWall(x, y)) { const g = OBJ.find(o => o.id === 'gate'); return !(x === GATE[0] && y === GATE[1] && g.done); }
   if (!inTown(x, y)) return isWater(x, y) || wildTree(x, y) || wildRock(x, y);
   if (isWater(x, y)) { const b = OBJ.find(o => o.id === 'bridge'); return !(inside(b, x, y) && b.done); }
@@ -362,16 +375,17 @@ const QUESTS = [
   { id: 'smithy', text: '대장간 고치기', target: 'smithy' },
   { id: 'smelt', text: '용광로에 광석 넣기', target: 'smithy' },
   { id: 'pick', text: '구리 곡괭이 만들기', need: 1, target: 'smithy', reward: 50 },
+  { id: 'bridge', text: '강가 다리 고치기', target: 'bridge' },   // 시장과 밭은 강 건너라 다리가 먼저 (기획 67번)
+  { id: 'fish', text: '물고기 낚기', need: 3, target: 'bridge', reward: 60 },
   { id: 'market', text: '시장 고치기', target: 'market' },
   { id: 'trade', text: '시장에서 팔기', target: 'market', reward: 50 },
   { id: 'home', text: '집 고치기', need: 1, target: 'house', reward: 50 },
-  { id: 'bridge', text: '강가 다리 고치기', target: 'bridge' },
-  { id: 'fish', text: '물고기 낚기', need: 3, target: 'bridge', reward: 60 },
   { id: 'field', text: '밭 일구기', target: 'field' },
   { id: 'harvest', text: '작물 거두기', need: 3, target: 'field', reward: 80 },
   { id: 'kitchen', text: '식당 고치기', target: 'kitchen' },
   { id: 'cook', text: '요리 찾기', need: 1, target: 'kitchen', reward: 50 },
   { id: 'request', text: '주민 의뢰 들어주기', need: 1, target: 'kitchen', reward: 100 },
+  { id: 'field2', text: '밭 넓히기', target: 'field2' },
   { id: 'board', text: '촌장 의뢰판 의뢰', need: 1, target: 'chief', reward: 100 },
   { id: 'deep7', text: '깊이 7 도달', need: 7, target: 'mine', reward: 100 },
   { id: 'pick2', text: '철 곡괭이 만들기', need: 2, target: 'smithy', reward: 100 },
@@ -413,7 +427,7 @@ function questEvent(type, n) {
 /* ===== 상태와 저장 ===== */
 let S;
 function freshState() {
-  return { v: 4, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], farm: {}, home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0, vol: { master: 1, sfx: .8, bgm: .5 }, stash: {},
+  return { v: 5, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], farm: {}, home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0, vol: { master: 1, sfx: .8, bgm: .5 }, stash: {},
     deep: { seed: (Math.random() * 1e6) | 0, L: 1, x: 0, y: 1, dug: {}, seen: {}, ups: {}, camps: [], lastCamp: null, steps: 0 } };
 }
 function load() {
@@ -421,7 +435,7 @@ function load() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const d = JSON.parse(raw);
-      if (d && d.v === 4) return Object.assign(freshState(), d);   // 저장 구조가 바뀌면 예전 기록은 새로 시작 (11/14 사용자 결정)
+      if (d && d.v === 5) return Object.assign(freshState(), d);   // 저장 구조가 바뀌면 예전 기록은 새로 시작 (11/14 사용자 결정)
     }
   } catch (e) { /* 저장소를 못 쓰면 새로 시작 */ }
   return freshState();
@@ -1320,12 +1334,12 @@ function drawBuilding(c, o, night) {
       const h = 1.8 * g, i = .12;
       prism(c, x0 + i, y0 + i, o.w - 2 * i, o.d - 2 * i, z, h, '#a29c94', '#9a948c', '#7c766f');
       for (let k = 0; k < 18; k++) { const u = H32(k * 3 + 1), v = H32(k * 5 + 2); faceL(c, x0 + .2 + u * 2.4, x0 + .45 + u * 2.4, y1 - i, z + v * h * .9, z + v * h * .9 + .18, 'rgba(60,55,50,.25)'); faceR(c, x1 - i, y0 + .2 + v * 2.4, y0 + .45 + v * 2.4, z + u * h * .9, z + u * h * .9 + .18, 'rgba(40,36,32,.3)'); }
-      // 화덕 입구 (오른쪽 앞면)
-      faceR(c, x1 - i + .01, y0 + .7, y0 + 1.9, z, z + 1.3 * g, '#1c120c');
+      // 화덕 입구 (왼쪽 앞면, 문 쪽)
+      faceL(c, x0 + .9, x0 + 2.1, y1 - i + .01, z, z + 1.3 * g, '#1c120c');
       const fire = .6 + .4 * Math.sin(tnow * 9);
-      faceR(c, x1 - i + .02, y0 + .9, y0 + 1.7, z, z + .55 * g, `rgba(255,${120 + 60 * fire},40,.85)`);
-      const fp = iso(x1, y0 + 1.3, z + .4); Cc(c, fp[0], fp[1], TW * (.9 + .15 * fire), 'rgba(255,140,50,.16)');
-      windowL(c, x0 + .6, y1 - i, z + h * .5, .5, .4 * g, night);
+      faceL(c, x0 + 1.1, x0 + 1.9, y1 - i + .02, z, z + .55 * g, `rgba(255,${120 + 60 * fire},40,.85)`);
+      const fp = iso(x0 + 1.5, y1, z + .4); Cc(c, fp[0], fp[1], TW * (.9 + .15 * fire), 'rgba(255,140,50,.16)');
+      windowR(c, x1 - i, y0 + .7, z + h * .5, .6, .4 * g, night);
       if (g > .6) {
         gable(c, x0 + i - .1, y0 + i - .1, x1 - i + .1, y1 - i + .1, z + h, .9 * g, '#4b4f5a', '#8d8780');
         prism(c, x0 + .3, y0 + .3, .55, .55, z, 3.9 * g, '#9a5240', '#8a4a3a', '#6e3a2c');
@@ -1333,8 +1347,8 @@ function drawBuilding(c, o, night) {
         smoke(c, x0 + .57, y0 + .57, z + 4, 3, true);
       }
       // 모루와 물통
-      const an = iso(x1 + .45, y0 + .45, z); P(c, [[an[0] - TW * .14, an[1] - ZU * .55], [an[0] + TW * .16, an[1] - ZU * .55], [an[0] + TW * .08, an[1] - ZU * .35], [an[0] - TW * .06, an[1] - ZU * .35]], '#3a3a40'); R(c, an[0] - TW * .04, an[1] - ZU * .36, TW * .08, ZU * .36, '#2e2e33');
-      const br = iso(x1 + .45, y1 - .3, z); E(c, br[0], br[1] - ZU * .5, TW * .12, TW * .06, '#5a8ab0'); R(c, br[0] - TW * .12, br[1] - ZU * .5, TW * .24, ZU * .5, '#8a6238');
+      const an = iso(x0 + .45, y1 + .45, z); P(c, [[an[0] - TW * .14, an[1] - ZU * .55], [an[0] + TW * .16, an[1] - ZU * .55], [an[0] + TW * .08, an[1] - ZU * .35], [an[0] - TW * .06, an[1] - ZU * .35]], '#3a3a40'); R(c, an[0] - TW * .04, an[1] - ZU * .36, TW * .08, ZU * .36, '#2e2e33');
+      const br = iso(x1 - .3, y1 + .45, z); E(c, br[0], br[1] - ZU * .5, TW * .12, TW * .06, '#5a8ab0'); R(c, br[0] - TW * .12, br[1] - ZU * .5, TW * .24, ZU * .5, '#8a6238');
       signBoard(c, o, z, 1.55 * g, 1);
       break;
     }
@@ -1615,10 +1629,18 @@ function drawSky(c) {
   for (let i = 0; i < 5; i++) { const cx = (i * 170 + tnow * 7 - cam.fx * .05) % (W + 120); const x = (cx + W + 120) % (W + 120) - 60, cy = H * .12 + (i % 3) * H * .06; const a = ph === 3 ? .15 : .7; E(c, x, cy, 30, 9, `rgba(255,255,255,${a})`); E(c, x + 18, cy - 5, 18, 8, `rgba(255,255,255,${a})`); }
 }
 const FOG = ['246,223,189', '212,236,255', '214,130,96', '22,26,62'];
-function fogOf(x, y) { const d = Math.max(-1 - x, x - N, -1 - y, y - N, 0); return Math.min(.62, d / 16); }
+// 성 밖 안개: 성벽에서 멀수록 짙음 (마을 모양에서 가장 가까운 칸까지 거리, 한 번 잰 값은 기억)
+const FOGD = new Map();
+const wallTower = (x, y) => H32(x * 131 + y * 71) < .16 && !OBJ.some(o => o.door && Math.abs(x - o.door[0]) <= 2 && Math.abs(y - o.door[1]) <= 3);   // 성벽 탑은 군데군데 (문 앞을 가리지 않게)
+function fogOf(x, y) {
+  const k = x + ',' + y; let f = FOGD.get(k); if (f !== undefined) return f;
+  let d = 0;
+  if (!inTown(x, y)) { d = 17; for (let r = 1; r <= 16 && d === 17; r++) for (let a = -r; a <= r; a++) if (inTown(x + a, y - r) || inTown(x + a, y + r) || inTown(x - r, y + a) || inTown(x + r, y + a)) { d = r; break; } d = Math.max(0, d - 1); }
+  f = Math.min(.62, d / 16); FOGD.set(k, f); return f;
+}
 function wallAt(c, x, y) {
   const water = isWater(x, y), z0 = water ? -.15 : hgt(x, y);
-  const tower = ((x === -1 || x === N) && (y === -1 || y === N)) || ((y === -1 || y === N) && (x + 1) % 6 === 0) || ((x === -1 || x === N) && (y + 1) % 6 === 0 && !water);
+  const tower = wallTower(x, y) && !water;
   const broken = !tower && !water && H32(x * 31 + y * 17 + 5) < .16;
   const top = '#c9bfb1', left = '#a69c8f', right = '#867d71';
   if (water) { prism(c, x, y, 1, 1, z0 + .85, .75, top, left, right); const a = iso(x + .5, y + 1, z0 + .85); c.beginPath(); c.arc(a[0], a[1], TW * .18, Math.PI, 0); c.fillStyle = '#3d362f'; c.fill(); return; }
@@ -1656,7 +1678,7 @@ function drawIsland(c) {
     if (fog > 0) { c.globalAlpha = fog; tileTop(c, x, y, isWater(x, y) ? -.15 : z, `rgb(${fogc})`); c.globalAlpha = 1; }
     const one = { x0: x, y0: y, x1: x + 1, y1: y + 1 };
     if (isWall(x, y) && !(x === GATE[0] && y === GATE[1])) {
-      const tower = ((x === -1 || x === N) && (y === -1 || y === N)) || ((y === -1 || y === N) && (x + 1) % 6 === 0) || ((x === -1 || x === N) && (y + 1) % 6 === 0 && !isWater(x, y));
+      const tower = wallTower(x, y) && !isWater(x, y);
       add(one, tower ? [.62, 3.0] : [.5, 1.9], () => wallAt(c, x, y));
     }
     if (wildTree(x, y)) add(one, [.32, 2.2], () => treeAt(c, x, y), fog);
@@ -1759,7 +1781,7 @@ function drawRiver(c, vr, fogc) {
   edge(-1.12, 0, OUT, Math.max(1.2, TW * .02)); edge(1.12, 0, OUT, Math.max(1.2, TW * .02));
   for (let x = xs; x < xe; x++) {
     for (let k = 0; k < 2; k++) { const u = (tnow * .22 + H32(x * 7 + k) + k * .5) % 1, off = -.4 + k * .7, a = iso(x + u * .7, riverC(x + u * .7) + off, -.12), b2 = iso(x + u * .7 + .3, riverC(x + u * .7 + .3) + off, -.12); c.globalAlpha = Math.sin(u * Math.PI) * .55; L(c, a[0], a[1], b2[0], b2[1], '#e4f5ff', TW * .025); c.globalAlpha = 1; }
-    const h = H32(x * 92821 + 7), bridge = Math.abs(x - 16) < 1;
+    const h = H32(x * 92821 + 7), bridge = Math.abs(x - OBJ.find(o => o.id === 'bridge').gx) < 1;
     if (!bridge && h < .3) { const t = x + .3 + h, q = iso(t, riverC(t) + (h < .15 ? -.4 : .35), -.12); lilyAt(c, q[0], q[1]); }
     else if (!bridge && h > .78) { const t = x + .2 + (h - .78) * 2, q = iso(t, riverC(t) - 1.02, 0); if (h > .92) bankStoneAt(c, q[0], q[1]); else reedAt(c, q[0], q[1]); }
   }
@@ -2760,7 +2782,7 @@ function roadArrive() {
 function roadBack() {
   S.forest = S.forestMain; S.forestMain = null; S.loc = 'home';
   scene = 'village'; S.screen = 'village'; FLAT = false; fade = .8;
-  hero.x = GATE[0]; hero.y = 0; hero.path = []; hero.goal = null; follow = true; snapCam(); save(); renderHud(); renderDock();
+  hero.x = GATE[0]; hero.y = GATE[1] + 1; hero.path = []; hero.goal = null; follow = true; snapCam(); save(); renderHud(); renderDock();
 }
 function enterGrove(kind) {
   const f = S.forest; f.hx = Math.round(hero.x); f.hy = Math.round(hero.y);
@@ -3249,7 +3271,7 @@ function enterHunt(n = 0) {
 }
 function leaveHunt() {
   S.screen = 'village'; scene = 'village'; FLAT = false; fade = .8; S.hunt = null;
-  hero.x = GATE[0]; hero.y = 0; hero.path = []; hero.goal = null; hero.atk = null;
+  hero.x = GATE[0]; hero.y = GATE[1] + 1; hero.path = []; hero.goal = null; hero.atk = null;
   follow = true; snapCam(); save(); renderHud(); renderDock();
 }
 let hunts = [];   // 맞을 때 뜨는 숫자
@@ -3669,7 +3691,7 @@ function enterTown(id, at) {
 }
 function homeFromTown() {
   S.loc = 'home'; scene = 'village'; S.screen = 'village'; FLAT = false;
-  hero.x = GATE[0]; hero.y = 0; hero.path = []; hero.goal = null; follow = true; snapCam();
+  hero.x = GATE[0]; hero.y = GATE[1] + 1; hero.path = []; hero.goal = null; follow = true; snapCam();
   toast(`${ico('ic_village')}마을`); save(); renderHud(); renderDock();
 }
 // 마을 광산 기록으로 되돌림 (다른 마을 광산에서 나올 때, 귀환서, 쓰러짐)
@@ -4340,6 +4362,7 @@ const RESTORE = {
   smithy: { gold: 500, who: '대장장이', line: '대장간을 고쳐 줘서 고마워요. 광석을 용광로에 넣고 자면 아침엔 주괴가 돼 있을 거예요. 주괴를 모아 오면 곡괭이도 새로 두드려 줄게요.' },
   bridge: { gold: 300, need: { wood: 20, ironBar: 2 }, who: '촌장', line: '다리가 이어졌네요. 이 낚싯대도 가져가요. 강에선 아침이랑 저녁에 잘 잡히고, 새벽엔 그때만 나오는 물고기가 있대요.', then: () => { S.rod = 1; } },
   field: { gold: 300, need: { wood: 8 }, who: '촌장', line: '밭이 다시 일궈졌네요. 씨앗은 떠돌이 상인이 팔아요. 아침이나 점심에 물을 주면 그날 밤 한 뼘씩 자라요.' },
+  field2: { gold: 600, need: { wood: 20 }, who: '촌장', line: '밭이 두 배로 넓어졌네요. 이제 한 번에 더 많이 키울 수 있어요.' },
   kitchen: { gold: 1000, need: { wood: 15, ironBar: 2 }, who: '식당 주인', line: '식당을 다시 열게 됐어요. 재료 두 가지를 골라 요리해 봐요. 처음 찾은 맛은 적어 둘게요. 점심이랑 저녁엔 마을 사람들이 부탁도 하러 와요.' },
   jewel: { gold: 1500, need: { silverBar: 3, crystal: 2 }, who: '세공사', line: '세공소를 고쳐 줘서 고마워요. 원석을 가져오면 같이 깎아요. 결을 따라 정확히 두드릴수록 보석이 더 나와요. 귀한 원석일수록 까다롭고요.' },
   museum: { gold: 3000, need: { silverBar: 3, goldBar: 2, wood: 30 }, who: '학자', line: '박물관이 다시 문을 열었네요. 광산과 숲, 강, 성 밖에서 얻은 것을 종류마다 하나씩 기증해 줘요. 모일수록 이 마을이 왜 무너졌는지도 조금씩 보일 거예요.' },
