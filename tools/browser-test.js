@@ -138,6 +138,8 @@ const shot = process.argv[2];
   ok(true, '숲 동굴에서 마을 단추로 집 앞까지');
   ok((await st()).carry.copper >= 5 && !(await st()).inv.copper, '숲을 지나 마을로 와도 가방은 그대로 들고 있음 (저절로 창고에 안 들어감)');
   ok(await page.evaluate(() => /\d+\/\d+/.test(document.querySelector('#dock [data-a="bag"]').textContent)), '마을 아래 가방 단추엔 가방 칸 수');
+  await page.evaluate(() => { S.carry.herb = 1; sell('herb'); closeSheet(); });
+  ok((await quest()).includes('상인'), '채집물만 팔면 「상인에게 광석 팔기」는 안 깨짐');
   await visit('merchant', '#sheet [data-a="sellAll"]');
   if (shot) await page.screenshot({ path: path.join(shot, 'merchant.png') });
   await page.click('#sheet [data-a="sellAll"]');
@@ -983,6 +985,20 @@ const shot = process.argv[2];
     ok(cv.kept && cv.grew === 6, `사흘째 아침: 숲 동굴에 판 굴은 그대로, 굴 둘레 벽에 광석 여섯 (${cv.grew})`);
     ok(cv.capped <= cv.first, `숲 동굴 광석은 오래 둬도 처음 수까지만 (${cv.capped}/${cv.first})`);
     await gp.close();
+  }
+
+  /* ===== 숲길은 나무 사이로 트임, 건물은 그려진 곳만 눌림 ===== */
+  {
+    const wp = await open(390, 844);
+    const fr = await wp.evaluate(() => { closeSheet(); S.introSeen = true; const f = genForest(S.day); const ed = f.edge.filter(i => f.t[i] === 'g').length / f.edge.length; let row = 0; for (let x = 4; x < 46; x++) if ('gB'.includes(f.t[fI(x, f.ey)]) || f.t[fI(x, f.ey)] === 'k') row++; return { ed, row, n: f.edge.length }; });
+    ok(fr.n > 50 && fr.ed > .5, `숲길 옆은 대부분 트여 있음 (${Math.round(fr.ed * 100)}%)`);
+    const hp2 = await wp.evaluate(() => { const o = OBJ.find(v => v.id === 'house'), z = hgt(o.gx, o.gy), up = ZU * 3.4, d = iso(o.gx, o.gy + o.d, z); follow = false; cam.fx = d[0] + 2; cam.fy = d[1] - up + 4; return { x: W / 2, y: H / 2 }; });
+    await wp.mouse.click(hp2.x, hp2.y); await wp.waitForTimeout(150);
+    ok(await wp.evaluate(() => !(selected && selected.id === 'house') && (window.MinerDiary.hero().moving || marks.some(m => m.col === '255,255,255' || m.col === '235,95,80'))), '집 지붕 옆 빈 곳(뒤로 땅이 보이는 곳)을 누르면 집이 아니라 땅이 눌림');
+    const hp3 = await wp.evaluate(() => { closeSheet(); const o = OBJ.find(v => v.id === 'house'), m = iso(o.gx + o.w / 2, o.gy + o.d / 2, hgt(o.gx, o.gy)); cam.fx = m[0]; cam.fy = m[1] - ZU * 1.2; return { x: W / 2, y: H / 2 }; });
+    await wp.mouse.click(hp3.x, hp3.y); await wp.waitForTimeout(150);
+    ok(await wp.evaluate(() => selected && selected.id === 'house' || (hero.target && hero.target.id === 'house')), '집 그림 위를 누르면 집');
+    await wp.close();
   }
 
   /* ===== 좁은 길: 바닥을 가리는 바위는 반투명, 그 위쪽(비쳐 보이는 바닥)을 누르면 캐지 않고 걸어감 ===== */
