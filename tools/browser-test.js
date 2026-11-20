@@ -21,6 +21,8 @@ const shot = process.argv[2];
     await page.waitForTimeout(500);
     return page;
   }
+  // 아래 막대의 마을 단추: 집으로 바로 가기 (창에서 기력 단추, 이동 장면 건너뛰기)
+  const goHome = async page => { await page.click('#minebar [data-a="homeFastAsk"]'); await page.click('#sheet [data-a="homeFast"]'); await page.click('#skip'); await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 }); };
   const P = (s, k) => ((s.inv || {})[k] || 0) + ((s.carry || {})[k] || 0);   // 가방과 창고를 합친 수 (마을 안에선 둘 다 씀)
   const helpers = page => ({
     st: () => page.evaluate(() => JSON.parse(JSON.stringify(window.MinerDiary.state()))),
@@ -131,11 +133,9 @@ const shot = process.argv[2];
   ok((await st()).carry.copper >= 5 && (await quest()).includes('상인'), '동굴에서 광석 다섯을 캐면 「상인에게 광석 팔기」');
   ok((await page.evaluate(() => window.MinerDiary.mfloats())).some(t => /^구리 광석 \+[12]$/.test(t)), '캐면 광석 이름과 개수가 떠오름 (구리 광석 +1)');
   ok(!/\d+\/\d+/.test((await quest()).replace(/\d+\/\d+\s*$/, '')) && !(await page.evaluate(() => document.querySelector('.quest em'))), '퀘스트 막대에 몇 번째인지(전체 개수) 숫자가 없음');
-  await page.click('[data-a="leave"]');
-  await page.waitForFunction(() => window.MinerDiary.scene() === 'forest', null, { timeout: 20000 });
-  ok(true, '동굴에서 나가면 숲으로');
-  await page.click('[data-a="leave"]');
-  await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 });
+  ok(await page.locator('#minebar [data-a="leave"]').count() === 0 && await page.locator('#minebar [data-a="homeFastAsk"]').count() === 1, '아래 막대엔 마을 단추 하나 (걸어서 나가기 단추 없음)');
+  await goHome(page);
+  ok(true, '숲 동굴에서 마을 단추로 집 앞까지');
   ok((await st()).carry.copper >= 5 && !(await st()).inv.copper, '숲을 지나 마을로 와도 가방은 그대로 들고 있음 (저절로 창고에 안 들어감)');
   ok(await page.evaluate(() => /\d+\/\d+/.test(document.querySelector('#dock [data-a="bag"]').textContent)), '마을 아래 가방 단추엔 가방 칸 수');
   await visit('merchant', '#sheet [data-a="sellAll"]');
@@ -233,12 +233,10 @@ const shot = process.argv[2];
   // 8. 나가기: 위로 가는 사다리까지 걸어가 올라가고, 깊이 1의 입구까지 이어서 마을로
   const dug0 = Object.keys((await deep()).dug).length;
   const carry0 = (await st()).carry;   // 구멍까지 가며 캔 바위에서 광석이 더 나올 수 있으니 나가기 직전 가방을 기준으로
-  await page.click('[data-a="leave"]');
-  ok(await page.evaluate(() => window.MinerDiary.hero().moving || window.MinerDiary.state().deep.L < 3 || S.exiting), '나가기를 누르면 사다리까지 걸어감 (바로 옆이면 바로 올라감)');
-  await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 30000 });
+  await goHome(page);
   await page.waitForTimeout(1000);
   s = await st();
-  ok(s.screen === 'village' && carry0.copper >= 5 && Object.entries(carry0).every(([k, n]) => s.carry[k] === n), `깊이 3에서 걸어서 마을까지, 가방은 그대로 (${s.screen} ${JSON.stringify(s.carry)} ${s.day})`);
+  ok(s.screen === 'village' && carry0.copper >= 5 && Object.entries(carry0).every(([k, n]) => s.carry[k] === n), `깊이 3에서 마을 단추로 집 앞까지, 가방은 그대로 (${s.screen} ${JSON.stringify(s.carry)} ${s.day})`);
   // 집 창고: 가방에서 넣고 꺼냄
   await visit('house', '#sheet [data-a="store"]');
   await page.click('#sheet [data-a="store"]');
@@ -310,9 +308,9 @@ const shot = process.argv[2];
   await ftap(40, 2);
   await page.waitForFunction(() => S.forest.grove === 'mush', null, { timeout: 10000 });
   ok(await page.evaluate(() => Object.values(S.forest.it).filter(k => k === 'glowcap' || k === 'truffle' || k === 'mush').length) > 10, '버섯 골짜기엔 버섯과 빛버섯, 송로버섯이 잔뜩');
-  await page.click('[data-a="leave"]');
+  await page.evaluate(() => leaveGrove());
   await page.waitForFunction(() => window.MinerDiary.scene() === 'forest' && !S.forest.grove, null, { timeout: 20000 });
-  ok(true, '곁가지 숲에서 나가면 본 숲으로');
+  ok(true, '곁가지 숲 길로 나가면 본 숲으로');
   await page.evaluate(() => { S.rod = 1; enterGrove('lake'); for (let i = 0; i < S.forest.seen.length; i++) S.forest.seen[i] = 1; });
   const wt = await page.evaluate(() => { const f = S.forest; for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) if (f.t[fI(x, y)] === 'w' && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => f.t[fI(x + dx, y + dy)] === 'g')) return [x, y]; return null; });
   await ftap(wt[0], wt[1]);
@@ -321,9 +319,9 @@ const shot = process.argv[2];
   ok(await page.evaluate(() => ['perch', 'carp', 'goldfin'].some(k => S.carry[k] > 0)), '호숫가 숲 물가를 누르면 낚시, 호수 물고기(쏘가리, 붕어, 금빛 송사리)');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { leaveGrove(); S.rod = 0; S.sickle = 0; });
-  await page.click('[data-a="leave"]'); await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 });
+  await goHome(page);
   s = await st();
-  ok(['herb', 'mush', 'wood', 'fiber', 'leather', 'copper'].some(k => s.carry[k] > 0), '숲에서 마을 길까지 걸어가서 마을로, 주운 것은 가방에 그대로');
+  ok(['herb', 'mush', 'wood', 'fiber', 'leather', 'copper'].some(k => s.carry[k] > 0), '숲에서 마을 단추로 집 앞까지, 주운 것은 가방에 그대로');
 
   // 10-2b. 광산: 광맥 줄기와 연속 캐기, 숨은 보물 상자
   ok((await quest()).includes('보물'), '채집 다음 퀘스트 「광산 숨은 보물 찾기」');
@@ -642,10 +640,9 @@ const shot = process.argv[2];
     return { wind: seen.has('wind'), dash: seen.has('dash'), shot, called };
   });
   ok(beh.wind && beh.dash && beh.shot && beh.called, '멧돼지는 멈칫했다가 돌진, 정령은 빛 구슬을 쏨, 왕 멧돼지는 멧돼지를 부름');
-  await page.click('#minebar [data-a="leave"]');
-  await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 15000 });
+  await goHome(page);
   s = await st();
-  ok(s.carry.meat >= 1, '나가기 단추로 마을에 돌아오면 잡은 것은 가방에 그대로');
+  ok(s.carry.meat >= 1, '마을 단추로 돌아오면 잡은 것은 가방에 그대로');
 
   // 13-0g2. 세계 지도와 눈 덮인 산마을: 짐을 꾸려 길을 떠나고, 산마을 시장에 팔고, 산 광산에 들어가고, 여관에서 자고, 돌아옴
   ok((await quest()).includes('산마을'), '사냥 다음 퀘스트 「눈 덮인 산마을 가기」');
