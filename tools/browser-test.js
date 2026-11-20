@@ -438,12 +438,36 @@ const shot = process.argv[2];
   s = await st();
   ok(s.pick === 1 && !P(s, 'copperBar') && s.gold === gP - 200 + 50, '구리 주괴 5개와 🪙200으로 구리 곡괭이 (퀘스트 보상 🪙50)');
   ok(s.pickQ >= 1, `가운데를 맞춰 두드리면 품질이 오름 (${['보통', '좋음', '최상'][s.pickQ]})`);
-  ok(await page.evaluate(() => window.MinerDiary.maxFloor()) === 7 && (await quest()).includes('시장'), '구리 곡괭이로 깊이 7까지, 다음 퀘스트 「시장 고치기」');
+  ok(await page.evaluate(() => window.MinerDiary.maxFloor()) === 7 && (await quest()).includes('다리'), '구리 곡괭이로 깊이 7까지, 다음 퀘스트 「강가 다리 고치기」');
   // 13-0x. 날 세우기: 곡괭이 파워 +4
   const pw0 = await page.evaluate(() => { S.inv.copperBar = 3; S.gold += 100; showSmithy(); return window.MinerDiary.power(); });
   await page.click('#sheet [data-a="sharp"]');
   ok(await page.locator('#sheet [data-a="craft"][data-o="sickle"]').count() === 1, '대장간에서 낫을 만들 수 있음');
   ok((await st()).sharp === 1 && await page.evaluate(() => window.MinerDiary.power()) === pw0 + 4 && (await page.textContent('#sheet')).includes('곡괭이 파워'), `대장간 날 세우기로 곡괭이 파워 +4 (${pw0} 다음 ${pw0 + 4})`);
+  await page.click('#sheet [data-a="close"]');
+
+  // 13-0c. 강가 다리 고치기, 낚싯대, 낚시 세 번 (찌가 잠길 때 당김). 시장과 밭이 강 건너라 다리가 먼저 (기획 67번)
+  await page.evaluate(() => { S.inv.wood = 20; S.inv.ironBar = 2; S.gold += 300; renderHud(); });
+  await visit('bridge', '#sheet [data-a="restore"][data-o="bridge"]');
+  await page.click('#sheet [data-a="restore"][data-o="bridge"]');
+  s = await st();
+  ok(s.restored.includes('bridge') && s.rod && (await quest()).includes('물고기'), '다리를 고치면 낚싯대를 받고 퀘스트 「물고기 낚기」');
+  await page.click('#sheet [data-a="close"]');
+  ok(await page.evaluate(() => { const b = OBJ.find(o => o.id === 'bridge'); return !blocked(b.gx, b.gy) && !blocked(b.gx, b.gy + 1); }), '고친 다리는 건널 수 있음');
+  const wx = 13, wy = await page.evaluate(() => riverY(13) + 1);
+  const wp = await page.evaluate(([x, y]) => window.MinerDiary.tileSpot(x, y), [wx, wy]);
+  await page.mouse.click(wp.x, wp.y);
+  await page.waitForSelector('#sheet [data-a="pull"]', { timeout: 15000 });
+  if (shot) await page.screenshot({ path: path.join(shot, 'fishing.png') });
+  const eFi = (await st()).energy, fN0 = (await st()).fishN || 0;
+  for (let k = 0; k < 3; k++) {
+    if (k) await page.click('#sheet [data-a="cast"]');
+    await page.waitForFunction(() => window.MinerDiary.fishState() === 'bite', null, { timeout: 8000, polling: 20 });
+    await page.evaluate(() => document.querySelector('#sheet [data-a="pull"]').click());
+  }
+  s = await st();
+  ok(s.fishN === fN0 + 3 && ['carp', 'trout', 'catfish', 'eel', 'moonkoi'].some(k => P(s, k) > 0) && s.energy === eFi - 4, '강을 누르면 물가로 걸어가 낚시, 찌가 잠길 때 당기면 물고기 (던질 때 기력 2)');
+  ok((await quest()).includes('시장'), '물고기 셋을 낚으면 다음 퀘스트 「시장 고치기」');
   await page.click('#sheet [data-a="close"]');
 
   // 13-0. 시장: 나무 10개와 🪙800으로 고치고, 시세대로 팔기 (많이 팔면 값이 떨어짐), 다음 날 시세는 예고대로
@@ -480,31 +504,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="home"]');
   s = await st();
   ok(s.home === 1 && s.max === mx0 + 20 && (await page.textContent('#sheet h2')).includes('고친 집'), `집을 고치면 최대 기력 ${s.max}`);
-  // 13-0c. 강가 다리 고치기, 낚싯대, 낚시 세 번 (찌가 잠길 때 당김)
   await page.click('#sheet [data-a="close"]');
-  await page.evaluate(() => { S.inv.wood = 20; S.inv.ironBar = 2; S.gold += 300; renderHud(); });
-  await visit('bridge', '#sheet [data-a="restore"][data-o="bridge"]');
-  await page.click('#sheet [data-a="restore"][data-o="bridge"]');
-  s = await st();
-  ok(s.restored.includes('bridge') && s.rod && (await quest()).includes('물고기'), '다리를 고치면 낚싯대를 받고 퀘스트 「물고기 낚기」');
-  await page.click('#sheet [data-a="close"]');
-  ok(await page.evaluate(() => !blocked(16, riverY(16))), '고친 다리는 건널 수 있음');
-  const wx = 13, wy = await page.evaluate(() => riverY(13));
-  const wp = await page.evaluate(([x, y]) => window.MinerDiary.tileSpot(x, y), [wx, wy]);
-  await page.mouse.click(wp.x, wp.y);
-  await page.waitForSelector('#sheet [data-a="pull"]', { timeout: 15000 });
-  if (shot) await page.screenshot({ path: path.join(shot, 'fishing.png') });
-  const eFi = (await st()).energy, fN0 = (await st()).fishN || 0;
-  for (let k = 0; k < 3; k++) {
-    if (k) await page.click('#sheet [data-a="cast"]');
-    await page.waitForFunction(() => window.MinerDiary.fishState() === 'bite', null, { timeout: 8000, polling: 20 });
-    await page.evaluate(() => document.querySelector('#sheet [data-a="pull"]').click());
-  }
-  s = await st();
-  ok(s.fishN === fN0 + 3 && ['carp', 'trout', 'catfish', 'eel', 'moonkoi'].some(k => P(s, k) > 0) && s.energy === eFi - 4, '강을 누르면 물가로 걸어가 낚시, 찌가 잠길 때 당기면 물고기 (던질 때 기력 2)');
-  ok((await quest()).includes('밭'), '물고기 셋을 낚으면 다음 퀘스트 「밭 일구기」');
-  await page.click('#sheet [data-a="close"]');
-
   // 13-0d. 밭: 고치고, 씨앗 사서 심고, 아침이나 점심에 물 주면 밤에 자람, 다 자라면 거둠
   await page.evaluate(() => { S.inv.wood = 8; S.gold += 400; renderHud(); });
   await visit('field', '#sheet [data-a="restore"][data-o="field"]');
@@ -516,7 +516,7 @@ const shot = process.argv[2];
   ok((await st()).items.radishSeed === 3, '상인에게서 무 씨앗 셋을 삼');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { S.dayStart = S.minE = S.energy; renderHud(); });   // 시간을 아침으로 (물 주기 시험)
-  const plots = [[9, 28], [11, 28], [13, 28]];
+  const plots = await page.evaluate(() => { const f = OBJ.find(o => o.id === 'field'); return [[f.gx + 1, f.gy + 1], [f.gx + 3, f.gy + 1], [f.gx + 5, f.gy + 1]]; });
   for (const [px, py] of plots) {
     const p = await page.evaluate(([x, y]) => window.MinerDiary.tileSpot(x, y), [px, py]);
     await page.mouse.click(p.x, p.y);
@@ -564,8 +564,23 @@ const shot = process.argv[2];
   const gR = (await st()).gold, rq = (await st()).req;
   await page.click('#sheet [data-a="kreq"]');
   s = await st();
-  ok(s.req.done && s.gold === gR + rq.gold + 100 && (await quest()).includes('의뢰판'), `점심에 의뢰(${rq.item} ${rq.n}개)를 들어주면 🪙${rq.gold} (퀘스트 보상 🪙100)`);
+  ok(s.req.done && s.gold === gR + rq.gold + 100 && (await quest()).includes('밭 넓히기'), `점심에 의뢰(${rq.item} ${rq.n}개)를 들어주면 🪙${rq.gold} (퀘스트 보상 🪙100), 다음 퀘스트 「밭 넓히기」`);
   await page.click('#sheet [data-a="close"]');
+  // 13-0e1. 밭 넓히기: 거친 밭을 고치면 두 번째 밭에도 심을 수 있음 (기획 67번)
+  await page.evaluate(() => { S.inv.wood = (S.inv.wood || 0) + 20; S.gold += 600; renderHud(); });
+  await visit('field2', '#sheet [data-a="restore"][data-o="field2"]');
+  await page.click('#sheet [data-a="restore"][data-o="field2"]');
+  ok((await st()).restored.includes('field2') && (await quest()).includes('의뢰판'), '넓힐 밭을 고치면 퀘스트 「촌장 의뢰판 의뢰」');
+  await page.click('#sheet [data-a="close"]');
+  {
+    const f2 = await page.evaluate(() => { const f = OBJ.find(o => o.id === 'field2'); S.items.radishSeed = 1; return [f.gx + 2, f.gy + 1]; });
+    const p = await page.evaluate(([x, y]) => window.MinerDiary.tileSpot(x, y), f2);
+    await page.mouse.click(p.x, p.y);
+    await page.waitForSelector('#sheet [data-a="plant"]', { timeout: 15000 });
+    await page.click('#sheet [data-a="plant"]');
+    ok((await st()).farm[f2[0] + ',' + f2[1]], '넓힌 밭 칸을 눌러 씨앗을 심음');
+    await page.click('#sheet [data-a="close"]');
+  }
   // 13-0e2. 의뢰판: 촌장에게 날마다 의뢰 셋. 물건 의뢰 하나를 끝냄
   const bi = await page.evaluate(() => { const L = todayBoard().list, i = L.findIndex(b => b.kind === 'item'); S.inv[L[i].item] = (S.inv[L[i].item] || 0) + L[i].n; return i; });
   await visit('chief', `#sheet [data-a="board"][data-n="${bi}"]`);
