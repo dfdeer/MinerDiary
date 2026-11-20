@@ -1473,6 +1473,16 @@ function drawBuilding(c, o, night) {
     }
   }
 }
+// 누른 점에 그 건물이 실제로 그려져 있는지 (지붕 옆 빈 곳처럼 상자 안이지만 뒤 땅이 보이는 곳은 아님). 둘레 3픽셀까지 봐 줌
+const hitCv = document.createElement('canvas'); hitCv.width = hitCv.height = 7; const hitCx = hitCv.getContext('2d', { willReadFrequently: true });
+function drawnAt(o, x, y) {
+  try {
+    hitCx.setTransform(1, 0, 0, 1, 0, 0); hitCx.clearRect(0, 0, 7, 7); hitCx.setTransform(1, 0, 0, 1, 3 - x, 3 - y);
+    drawObj(hitCx, o, false);
+    const d = hitCx.getImageData(0, 0, 7, 7).data; for (let i = 3; i < d.length; i += 4) if (d[i] > 30) return true;
+    return false;
+  } catch (e) { return true; }
+}
 function drawObj(c, o, night) {
   const z0 = hgt(o.gx, o.gy), x = o.gx, y = o.gy;
   if (o.door && o.w >= 2) {
@@ -1870,7 +1880,7 @@ function tap(px, py) {
     const z = hgt(o.gx, o.gy), tall = { house: 3.4, smithy: 4, kitchen: 3.6, jewel: 3.6, market: 1.3, museum: 4, mine: 4.2, gate: 2.4, npc: 2.2, wagon: 2.2 }[o.kind] || 1.2;
     const up = ZU * (o.done || o.grow > .3 ? tall : 1.4);
     const a = iso(o.gx, o.gy, z), b = iso(o.gx + o.w, o.gy, z), cc = iso(o.gx + o.w, o.gy + o.d, z), d = iso(o.gx, o.gy + o.d, z);
-    return inPoly(x, y, [[d[0], d[1]], [cc[0], cc[1]], [b[0], b[1]], [b[0], b[1] - up], [a[0], a[1] - up], [d[0], d[1] - up]]);
+    return inPoly(x, y, [[d[0], d[1]], [cc[0], cc[1]], [b[0], b[1]], [b[0], b[1] - up], [a[0], a[1] - up], [d[0], d[1] - up]]) && (o.w < 2 || o.d < 2 || o.kind === 'field' || drawnAt(o, x, y));   // 2×2 이상 건물만 그려진 곳으로 따짐 (작은 것은 누르기 쉽게 상자 그대로)
   }).sort((p, q) => {
     // 사람과 수레처럼 작은 것을 먼저, 그다음 앞쪽에 있는 것
     const small = o => (o.kind === 'npc' || o.kind === 'wagon' ? 1 : 0);
@@ -2788,22 +2798,25 @@ function genForest(day) {
   const I = (x, y) => y * FW + x, t = Array(FW * FH).fill('g'), R0 = H32(worldSeed() * 7919 + 13) * 1e5 | 0, Rd = H32(day * 7919 + 13) * 1e5 | 0, it = {};
   const h = (x, y, k) => H32(x * 92821 + y * 68917 + R0 + k * 7), hi = (x, y, k) => H32(x * 92821 + y * 68917 + Rd + k * 7);
   for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
-    const v = h(x, y, 1); t[I(x, y)] = v < .3 ? 't' : v < .34 ? 's' : v < .36 ? 'k' : 'g';
+    // 나무는 덩어리(빽빽한 수풀)로 모이고, 사이는 트인 풀밭 (기획 65번)
+    const v = h(x, y, 1), nz = vnoise(x / 5.5, y / 5.5, R0 + 3) * .7 + vnoise(x / 2.4, y / 2.4, R0 + 8) * .3;
+    t[I(x, y)] = nz > .57 ? (v < .8 ? 't' : v < .93 ? 's' : 'k') : nz > .52 ? (v < .45 ? 't' : v < .55 ? 's' : 'g') : (v < .03 ? 't' : v < .05 ? 's' : v < .065 ? 'k' : 'g');
     // 가장자리는 두께가 들쭉날쭉한 빽빽한 숲 (네모 테두리로 안 보이게)
     const edge = Math.min(x, y, FW - 1 - x, FH - 1 - y), thick = 1 + vnoise(x / 4, y / 4, R0 + 5) * 3.6;
     if (edge < thick) t[I(x, y)] = h(x, y, 2) < .82 ? 't' : 'k';
   }
   const ex = FW - 2, ey = (FH / 2) | 0;   // 마을 쪽(오른쪽 위 가장자리)에서 들어옴
-  for (let x = 2; x < ex; x++) t[I(x, ey)] = 'g';   // 가운데 길: 구역 사이 큰 바위를 지나 안쪽까지
+  const trail = new Set();   // 숲길: 바닥은 그대로 두고, 길 옆은 트이고 그 바깥에 나무가 줄지어 서서 길이 어렴풋이 보임
+  for (let x = 2; x < ex; x++) { t[I(x, ey)] = 'g'; trail.add(I(x, ey)); }   // 가운데 길: 구역 사이 큰 바위를 지나 안쪽까지
   for (let y = ey - 2; y <= ey + 2; y++) for (let x = ex - 3; x <= ex; x++) t[I(x, y)] = 'g';
   t[I(ex, ey)] = 'x';
   // 동굴 입구: 들어오는 곳에서 몇 걸음 안쪽 (늘 같은 자리)
   const vx = ex - 5, vy = ey - 3; for (let y = vy - 1; y <= vy + 2; y++) for (let x = vx - 1; x <= vx + 3; x++) t[I(x, y)] = 'g';
-  for (let x = vx; x <= ex - 1; x++) t[I(x, vy + 1)] = 'g'; for (let y = vy + 1; y <= ey; y++) t[I(ex - 1, y)] = 'g';
+  for (let x = vx; x <= ex - 1; x++) { t[I(x, vy + 1)] = 'g'; trail.add(I(x, vy + 1)); } for (let y = vy + 1; y <= ey; y++) { t[I(ex - 1, y)] = 'g'; trail.add(I(ex - 1, y)); }
   t[I(vx, vy)] = 'v';
   // 오솔길 몇 갈래 (들어오는 곳에서 숲 안쪽으로)
   for (let k = 0; k < 4; k++) { let px = ex - 1, py = ey; const tx = 3 + (h(k, 1, 3) * (FW - 6) | 0), ty = 3 + (h(1, k, 4) * (FH - 6) | 0);
-    for (let n = 0; n < 200 && (px !== tx || py !== ty); n++) { t[I(px, py)] = 'g'; const r = h(px, py, 8 + k); if (r < .45 && px !== tx) px += Math.sign(tx - px); else if (r < .9 && py !== ty) py += Math.sign(ty - py); else if (px !== tx) px += Math.sign(tx - px); else py += Math.sign(ty - py); } }
+    for (let n = 0; n < 200 && (px !== tx || py !== ty); n++) { t[I(px, py)] = 'g'; trail.add(I(px, py)); const r = h(px, py, 8 + k); if (r < .45 && px !== tx) px += Math.sign(tx - px); else if (r < .9 && py !== ty) py += Math.sign(ty - py); else if (px !== tx) px += Math.sign(tx - px); else py += Math.sign(ty - py); } }
   t[I(vx, vy)] = 'v';   // 오솔길이 지나가도 동굴 입구는 그대로
   for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) {
     if (t[I(x, y)] !== 'g' || Math.hypot(x - ex, y - ey) < 3) continue;
@@ -2829,14 +2842,19 @@ function genForest(day) {
     if (!(S.forestOpen || {})[i + 1]) t[I(bx - 1, ey)] = 'g';
   });
   // 곁가지 숲 입구: 깊은 숲 위쪽에 버섯 골짜기(가시덤불로 막힘), 오래된 숲 아래쪽에 호숫가 숲
-  for (let y = 2; y <= ey; y++) t[I(40, y)] = 'g'; t[I(40, 2)] = 'o'; t[I(40, 3)] = 'q';
-  for (let y = ey; y <= FH - 3; y++) t[I(24, y)] = 'g'; t[I(24, FH - 3)] = 'o';
+  for (let y = 2; y <= ey; y++) { t[I(40, y)] = 'g'; trail.add(I(40, y)); } t[I(40, 2)] = 'o'; t[I(40, 3)] = 'q';
+  for (let y = ey; y <= FH - 3; y++) { t[I(24, y)] = 'g'; trail.add(I(24, y)); } t[I(24, FH - 3)] = 'o';
   [[40, 2], [40, 3], [24, FH - 3]].forEach(([x, y]) => delete it[x + ',' + y]);
   // 깊은 구역마다 상자 하나
   for (let z = 1; z < F_ZONES.length; z++) for (let n = 0; n < 200; n++) { const x = F_ZONES[z].x + 2 + (hi(n, z, 41) * 12 | 0), y = 2 + (hi(z, n, 42) * (FH - 4) | 0); if (t[I(x, y)] === 'g' && !it[x + ',' + y] && y !== ey) { it[x + ',' + y] = 'chest'; break; } }
   // 낡은 상자 둘: 먼 곳에
   for (let k = 0, n = 0; k < 2 && n < 400; n++) { const x = 2 + (hi(n, k, 21) * (FW - 4) | 0), y = 2 + (hi(k, n, 22) * (FH - 4) | 0); if (t[I(x, y)] === 'g' && Math.hypot(x - ex, y - ey) > 14 && !it[x + ',' + y]) { it[x + ',' + y] = 'chest'; k++; } }
-  const f = applyMem({ day, t, it, ex, ey, hx: ex - 1, hy: ey, steps: 0, wall }, 'main'), seen = f.seen;
+  // 길 바로 옆은 대부분 트이고(가장자리엔 고사리, 꽃, 돌), 그 바깥 줄엔 나무와 덤불이 줄지어 섬
+  const wallS = new Set(wall), edge = new Set(), D4 = [[1, 0], [0, 1], [-1, 0], [0, -1]], inner = (a, b) => a >= 2 && b >= 2 && a <= FW - 3 && b <= FH - 3;
+  trail.forEach(i => { const x = i % FW, y = (i / FW) | 0; for (const [dx, dy] of D4) { const a = x + dx, b = y + dy; if (!inner(a, b)) continue; const j = I(a, b); if (trail.has(j) || wallS.has(j)) continue; if ('tsk'.includes(t[j]) && h(a, b, 77) < .7) t[j] = 'g'; edge.add(j); } });
+  edge.forEach(i => { const x = i % FW, y = (i / FW) | 0; for (const [dx, dy] of D4) { const a = x + dx, b = y + dy; if (!inner(a, b)) continue; const j = I(a, b); if (trail.has(j) || edge.has(j) || wallS.has(j) || t[j] !== 'g') continue; const r = h(a, b, 81); if (r < .62) t[j] = r < .5 ? 't' : 's'; } });
+  Object.keys(it).forEach(k => { const [a, b] = k.split(',').map(Number); if (t[I(a, b)] !== 'g') delete it[k]; });
+  const f = applyMem({ day, t, it, ex, ey, hx: ex - 1, hy: ey, steps: 0, wall, edge: [...edge] }, 'main'), seen = f.seen;
   for (let y = vy - 1; y <= vy + 2; y++) for (let x = vx - 1; x <= ex; x++) seen[I(x, y)] = 1;   // 동굴 입구 둘레는 처음부터 보임
   for (let y = vy + 1; y <= ey; y++) seen[I(ex - 1, y)] = 1;
   return f;
@@ -3066,9 +3084,13 @@ function caveMouth(c, x, y) {
   c.restore();
 }
 let wind = [];
+const edgeCache = new WeakMap();
 function forestGround(c, x, y, i) {
   const n = H32(i * 92821 + S.forest.day), n2 = H32(i * 7 + S.forest.day * 53);
   tileTop(c, x, y, 0, fGround(x)[n * 3 | 0]);
+  // 숲길 가장자리: 고사리, 작은 꽃, 돌멩이가 드문드문
+  let ed = edgeCache.get(S.forest); if (!ed) { ed = new Set(S.forest.edge || []); edgeCache.set(S.forest, ed); }   // 저장에 넣지 않는 곁 기억
+  if (ed.has(i) && S.forest.t[i] === 'g') { const p0 = INK; INK = 0; for (let k = 0; k < 2; k++) { const r = iso(x + .2 + H32(i * 5 + k) * .6, y + .2 + H32(i * 9 + k) * .6, 0), w = H32(i * 13 + k); if (w < .4) { L(c, r[0], r[1], r[0] - TW * .05, r[1] - TW * .1, '#3f8a3a', TW * .02); L(c, r[0], r[1], r[0] + TW * .05, r[1] - TW * .1, '#4c9a44', TW * .02); L(c, r[0], r[1], r[0], r[1] - TW * .13, '#4c9a44', TW * .02); } else if (w < .65) { Cc(c, r[0], r[1] - TW * .03, TW * .028, ['#f6f0e0', '#f2d35b', '#e88aa8'][(w * 30 | 0) % 3]); Cc(c, r[0], r[1] - TW * .03, TW * .01, '#f2c230'); } else if (w < .8) { E(c, r[0], r[1], TW * .06, TW * .035, '#9a9088'); E(c, r[0] - TW * .015, r[1] - TW * .01, TW * .03, TW * .015, '#b3aaa1'); } } INK = p0; return; }
   if (n2 < .4) for (let k = 0; k < 2; k++) { const q = iso(x + .2 + H32(i * 13 + k) * .6, y + .2 + H32(i * 3 + k) * .6, 0); P(c, [[q[0] - TW * .03, q[1]], [q[0] - TW * .01, q[1] - ZU * .22], [q[0] + TW * .01, q[1]], [q[0] + TW * .035, q[1] - ZU * .17], [q[0] + TW * .05, q[1]]], '#4f8a40'); }
   else if (n2 > .86) { const cols = ['#f6f0e0', '#f2d35b', '#b9a2e8']; const q = iso(x + .5, y + .5, 0); Cc(c, q[0], q[1], TW * .035, cols[n * 3 | 0]); Cc(c, q[0], q[1], TW * .012, '#fff8d0'); }
 }
@@ -4643,8 +4665,10 @@ function trade(o) {
   const g = tradeValue(o); take(o, n); S.market.sold[o] = (S.market.sold[o] || 0) + n; S.gold += g;
   SFX.coin(); toast(`${GOLD}+${g}`); questEvent('trade'); save(); renderHud(); showMarket();
 }
-function sell(o) { const n = have(o); if (!n) return; take(o, n); S.gold += ORES[o].price * n; SFX.coin(); toast(`${GOLD}+${ORES[o].price * n}`); questEvent('sell'); save(); renderHud(); showMerchant(); }
-function sellAll() { let g = 0; ORE_ORDER.forEach(o => { const n = have(o); g += n * ORES[o].price; take(o, n); }); if (!g) return; S.gold += g; SFX.coin(); toast(`${GOLD}+${g}`); questEvent('sell'); save(); renderHud(); showMerchant(); }
+// 상인에게 광석 팔기 퀘스트는 땅에서 캔 광석을 팔 때만 깨짐 (채집물, 물고기 같은 것은 아님)
+const MINED = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon'];
+function sell(o) { const n = have(o); if (!n) return; take(o, n); S.gold += ORES[o].price * n; SFX.coin(); toast(`${GOLD}+${ORES[o].price * n}`); if (MINED.includes(o)) questEvent('sell'); save(); renderHud(); showMerchant(); }
+function sellAll() { let g = 0, ore = false; ORE_ORDER.forEach(o => { const n = have(o); if (n && MINED.includes(o)) ore = true; g += n * ORES[o].price; take(o, n); }); if (!g) return; S.gold += g; SFX.coin(); toast(`${GOLD}+${g}`); if (ore) questEvent('sell'); save(); renderHud(); showMerchant(); }
 // 소리 크기 막대
 document.addEventListener('input', e => {
   const k = e.target.dataset && e.target.dataset.vol; if (!k) return;
