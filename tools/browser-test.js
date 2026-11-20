@@ -154,7 +154,10 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="close"]');
   // 4-2. 광산(땅속) 입장
   await visit('mine', '#sheet [data-a="enter"]');
+  ok((await page.textContent('#sheet')).includes('최고 깊이') && !(await page.textContent('#sheet')).includes('가장 깊이'), '광산 창엔 「최고 깊이」');
   await page.click('#sheet [data-a="enter"]');
+  const lb = await page.waitForFunction(() => { const l = document.querySelector('#minebar .loc'); return !!l && /깊이 \d+/.test(l.querySelector('b').textContent) && l.querySelector('small').textContent.length > 0 && !!document.querySelector('#minebar .bagm i'); }, null, { timeout: 8000 }).then(() => true).catch(async () => page.evaluate(() => document.querySelector('#minebar').innerHTML.replace(/<svg.*?<\/svg>/g, '').slice(0, 300)));
+  ok(lb === true, '아래 막대: 작은 글씨로 구역, 큰 글씨로 깊이, 가방 채움 막대 ' + (lb === true ? '' : lb));
   await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
   await page.waitForTimeout(300);
   ok((await st()).screen === 'mine', '광산 입장 (깊이 1, 입구)');
