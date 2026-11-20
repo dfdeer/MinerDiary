@@ -71,9 +71,18 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* 광산 아래쪽 막대 */
 .minebar{position:fixed;left:0;right:0;bottom:0;z-index:3;height:calc(64px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:8px;max-width:620px;margin:0 auto;padding:0 var(--sr) env(safe-area-inset-bottom,0px) var(--sl);border-radius:18px 18px 0 0;border-bottom:0}
-.minebar b{font-size:15px;white-space:nowrap}
-.minebar .got{flex:1;min-width:0;display:flex;gap:10px;overflow:hidden;white-space:nowrap;font-weight:700;font-size:14px}
-.minebar .got span{display:flex;align-items:center;gap:5px}
+.minebar .loc{display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;padding:0 10px 0 2px;border-right:1px solid rgba(255,235,200,.12);line-height:1.05;white-space:nowrap}
+.minebar .loc small{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--dim)}
+.minebar .loc small i{width:7px;height:7px;border-radius:50%;box-shadow:0 0 0 1.5px rgba(0,0,0,.35),0 0 6px currentColor}
+.minebar .loc b{font-size:17px;color:var(--fg);overflow:hidden;text-overflow:ellipsis}
+.minebar .got{flex:1;min-width:0;display:flex;gap:5px;overflow:hidden;white-space:nowrap;font-size:13px;-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent)}
+.minebar .got>span{display:flex;align-items:center;gap:3px;padding:2px 8px 2px 3px;border-radius:999px;background:rgba(0,0,0,.28);box-shadow:inset 0 1px 0 rgba(255,235,200,.06)}
+.minebar .btn.small{flex:none}
+.minebar .btn.small:not(.bagm){width:44px;padding:0;display:flex;align-items:center;justify-content:center}
+.minebar .bagm{position:relative;overflow:hidden;display:flex;align-items:center;gap:4px;padding:0 10px}
+.minebar .bagm small{font-size:11px;color:var(--dim)}
+.minebar .bagm i{position:absolute;left:0;bottom:0;height:3px;background:var(--accent);border-radius:0 2px 2px 0}
+.minebar .bagm.full i{background:var(--bad)}
 
 /* 아래에서 올라오는 창 */
 #veil{position:fixed;inset:0;z-index:4;background:rgba(10,6,3,.28)}
@@ -1432,34 +1441,51 @@ function drawBuilding(c, o, night) {
       signBoard(c, o, zb, 1.5 * g, 1);
       break;
     }
-    case 'mine': {    // 광산: 바위 산, 나무틀 굴 입구, 레일과 광석 수레, 꼭대기 도르래
+    case 'mine': {    // 광산 (기획 68번): 층층이 쌓인 바위 언덕, 나무틀 갱도 입구(왼쪽 앞면), 꼭대기 나무 망루와 도르래, 레일과 광석 수레
       const u = TW / 100, ink = Math.max(1.5, TW * .024), q0 = iso(x0 + 1.5, y0 + 1.5, z);
-      c.save(); c.translate(q0[0], q0[1]);
-      E(c, 0, u * 20, u * 150, u * 52, 'rgba(0,0,0,.16)');
-      c.scale(.88, .88); blobs(c, [[-u * 92, -u * 20, u * 56], [u * 92, -u * 18, u * 54], [-u * 40, -u * 80, u * 72], [u * 40, -u * 82, u * 70], [0, -u * 130, u * 56], [0, -u * 30, u * 70]], '#a39079', ink / .88);
-      [[-u * 70, -u * 112, -u * 30, -u * 130], [u * 30, -u * 168, u * 56, -u * 150], [u * 60, -u * 100, u * 96, -u * 70], [-u * 120, -u * 40, -u * 96, -u * 64]].forEach(([a2, b2, c2, d2]) => { c.beginPath(); c.moveTo(a2, b2); c.quadraticCurveTo((a2 + c2) / 2, Math.min(b2, d2) - u * 8, c2, d2); c.strokeStyle = 'rgba(255,255,255,.28)'; c.lineWidth = u * 5; c.stroke(); });
-      [[-u * 20, -u * 60], [u * 50, -u * 40], [-u * 70, -u * 70]].forEach(([a2, b2]) => { c.beginPath(); c.moveTo(a2, b2); c.lineTo(a2 + u * 10, b2 + u * 8); c.lineTo(a2 + u * 6, b2 + u * 18); c.strokeStyle = 'rgba(60,40,25,.45)'; c.lineWidth = u * 2.2; c.stroke(); });
-      blobs(c, [[-u * 110, -u * 46, u * 16], [-u * 96, -u * 56, u * 14], [u * 104, -u * 60, u * 14], [-u * 20, -u * 176, u * 13], [u * 2, -u * 182, u * 11]], '#6fae54', ink * .8);
-      // 꼭대기 도르래
-      inkPoly(c, [[-u * 26, -u * 168], [-u * 4, -u * 236], [u * 2, -u * 236], [-u * 16, -u * 168]], '#9a6a3a', ink * .8);
-      inkPoly(c, [[u * 26, -u * 168], [u * 4, -u * 236], [-u * 2, -u * 236], [u * 16, -u * 168]], '#8a5a32', ink * .8);
-      c.beginPath(); c.arc(0, -u * 236, u * 18, 0, 7); c.lineWidth = ink * 2.2; c.strokeStyle = OUT; c.stroke(); c.lineWidth = ink; c.strokeStyle = '#c08a52'; c.stroke();
-      for (let k = 0; k < 4; k++) { const a2 = tnow * .8 + k * Math.PI / 4; L(c, -Math.cos(a2) * u * 17, -u * 236 - Math.sin(a2) * u * 17, Math.cos(a2) * u * 17, -u * 236 + Math.sin(a2) * u * 17, '#8a5a32', u * 2.2); }
-      Cc(c, 0, -u * 236, u * 4, '#5a3d22');
+      c.save(); c.translate(q0[0], q0[1]); c.scale(.9, .9);
+      E(c, 0, u * 22, u * 150, u * 54, 'rgba(0,0,0,.16)');
+      // 바위 언덕: 어두운 바탕 덩어리 위에 밝은 면을 왼쪽 위로 겹쳐 울퉁불퉁한 입체감
+      const LUMPS = [[-112, -26, 50], [108, -22, 50], [-62, -88, 66], [52, -94, 68], [-4, -146, 54], [0, -36, 78], [-30, -50, 60], [40, -48, 60]];
+      blobs(c, LUMPS.map(([a2, b2, r]) => [a2 * u, b2 * u, r * u]), '#76644f', ink / .9);
+      LUMPS.forEach(([a2, b2, r]) => { c.beginPath(); c.arc((a2 - r * .12) * u, (b2 - r * .14) * u, r * .82 * u, 0, 7); c.fillStyle = '#9c8670'; c.fill(); });
+      LUMPS.forEach(([a2, b2, r]) => { c.beginPath(); c.ellipse((a2 - r * .3) * u, (b2 - r * .4) * u, r * .42 * u, r * .3 * u, -.5, 0, 7); c.fillStyle = 'rgba(214,196,170,.55)'; c.fill(); });
+      // 바위 금
+      [[-84, -60, -64, -36, -70, -18], [24, -120, 40, -100, 34, -80], [70, -50, 92, -34, 86, -14], [-30, -128, -14, -112, -22, -96]].forEach(([a2, b2, c2, d2, e2, f2]) => { c.beginPath(); c.moveTo(a2 * u, b2 * u); c.lineTo(c2 * u, d2 * u); c.lineTo(e2 * u, f2 * u); c.strokeStyle = 'rgba(60,42,28,.55)'; c.lineWidth = u * 2.4; c.lineCap = 'round'; c.stroke(); });
+      // 드러난 광맥 (반짝임)
+      [[-92, -72, '#e0884a'], [-80, -64, '#e0884a'], [78, -78, '#6fd2ea'], [86, -70, '#9fe6f4'], [10, -150, '#e0884a'], [-48, -120, '#c9d2dc']].forEach(([a2, b2, col], k) => { c.beginPath(); c.moveTo(a2 * u, (b2 - 6) * u); c.lineTo((a2 + 5) * u, b2 * u); c.lineTo(a2 * u, (b2 + 6) * u); c.lineTo((a2 - 5) * u, b2 * u); c.closePath(); c.fillStyle = col; c.fill(); c.lineWidth = ink * .6; c.strokeStyle = OUT; c.stroke(); if (k % 2 === 0) { const tw = .5 + .5 * Math.sin(tnow * 3 + k); c.fillStyle = `rgba(255,255,255,${.8 * tw})`; c.fillRect((a2 - 1) * u, (b2 - 9) * u, u * 2, u * 2); } });
+      // 이끼와 풀
+      blobs(c, [[-118, -46, 16], [-104, -56, 13], [112, -46, 14], [98, -56, 11], [-20, -190, 13], [4, -194, 11], [-70, -144, 10]].map(([a2, b2, r]) => [a2 * u, b2 * u, r * u]), '#6fae54', ink * .8);
+      // 꼭대기 나무 망루와 도르래
+      { const wd = '#a8703a', wd2 = '#86562c';
+        inkPoly(c, [[-u * 34, -u * 176], [-u * 10, -u * 246], [-u * 2, -u * 246], [-u * 22, -u * 176]], wd, ink * .8);
+        inkPoly(c, [[u * 34, -u * 176], [u * 10, -u * 246], [u * 2, -u * 246], [u * 22, -u * 176]], wd2, ink * .8);
+        inkPoly(c, [[-u * 28, -u * 206], [u * 28, -u * 206], [u * 26, -u * 214], [-u * 26, -u * 214]], wd2, ink * .7);
+        L(c, -u * 24, -u * 182, u * 20, -u * 210, wd2, u * 3); L(c, u * 24, -u * 182, -u * 20, -u * 210, wd2, u * 3);
+        c.beginPath(); c.arc(0, -u * 246, u * 19, 0, 7); c.lineWidth = ink * 2.2; c.strokeStyle = OUT; c.stroke(); c.lineWidth = ink; c.strokeStyle = '#c08a52'; c.stroke();
+        for (let k = 0; k < 4; k++) { const a2 = tnow * .8 + k * Math.PI / 4; L(c, -Math.cos(a2) * u * 18, -u * 246 - Math.sin(a2) * u * 18, Math.cos(a2) * u * 18, -u * 246 + Math.sin(a2) * u * 18, '#8a5a32', u * 2.2); }
+        Cc(c, 0, -u * 246, u * 4.5, '#5a3d22'); }
+      // 아래 자갈
+      blobs(c, [[-150, 4, 12], [-136, 12, 8], [146, 8, 11], [158, 0, 7]].map(([a2, b2, r]) => [a2 * u, b2 * u, r * u]), '#8f7c66', ink * .7);
       c.restore();
-      // 굴 입구 (왼쪽 앞면, 문 앞 칸 쪽)
+      // 갱도 입구 (왼쪽 앞면, 문 앞 칸 쪽): 깊이가 보이는 어둠, 안쪽 버팀목, 굵은 나무틀, 판자 지붕
       const ex = o.door[0] + .5, ey = y1 - .05, pc = iso(ex, ey, z);
       c.save(); c.translate(pc[0], pc[1]);
-      c.beginPath(); c.moveTo(-u * 34, 0); c.lineTo(-u * 34, -u * 52); c.quadraticCurveTo(0, -u * 80, u * 34, -u * 52); c.lineTo(u * 34, 0); c.closePath();
-      const tg = c.createRadialGradient(0, -u * 26, 1, 0, -u * 30, u * 46); tg.addColorStop(0, '#000'); tg.addColorStop(.7, '#1a1009'); tg.addColorStop(1, '#3a2617'); c.fillStyle = tg; c.fill(); c.lineWidth = ink; c.strokeStyle = OUT; c.stroke();
-      inkPoly(c, [[-u * 40, u * 2], [-u * 30, u * 2], [-u * 30, -u * 62], [-u * 40, -u * 62]], '#a8703a', ink);
-      inkPoly(c, [[u * 30, u * 2], [u * 40, u * 2], [u * 40, -u * 62], [u * 30, -u * 62]], '#94643a', ink);
-      inkPoly(c, [[-u * 48, -u * 60], [u * 48, -u * 60], [u * 46, -u * 72], [-u * 46, -u * 72]], '#b47a44', ink);
+      { c.beginPath(); c.moveTo(-u * 36, 0); c.lineTo(-u * 34, -u * 60); c.lineTo(u * 34, -u * 60); c.lineTo(u * 36, 0); c.closePath();
+        const tg = c.createLinearGradient(0, -u * 60, 0, 0); tg.addColorStop(0, '#060403'); tg.addColorStop(1, '#2c1c10'); c.fillStyle = tg; c.fill();
+        inkPoly(c, [[-u * 22, -u * 6], [-u * 21, -u * 44], [u * 21, -u * 44], [u * 22, -u * 6], [u * 16, -u * 6], [u * 15, -u * 38], [-u * 15, -u * 38], [-u * 16, -u * 6]], '#4a2f1a', ink * .6);   // 안쪽 버팀목
+        inkPoly(c, [[-u * 46, u * 3], [-u * 34, u * 3], [-u * 32, -u * 66], [-u * 44, -u * 66]], '#b07640', ink);
+        P(c, [[-u * 34, u * 3], [-u * 30, u * 1], [-u * 28, -u * 64], [-u * 32, -u * 66]], '#7e5028');
+        inkPoly(c, [[u * 34, u * 3], [u * 46, u * 3], [u * 44, -u * 66], [u * 32, -u * 66]], '#9a6634', ink);
+        inkPoly(c, [[-u * 54, -u * 62], [u * 54, -u * 62], [u * 52, -u * 76], [-u * 52, -u * 76]], '#bf8650', ink);
+        inkPoly(c, [[-u * 60, -u * 74], [u * 60, -u * 74], [u * 42, -u * 96], [-u * 42, -u * 96]], '#6b7480', ink);   // 판자 지붕
+        for (let k = -2; k <= 2; k++) L(c, k * u * 20, -u * 76, k * u * 14, -u * 94, 'rgba(0,0,0,.22)', u * 1.6);
+        Cc(c, -u * 40, -u * 69, u * 2.4, '#3a2a1a'); Cc(c, u * 40, -u * 69, u * 2.4, '#3a2a1a'); }
       // 등불
-      const fl = .85 + .15 * Math.sin(tnow * 8);
-      L(c, u * 44, -u * 60, u * 44, -u * 50, OUT, u * 2);
-      const lg = c.createRadialGradient(u * 44, -u * 44, 1, u * 44, -u * 44, u * (night ? 70 : 34)); lg.addColorStop(0, `rgba(255,205,120,${(night ? .4 : .3) * fl})`); lg.addColorStop(1, 'rgba(255,205,120,0)'); Cc(c, u * 44, -u * 44, u * (night ? 70 : 34), lg);
-      c.beginPath(); c.roundRect(u * 39, -u * 51, u * 10, u * 13, u * 3); c.fillStyle = '#ffd27a'; c.fill(); c.lineWidth = ink * .8; c.strokeStyle = OUT; c.stroke();
+      { const fl = .85 + .15 * Math.sin(tnow * 8);
+        L(c, u * 50, -u * 62, u * 50, -u * 52, OUT, u * 2);
+        const lg = c.createRadialGradient(u * 50, -u * 44, 1, u * 50, -u * 44, u * (night ? 70 : 34)); lg.addColorStop(0, `rgba(255,205,120,${(night ? .4 : .3) * fl})`); lg.addColorStop(1, 'rgba(255,205,120,0)'); Cc(c, u * 50, -u * 44, u * (night ? 70 : 34), lg);
+        c.beginPath(); c.roundRect(u * 45, -u * 52, u * 10, u * 13, u * 3); c.fillStyle = '#ffd27a'; c.fill(); c.lineWidth = ink * .8; c.strokeStyle = OUT; c.stroke(); }
       c.restore();
       if (!o.done) {   // 무너진 입구: 바위가 막고, 틈으로 깊은 곳의 빛이 새어 나옴
         c.save(); c.translate(pc[0], pc[1]);
@@ -1631,7 +1657,7 @@ function drawSky(c) {
 const FOG = ['246,223,189', '212,236,255', '214,130,96', '22,26,62'];
 // 성 밖 안개: 성벽에서 멀수록 짙음 (마을 모양에서 가장 가까운 칸까지 거리, 한 번 잰 값은 기억)
 const FOGD = new Map();
-const wallTower = (x, y) => H32(x * 131 + y * 71) < .16 && !OBJ.some(o => o.door && Math.abs(x - o.door[0]) <= 2 && Math.abs(y - o.door[1]) <= 3);   // 성벽 탑은 군데군데 (문 앞을 가리지 않게)
+const wallTower = (x, y) => H32(x * 131 + y * 71) < .16 && !OBJ.some(o => o.door && Math.abs(x - o.door[0]) <= 3 && Math.abs(y - o.door[1]) <= 5);   // 성벽 탑은 군데군데 (문 앞을 가리지 않게)
 function fogOf(x, y) {
   const k = x + ',' + y; let f = FOGD.get(k); if (f !== undefined) return f;
   let d = 0;
@@ -4217,12 +4243,18 @@ function renderDock() {
   minebar.hidden = !mine || !!trip;   // 이동 장면 동안엔 아래 단추를 숨김
   dock.hidden = mine || !sheet.hidden || !!trip;
   if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
-  const bagBtn = `<button class="btn small${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
+  const bagBtn = `<button class="btn small bagm${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}<span>${carryN()}<small>/${bagCap()}</small></span><i style="width:${Math.min(100, Math.round(carryN() / bagCap() * 100))}%"></i></button>`;
+  // 아래 막대 가운데: 작은 글씨로 어디인지, 큰 글씨로 지금 자리 (기획 68번)
+  const loc = (tag, main, col) => `<div class="loc"><small><i style="background:${col};color:${col}"></i>${tag}</small><b>${main}</b></div>`;
   const fastBtn = `<button class="btn small" data-a="homeFastAsk" aria-label="집으로">${ico('ic_village')}</button>`;   // 마을로 가는 단추는 이것 하나 (걸어서 나가기 단추는 없앰, 11/20)
-  if (scene === 'town') { minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button><b>${ico('ic_village')}${(townHere() || TOWNS.mtn).n}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`; }
-  else if (scene === 'hunt') minebar.innerHTML = `${fastBtn}<b>${ico('ic_sword')}${S.hunt && S.hunt.raid ? '습격 막기' : S.hunt && S.hunt.stage !== undefined ? `${stageOf().n} ${S.hunt.stage + 1}단계` : '성 밖'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
-  else if (scene === 'forest') minebar.innerHTML = `${fastBtn}<b>${ico('ic_tree')}${fPlace(Math.round(hero.x))}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
-  else if (mine && S.mine) minebar.innerHTML = `${S.deep.town ? `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button>` : fastBtn}<b>${S.deep.L ? `${S.deep.town ? TOWNS[S.deep.town].mine + ' ' : ''}${ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))].n} <small>깊이 ${S.deep.L}</small>` : '숲 동굴'}</b><div class="got">${oreRow(S.carry)}</div>${bagBtn}`;
+  const got = `<div class="got">${oreRow(S.carry)}</div>`;
+  if (scene === 'town') { minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button>${loc('마을', (townHere() || TOWNS.mtn).n, '#f0b64f')}${got}${bagBtn}`; }
+  else if (scene === 'hunt') minebar.innerHTML = `${fastBtn}${loc(S.hunt && S.hunt.raid ? '성벽 문' : '성 밖', S.hunt && S.hunt.raid ? '습격 막기' : S.hunt && S.hunt.stage !== undefined ? `${stageOf().n} ${S.hunt.stage + 1}단계` : '들판', '#ef7a62')}${got}${bagBtn}`;
+  else if (scene === 'forest') minebar.innerHTML = `${fastBtn}${loc('숲', fPlace(Math.round(hero.x)), '#6fae54')}${got}${bagBtn}`;
+  else if (mine && S.mine) {
+    const Z = S.deep.L ? ZONES[zoneAt(S.deep.L, Math.round(hero.x), Math.round(hero.y))] : null;
+    minebar.innerHTML = `${S.deep.town ? `<button class="btn small" data-a="leave" aria-label="위로">${ico('ic_village')}</button>` : fastBtn}${Z ? loc(`${S.deep.town ? TOWNS[S.deep.town].mine + ' ' : ''}${Z.n}`, `깊이 ${S.deep.L}`, `rgb(${Z.rock.map(v => Math.min(255, v + 60))})`) : loc('숲', '숲 동굴', '#6fae54')}${got}${bagBtn}`;
+  }
 }
 let sheetClosable = true;
 function openSheet(title, body, btns, closable = true) {
@@ -4286,7 +4318,7 @@ function showCard(o, msg) {
   else if (o.id === 'museum') showMuseum();
   else if (o.id === 'smithy') showSmithy();
   else if (o.id === 'mine') {
-    openSheet(ico('ic_pick') + '광산', `<p>가장 깊이 ${S.deepest}</p>`, '<button class="btn primary" data-a="enter">들어가기</button>');
+    openSheet(ico('ic_pick') + '광산', `<p>최고 깊이 ${S.deepest}</p>`, '<button class="btn primary" data-a="enter">들어가기</button>');
   } else openSheet(`${o.icon ? ico(o.icon) : ''}${o.name}`, '');
 }
 function showMerchant() {
