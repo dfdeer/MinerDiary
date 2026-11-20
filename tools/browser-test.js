@@ -17,7 +17,7 @@ const shot = process.argv[2];
     await page.goto(url);
     await page.evaluate(() => localStorage.clear());
     await page.reload(); await page.waitForFunction(() => window.MinerDiary && window.MinerDiary.ready, null, { timeout: 15000 });
-    await page.evaluate(() => window.MinerDiary.quietEvents());   // 저절로 생기는 이벤트는 따로 시험
+    await page.evaluate(() => { window.MinerDiary.quietEvents(); window.MinerDiary.autoConfirm(true); });   // 저절로 생기는 이벤트와 확정 창은 따로 시험
     await page.waitForTimeout(500);
     return page;
   }
@@ -416,7 +416,7 @@ const shot = process.argv[2];
 
   // 12. 저장
   await page.reload(); await page.waitForFunction(() => window.MinerDiary && window.MinerDiary.ready, null, { timeout: 15000 }); await page.waitForTimeout(400);
-  await page.evaluate(() => window.MinerDiary.quietEvents());
+  await page.evaluate(() => { window.MinerDiary.quietEvents(); window.MinerDiary.autoConfirm(true); });
   ok((await st()).day === s.day, '새로고침 후에도 날짜 유지');
 
   // 13. 곡괭이 강화: 망치질 세 번, 품질
@@ -999,6 +999,28 @@ const shot = process.argv[2];
     await wp.mouse.click(hp3.x, hp3.y); await wp.waitForTimeout(150);
     ok(await wp.evaluate(() => selected && selected.id === 'house' || (hero.target && hero.target.id === 'house')), '집 그림 위를 누르면 집');
     await wp.close();
+  }
+
+  /* ===== 팔기 수량과 확정: 막대로 수량을 골라 팔고, 돈이나 물건이 빠지는 단추는 확정을 한 번 더 ===== */
+  {
+    const sp = await open(390, 844);
+    await sp.evaluate(() => { window.MinerDiary.autoConfirm(false); closeSheet(); S.introSeen = true; S.carry = { copper: 6 }; showMerchant(); });
+    await sp.click('#sheet [data-a="sell"][data-o="copper"]');
+    ok(await sp.locator('#sheet input[data-sell]').count() === 1, '팔기를 누르면 수량 막대 창');
+    await sp.evaluate(() => { const i = document.querySelector('#sheet input[data-sell]'); i.value = 2; i.dispatchEvent(new Event('input', { bubbles: true })); });
+    ok((await sp.textContent('#sellv')) === String(await sp.evaluate(() => ORES.copper.price * 2)), '막대를 당기면 받을 돈이 바뀜');
+    const g0 = await sp.evaluate(() => S.gold);
+    await sp.click('#sheet [data-a="sellDo"]');
+    ok(await sp.evaluate(g0 => S.carry.copper === 4 && S.gold === g0 + ORES.copper.price * 2, g0), '확정을 누르면 고른 수량(2개)만 팔림');
+    await sp.evaluate(() => { S.gold = 1000; showMerchant(); });
+    const b0 = await sp.evaluate(() => S.gold);
+    await sp.click('#sheet [data-a="buy"]:not([disabled])');
+    ok(await sp.locator('#sheet [data-a="cfOk"]').count() === 1 && await sp.evaluate(b0 => S.gold === b0, b0), '사기를 누르면 확정 창이 먼저 뜨고 돈은 아직 그대로');
+    await sp.click('#sheet [data-a="cfBack"]');
+    ok(await sp.locator('#sheet [data-a="buy"]').count() > 0, '뒤로를 누르면 원래 창');
+    await sp.click('#sheet [data-a="buy"]:not([disabled])'); await sp.click('#sheet [data-a="cfOk"]');
+    ok(await sp.evaluate(b0 => S.gold < b0, b0), '확정을 누르면 삼');
+    await sp.close();
   }
 
   /* ===== 좁은 길: 바닥을 가리는 바위는 반투명, 그 위쪽(비쳐 보이는 바닥)을 누르면 캐지 않고 걸어감 ===== */

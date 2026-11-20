@@ -3697,6 +3697,22 @@ function showTownObj(o) {
     openSheet(ico('ic_pick') + `${T.mine} 광산`, `<p>${kinds}</p>`, '<button class="btn primary" data-a="townmine">들어가기</button>');
   }
 }
+// 팔기 (기획 66번): 막대로 수량을 고르고 확정. w: m 떠돌이 상인, t 시장 시세, w 다른 마을 시장
+function sellValue(w, o, n) { if (w === 't') { let g = 0; for (let k = 0; k < n; k++) g += unitPrice(o, k); return g; } return (w === 'w' ? townPrice(o) : ORES[o].price) * n; }
+function showSellQty(o, w) {
+  const hv = have(o); if (!hv) return;
+  openSheet(ico('ic_shop') + '팔기', `<p><span class="ore ${o}"></span>${ORES[o].name} <small>×${hv}</small></p><div class="drop"><input type="range" min="1" max="${hv}" step="1" value="${hv}" data-sell="${w}" data-o="${o}" aria-label="수량"><b>×${hv}</b></div><p class="big">${GOLD}<b id="sellv">${sellValue(w, o, hv)}</b></p>`,
+    `<button class="btn" data-a="sellBack" data-o="${w}">뒤로</button><button class="btn primary" data-a="sellDo" data-o="${o}" data-n="${'mtw'.indexOf(w)}">확정</button>`);
+}
+function sellBack(w) { if (w === 'm') showMerchant(); else if (w === 't') showMarket(); else showTownObj(TOWN_OBJ[1]); }
+function sellDo(o, w) {
+  const inp = document.querySelector('#sheet input[data-sell]'), n = Math.max(1, Math.min(have(o), +(inp ? inp.value : have(o)))); if (!have(o)) return;
+  const g = sellValue(w, o, n); take(o, n); S.gold += g;
+  if (w === 't') { S.market.sold[o] = (S.market.sold[o] || 0) + n; questEvent('trade'); }
+  else if (w === 'w') { S.townSold = (S.townSold || 0) + g; questEvent('trade'); }
+  else if (MINED.includes(o)) questEvent('sell');
+  SFX.coin(); toast(`${GOLD}+${g}`); save(); renderHud(); renderDock(); sellBack(w);
+}
 function townSell(o) {
   const n = have(o); if (!n) return;
   const g = townPrice(o) * n; take(o, n); S.gold += g; S.townSold = (S.townSold || 0) + g;
@@ -4675,12 +4691,28 @@ document.addEventListener('input', e => {
   S.vol[k] = +e.target.value / 100; e.target.nextElementSibling.textContent = e.target.value;
   startAudio(); setVolumes(); save();
 });
-document.addEventListener('input', e => { if (e.target.dataset && e.target.dataset.drop) e.target.nextElementSibling.textContent = '×' + e.target.value; });
+document.addEventListener('input', e => { if (e.target.dataset && e.target.dataset.drop) e.target.nextElementSibling.textContent = '×' + e.target.value;
+  if (e.target.dataset && e.target.dataset.sell) { e.target.nextElementSibling.textContent = '×' + e.target.value; const v = document.getElementById('sellv'); if (v) v.textContent = sellValue(e.target.dataset.sell, e.target.dataset.o, +e.target.value); } });
 document.addEventListener('change', e => { if (e.target.dataset && (e.target.dataset.vol === 'sfx' || e.target.dataset.vol === 'master')) SFX.coin(); });
-document.addEventListener('click', e => {
-  const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
+document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled) return; act(b); });
+/* 확정 (기획 66번): 돈이나 물건이 빠지는 단추는 한 번 더 묻고 확정. 확정 창엔 무엇인지와 값만 */
+const CONFIRM = new Set(['restore', 'home', 'buy', 'mbuy', 'nbuy', 'nsell', 'sword', 'sharp', 'smelt', 'donate', 'craft', 'combine', 'cut', 'donkey', 'fix', 'rail', 'kreq', 'inn', 'sellAll', 'forge']);
+let autoOk = false, cfPend = null;   // autoOk: 시험용 (확정을 건너뜀)
+function askConfirm(b) {
+  cfPend = { html: sheet.innerHTML, closable: sheetClosable, a: b.dataset.a, o: b.dataset.o, n: b.dataset.n };
+  const row = b.closest('.rowi'), nm = row ? row.querySelector('.nm') : null, title = sheet.querySelector('h2');
+  openSheet(title ? title.innerHTML : ico('ic_check'), (nm ? `<p>${nm.innerHTML}</p>` : '') + `<p class="big cf">${b.innerHTML}</p>`, '<button class="btn" data-a="cfBack">뒤로</button><button class="btn primary" data-a="cfOk">확정</button>');
+}
+function act(b) {
   const a = b.dataset.a, n = +b.dataset.n;
   SFX.tap();
+  if (CONFIRM.has(a) && !b.dataset.ok && !autoOk) { askConfirm(b); return; }
+  if (a === 'cfBack' || a === 'cfOk') {
+    const p = cfPend; cfPend = null; if (!p) { closeSheet(); return; }
+    sheet.innerHTML = p.html; sheetClosable = p.closable;   // 원래 창으로 되돌림 (뒤로) 또는 되돌린 뒤 그 단추를 누른 것으로
+    if (a === 'cfOk') { const t = document.createElement('button'); t.dataset.a = p.a; if (p.o !== undefined) t.dataset.o = p.o; if (p.n !== undefined) t.dataset.n = p.n; t.dataset.ok = '1'; act(t); }
+    return;
+  }
   if (a === 'close') closeSheet();
   else if (a === 'intro' || a === 'introPrev') showIntro(n);
   else if (a === 'introDone') { S.introSeen = true; S.chiefDay = S.day; closeSheet(); questEvent('chief'); }
@@ -4700,7 +4732,7 @@ document.addEventListener('click', e => {
   else if (a === 'water') water(n);
   else if (a === 'harvest') harvest(n);
   else if (a === 'cast') startFish(fishLake);
-  else if (a === 'trade') trade(b.dataset.o);
+  else if (a === 'trade') { if (autoOk) trade(b.dataset.o); else showSellQty(b.dataset.o, 't'); }
   else if (a === 'smelt') smelt(b.dataset.o);
   else if (a === 'forge') startHammer();
   else if (a === 'strike') strike();
@@ -4727,7 +4759,7 @@ document.addEventListener('click', e => {
   else if (a === 'stIn') storeIn(b.dataset.o);
   else if (a === 'stOut') storeOut(b.dataset.o);
   else if (a === 'stAll') storeAll();
-  else if (a === 'tsell') townSell(b.dataset.o);
+  else if (a === 'tsell') { if (autoOk) townSell(b.dataset.o); else showSellQty(b.dataset.o, 'w'); }
   else if (a === 'inn') innSleep();
   else if (a === 'donkey') buyDonkey();
   else if (a === 'townmine') enterTownMine();
@@ -4745,7 +4777,9 @@ document.addEventListener('click', e => {
   else if (a === 'craft') craft(b.dataset.o);
   else if (a === 'combine') combine(n);
   else if (a === 'buy') buy(n);
-  else if (a === 'sell') sell(b.dataset.o);
+  else if (a === 'sell') { if (autoOk) sell(b.dataset.o); else showSellQty(b.dataset.o, 'm'); }
+  else if (a === 'sellDo') sellDo(b.dataset.o, 'mtw'[n]);
+  else if (a === 'sellBack') sellBack(b.dataset.o);
   else if (a === 'sellAll') sellAll();
   else if (a === 'bag') showBag();
   else if (a === 'stats') showStats();
@@ -4759,7 +4793,7 @@ document.addEventListener('click', e => {
   else if (a === 'mute') { S.mute = !S.mute; save(); setVolumes(); showMenu(); }
   else if (a === 'resetAsk') openSheet('처음부터', '<p class="warn">모든 기록 삭제</p>', '<button class="btn primary" data-a="reset">삭제</button>');
   else if (a === 'reset') { S = freshState(); applyRestored(); newDayReset(); save(); renderHud(); showHome(); }
-});
+}
 function newDayReset() { scene = 'village'; FLAT = false; hero.x = HOME[0]; hero.y = HOME[1]; hero.path = []; selected = null; cam.to = null; cam.s = 1; follow = true; snapCam(); }
 function applyRestored() { OBJ.forEach(o => { o.done = o.stage === 0 || S.restored.includes(o.id); o.grow = o.done || o.kind === 'mine' ? 1 : 0; }); OBJ.find(o => o.id === 'house').name = HOMES[S.home || 0].name; }
 let toastT = 0;
@@ -4937,7 +4971,7 @@ window.MinerDiary = {
     return { x: W / 2, y: H / 2 };
   },
   speed: k => { hero.speed = 5.2 * k; animK = k; },
-  quietEvents: () => { evQuiet = true; }, evAdd: (k, sz) => evAdd(k, sz), events: () => (S.ev ? S.ev.list : []),
+  quietEvents: () => { evQuiet = true; }, autoConfirm: v => { autoOk = v; }, /* 시험용: 확정 창과 판매 수량 창을 건너뜀 */ evAdd: (k, sz) => evAdd(k, sz), events: () => (S.ev ? S.ev.list : []),
   bgm: () => bgm.mood,
   combo: () => combo.n,
   mfloats: () => mfloats.map(f => f.text),
