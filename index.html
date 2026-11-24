@@ -78,6 +78,51 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .minebar .got{flex:1;min-width:0;display:flex;gap:5px;overflow:hidden;white-space:nowrap;font-size:13px;-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent)}
 .minebar .got>span{display:flex;align-items:center;gap:3px;padding:2px 8px 2px 3px;border-radius:999px;background:rgba(0,0,0,.28);box-shadow:inset 0 1px 0 rgba(255,235,200,.06)}
 .minebar .btn.small{flex:none}
+/* 곡괭이 공방과 도감 (기획 72번) */
+.sheet:has(.forgeui),.sheet:has(.codex){max-height:86vh}
+.crafts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.craftc{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 8px 8px;border-radius:14px;background:rgba(0,0,0,.22);border:1px solid rgba(255,235,200,.12);text-align:center}
+.craftc.ok{border-color:rgba(240,182,79,.65);background:linear-gradient(rgba(240,182,79,.14),rgba(0,0,0,.2));box-shadow:0 0 10px rgba(240,182,79,.15)}
+.craftc .bigi .ico{width:34px;height:34px;margin:0}.craftc b{font-size:14px;line-height:1.15}.craftc .eff{font-size:11px;color:#a8e89a;line-height:1.25}
+.craftc .cost{display:flex;flex-wrap:wrap;justify-content:center;gap:2px 6px;font-size:12px;margin-top:auto}.craftc .btn{width:100%;margin-top:4px}
+.fuse{display:flex;align-items:center;gap:5px;padding:8px;border-radius:14px;background:rgba(0,0,0,.22);border:1px solid rgba(255,235,200,.12)}.fuse i{font-style:normal;color:var(--dim)}
+.fuse .slotc{width:40px;height:40px;flex:none;border-radius:11px;display:grid;place-items:center;background:rgba(255,255,255,.06)}.fuse .slotc .ico{margin:0;width:26px;height:26px}.fuse .slotc.miss{opacity:.3}
+.fuse .out{background:rgba(185,168,255,.16);border:1px solid rgba(185,168,255,.5)}.fuse .nmf{flex:1;min-width:0;font-size:12px}
+.forgeui .pv{position:relative;height:150px;border-radius:16px;margin-bottom:6px;display:grid;place-items:center;background:radial-gradient(circle at 50% 62%,rgba(255,160,70,.32),rgba(255,120,40,.08) 45%,rgba(0,0,0,.35) 75%);box-shadow:inset 0 0 0 1px rgba(255,235,200,.08)}
+.forgeui .pv canvas{width:150px;height:150px}
+.forgeui .pv.sp{background:radial-gradient(circle at 50% 60%,rgba(190,160,255,.38),rgba(120,90,220,.1) 45%,rgba(0,0,0,.35) 75%)}
+.pvname{text-align:center;font-size:19px;margin:0 0 2px}.pvq{text-align:center;font-size:12px;color:var(--dim);margin:0 0 8px}
+.stats3{display:grid;grid-template-columns:auto 1fr 54px;gap:5px 8px;align-items:center;font-size:12px;margin:4px 2px 10px}
+.stats3 .bar{height:9px;border-radius:5px;background:rgba(0,0,0,.4);overflow:hidden;position:relative}
+.stats3 .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:var(--accent)}.stats3 .bar i.nw{background:#7fd46a}.stats3 .bar i.cur{background:var(--accent);z-index:1}
+.stats3 b{text-align:right;font-size:13px}.stats3 b.up{color:#9be38a}.stats3 b.down{color:var(--bad)}
+.sockets{display:flex;gap:8px;justify-content:center;margin:4px 0 10px}
+.sock{width:66px;min-height:76px;border-radius:14px;border:2px dashed rgba(255,235,200,.28);background:rgba(0,0,0,.28);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--dim);padding:4px 2px}
+.sock .ore{width:32px;height:32px}.sock em{font-style:normal;color:var(--fg);font-size:11px;line-height:1.1;text-align:center}
+.sock.full{border-style:solid;border-color:rgba(255,235,200,.4);background:rgba(255,235,200,.06)}
+.sock.on{border-style:solid;border-color:var(--accent);box-shadow:0 0 0 3px rgba(240,182,79,.28),0 0 14px rgba(240,182,79,.35);transform:translateY(-2px)}
+.sock.lock{opacity:.35}
+.tray{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px;border-radius:14px;background:rgba(0,0,0,.25)}
+.tray button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px 5px;border-radius:11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);font-size:11px;line-height:1.1;text-align:center}
+.tray button.on{border-color:var(--accent);background:rgba(240,182,79,.22)}.tray button:disabled{opacity:.32}
+.tray .ore{width:30px;height:30px}.tray small{color:var(--dim);font-size:10px}.tray small.ef{color:#a8e89a}
+.effs{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:8px 0 4px}
+.effs span{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(127,212,106,.15);color:#a8e89a}
+.costline{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pkcard{display:flex;gap:10px;align-items:center;padding:8px;border-radius:14px;background:linear-gradient(rgba(255,235,200,.06),rgba(0,0,0,.2));border:1px solid rgba(255,235,200,.12)}
+.pkcard canvas{width:76px;height:76px;flex:none;border-radius:12px;background:radial-gradient(circle at 50% 60%,rgba(255,160,70,.25),rgba(0,0,0,.3) 75%)}
+.pkcard .nm3{font-size:16px}.pkcard .effs{justify-content:flex-start;margin:4px 0}.pkcard .st{font-size:11px;color:var(--dim)}
+.pkbtns{display:flex;gap:6px;margin-top:6px}.pkbtns .btn{flex:1}
+.codex{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.card{position:relative;border-radius:16px;padding:8px 6px 10px;background:linear-gradient(#3f2d1f,#2a1e14);border:2px solid var(--edge);display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+.card canvas{width:86px;height:86px}
+.card.unk{background:rgba(0,0,0,.32);border-style:dashed;border-color:rgba(255,235,200,.2)}
+.card .nm2{font-size:14px;line-height:1.15}.card small{font-size:11px;color:var(--dim)}
+.card.eq{border-color:var(--accent);box-shadow:0 0 0 2px rgba(240,182,79,.3),0 0 16px rgba(240,182,79,.3)}
+.card .rib{position:absolute;top:6px;left:6px;font-size:10px;background:var(--accent);color:var(--ink);border-radius:6px;padding:1px 6px}
+.card .qd{position:absolute;top:6px;right:8px;font-size:10px;color:var(--accent)}
+.codexhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}.codexhead .bar{flex:1;height:8px;border-radius:4px;background:rgba(0,0,0,.4);overflow:hidden}.codexhead .bar i{display:block;height:100%;background:linear-gradient(90deg,#b9a8ff,#f0b64f)}
+.recipe{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;margin:4px 0 8px}.recipe .ore{width:26px;height:26px}.recipe i{font-style:normal;color:var(--dim)}
 .minebar .btn.small:not(.bagm){width:44px;padding:0;display:flex;align-items:center;justify-content:center}
 .minebar .bagm{position:relative;overflow:hidden;display:flex;align-items:center;gap:4px;padding:0 10px}
 .minebar .bagm small{font-size:11px;color:var(--dim)}
@@ -357,7 +402,8 @@ const ADDS = {
   pearl: { k: 1, eff: { magnet: .1 } }, glowcap: { k: 2, eff: { light: 1 } }, fairy: { k: 1, eff: { forestFree: 1 } }, ruby: { k: 1, eff: { atk: 3 } },
   moon: { k: 1, eff: { glowFar: 1 } }, manastone: { k: 1, eff: { honey: 5 } }, meteor: { k: 1, eff: { pow: 6 } },
 };
-const HEADS = { gold: { n: '금', item: 'goldBar' }, moon: { n: '월광', item: 'moonBar' }, meteor: { n: '운석', item: 'meteor' }, ruby: { n: '루비', item: 'rubyGem' } };
+const HEADS = { gold: { n: '금', item: 'goldBar', col: '#f5cf45' }, moon: { n: '월광', item: 'moonBar', col: '#c9bfff' }, meteor: { n: '운석', item: 'meteor', col: '#6a5890' }, ruby: { n: '루비', item: 'rubyGem', col: '#e0405a' } };
+const TIER_COL = ['#8a8f96', '#e0894a', '#aeb7c2', '#e6edf4', '#f5cf45'];   // 보통 곡괭이 머리 빛깔 (낡은, 구리, 철, 은, 금)
 const HEAD_N = 5, SPECIAL_GOLD = 5000, REHAMMER_GOLD = 500;
 const SPECIALS = [
   { id: 'veins', n: '황금 광맥 곡괭이', head: 'gold', handle: 'oldwood', adds: ['amethyst', 'crystal'], eff: { luck: .2, dowse: 1 } },
@@ -3989,7 +4035,8 @@ const CRAFTS = [
 ];
 // 떠돌이 상인이 파는 것
 const SHOP = [{ id: 'radishSeed', kind: 'item', gold: 10, farm: 1 }, { id: 'potatoSeed', kind: 'item', gold: 20, farm: 1 }, { id: 'berrySeed', kind: 'item', gold: 40, farm: 1 }, { id: 'recall', kind: 'item', gold: 80 }, { id: 'tent', kind: 'item', gold: 100 }, { id: 'campRecall', kind: 'item', gold: 150 }, { id: 'compass', kind: 'acc', gold: 150 }, { id: 'pouch', kind: 'acc', gold: 120 }];
-function accEff(k) { if (!S || !S.acc) return 0; return S.acc.eq.reduce((a, id) => a + ((ACC[id] && ACC[id].eff[k]) || 0), 0) + pickEff(k); }   // 장신구와 곡괭이 조합 효과를 함께 셈
+function accOnly(k) { if (!S || !S.acc) return 0; return S.acc.eq.reduce((a, id) => a + ((ACC[id] && ACC[id].eff[k]) || 0), 0); }
+function accEff(k) { return accOnly(k) + pickEff(k); }   // 장신구와 곡괭이 조합 효과를 함께 셈
 const accIco = id => ico((ACC[id] || ITEMS[id] || TOOLS[id]).ic);
 const owned = id => (S.acc.have[id] || 0);
 const freeOwned = id => owned(id) - S.acc.eq.filter(e => e === id).length;
@@ -4312,7 +4359,7 @@ function openSheet(title, body, btns, closable = true) {
   sheet.querySelectorAll('p').forEach(lineBreaks);
   document.getElementById('veil').hidden = false;
   sheet.hidden = false; sheet.style.animation = 'none'; void sheet.offsetWidth; sheet.style.animation = '';
-  renderDock();
+  paintPicks(); renderDock();
 }
 // 창 바깥(어두운 막)을 누르면 창을 닫음. 망치질처럼 닫을 수 없는 창은 그대로
 document.getElementById('veil').addEventListener('click', () => { if (sheetClosable && !sheet.hidden) { SFX.tap(); closeSheet(); } });
@@ -4490,16 +4537,20 @@ function showSmithy() {
     const rows = Object.keys(SMELT).filter(o => have(o) >= SMELT_N).map(o => { const n = smeltN(o); return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${Math.max(n, 1) * SMELT_N} <span class="ore coal"></span>${Math.max(n, 1)} ${ico('ic_arrow')} <span class="ore ${SMELT[o]}"></span>${n}</span><button class="btn small" data-a="smelt" data-o="${o}" ${n ? '' : 'disabled'}>넣기</button></div>`; }).join('');
     smelt = rows || `<p class="dim">광석 ${SMELT_N}, 석탄 1 ${ico('ic_arrow')} 주괴 1</p>`;
   }
-  const next = PICKS[S.pick + 1], pe = pickEffTxt();
-  let pick = `<div class="rowi"><span class="nm">${ico('ic_pick')}${pickName()}${S.pick ? ` <small>${QUAL[S.pickQ]}</small>` : ''}${pe ? ` <small class="eff">${pe}</small>` : ''}</span></div>`;
-  if (next) pick += `<div class="rowi"><span class="nm">${next.name} ${needHtml(next.need, next.gold)}</span><button class="btn small primary" data-a="forge">만들기</button></div>`;
-  else pick += `<div class="rowi"><span class="nm">특수 곡괭이 ${needHtml({}, SPECIAL_GOLD)}</span><button class="btn small primary" data-a="forgeSp">만들기</button></div>`;
+  const next = PICKS[S.pick + 1];
+  let pick = `<div class="pkcard"><canvas width="152" height="152" data-pick='${JSON.stringify(curCfg())}'></canvas><div style="flex:1;min-width:0"><div class="nm3">${pickName()}${S.pick ? ` <small>${QUAL[S.pickQ]}</small>` : ''}</div>${effChips(curEffMap())}<div class="st">파워 ${pickPower()} 공격 ${power()} 빠르기 ${Math.round((1 + swingSpd()) * 100)}%</div></div></div>`
+    + `<div class="pkbtns">${next ? `<button class="btn primary" data-a="forge">${ico('ic_hearth')}${next.name}</button>` : `<button class="btn primary" data-a="forgeSp">${ico('ic_hearth')}특수 곡괭이</button><button class="btn" data-a="codex">${ico('ic_note')}도감 ${Object.keys(S.spc).length}/${SPECIALS.length}</button>`}</div>`;
   const sh = SHARP[S.sharp || 0];
-  pick = `<div class="rowi"><span class="nm">${ico('ic_pick')}곡괭이 파워</span><b>${pickPower()}</b></div>` + pick;
   pick += sh ? `<div class="rowi"><span class="nm">날 세우기 +${(S.sharp || 0) + 1} <small class="eff">파워 +4</small> ${needHtml(sh.need, sh.gold)}</span><button class="btn small" data-a="sharp" ${hasAll(sh.need) && S.gold >= sh.gold ? '' : 'disabled'}>세우기</button></div>` : `<div class="rowi"><span class="nm">날 세우기 +5</span></div>`;
-  const crafts = CRAFTS.filter(r => (r.kind !== 'slot' || S.acc.slots < 2) && !(r.kind === 'tool' && (S[r.id] || (r.id === 'cart' && S.donkey)))).map(r => `<div class="rowi"><span class="nm">${r.kind === 'slot' ? ico('ic_ring') + '장신구 고리' : accIco(r.id) + (ACC[r.id] || ITEMS[r.id] || TOOLS[r.id]).n}${r.kind === 'acc' ? ` <small class="eff">${accDesc(r.id)}</small>` : r.kind === 'tool' && TOOLS[r.id].d ? ` <small class="eff">${TOOLS[r.id].d}</small>` : ''} ${needHtml(r.need, r.gold)}</span><button class="btn small" data-a="craft" data-o="${r.id}" ${hasAll(r.need) && S.gold >= r.gold ? '' : 'disabled'}>만들기</button></div>`).join('');
-  const recs = RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b)).map(([[a, b, o], i]) => `<div class="rowi"><span class="nm">${accIco(a)}<span class="${owned(a) ? '' : 'lack'}">${ACC[a].n}</span> + ${accIco(b)}<span class="${owned(b) ? '' : 'lack'}">${ACC[b].n}</span> ${ico('ic_arrow')} ${owned(a) && owned(b) ? ACC[o].n : '?'}</span><button class="btn small" data-a="combine" data-n="${i}" ${owned(a) && owned(b) && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`).join('');
-  openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div>` + (S.pick >= 4 ? `<p class="dim" style="margin-top:10px">곡괭이 도감 ${Object.keys(S.spc).length}/${SPECIALS.length}</p><div class="rows">${codexRows()}</div>` : '') + `<p class="dim" style="margin-top:10px">만들기</p><div class="rows">${crafts}</div>` + (recs ? `<p class="dim" style="margin-top:10px">합치기</p><div class="rows">${recs}</div>` : ''));
+  // 만들기와 합치기는 카드로 (기획 72번): 만들 수 있는 것을 앞에, 빛나는 테두리
+  const craftOk = r => hasAll(r.need) && S.gold >= r.gold;
+  const crafts = CRAFTS.filter(r => (r.kind !== 'slot' || S.acc.slots < 2) && !(r.kind === 'tool' && (S[r.id] || (r.id === 'cart' && S.donkey)))).sort((a, b) => craftOk(b) - craftOk(a)).map(r => {
+    const nm = r.kind === 'slot' ? '장신구 고리' : (ACC[r.id] || ITEMS[r.id] || TOOLS[r.id]).n, ef = r.kind === 'acc' ? accDesc(r.id) : r.kind === 'tool' && TOOLS[r.id].d ? TOOLS[r.id].d : r.kind === 'slot' ? '장신구 칸 +1' : '';
+    return `<div class="craftc${craftOk(r) ? ' ok' : ''}"><span class="bigi">${r.kind === 'slot' ? ico('ic_ring') : accIco(r.id)}</span><b>${nm}</b>${ef ? `<span class="eff">${ef}</span>` : ''}<span class="cost">${needHtml(r.need, r.gold)}</span><button class="btn small${craftOk(r) ? ' primary' : ''}" data-a="craft" data-o="${r.id}" ${craftOk(r) ? '' : 'disabled'}>만들기</button></div>`;
+  }).join('');
+  const recs = RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b)).map(([[a, b, o], i]) => { const ok = owned(a) && owned(b);
+    return `<div class="fuse"><span class="slotc${owned(a) ? '' : ' miss'}">${accIco(a)}</span><i>+</i><span class="slotc${owned(b) ? '' : ' miss'}">${accIco(b)}</span><i>=</i><span class="slotc out">${ok ? accIco(o) : '?'}</span><span class="nmf">${ok ? ACC[o].n : `${ACC[owned(a) ? b : a].n} 필요`}</span><button class="btn small${ok && S.gold >= COMBINE_GOLD ? ' primary' : ''}" data-a="combine" data-n="${i}" ${ok && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`; }).join('');
+  openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div><p class="dim" style="margin-top:10px">만들기</p><div class="crafts">${crafts}</div>` + (recs ? `<p class="dim" style="margin-top:10px">합치기</p><div class="rows">${recs}</div>` : ''));
 }
 const smeltN = o => Math.min(FURNACE_MAX, Math.floor(have(o) / SMELT_N), have('coal'));   // 주괴 하나에 광석 5개와 석탄 1개
 function smelt(o) {
@@ -4512,39 +4563,110 @@ function smelt(o) {
 let hammer = null;
 // 곡괭이 만들기 창 (기획 71번): 머리(특수만), 자루, 추가 재료를 고르고 망치질
 let forgeSel = null;
+const forgeAdds = () => forgeSel.adds.filter(Boolean);
 function forgeNeed() {
   const F = forgeSel, m = {}, add = (k, n) => { if (n) m[k] = (m[k] || 0) + n; };
   if (F.mode === 'special') add(HEADS[F.head].item, HEAD_N); else Object.entries(PICKS[S.pick + 1].need).forEach(([k, n]) => add(k, n));
-  const H = HANDLES[F.handle]; add(H.item, H.k); F.adds.forEach(a => add(a, ADDS[a].k)); return m;
+  const H = HANDLES[F.handle]; add(H.item, H.k); forgeAdds().forEach(a => add(a, ADDS[a].k)); return m;
 }
 const forgeGold = () => (forgeSel.mode === 'special' ? SPECIAL_GOLD : PICKS[S.pick + 1].gold);
 const forgeSlots = () => (forgeSel.mode === 'special' || S.pick + 1 >= 4 ? 2 : 1);   // 추가 재료: 처음 1칸, 금 곡괭이부터 2칸
-function effSum(list) { const m = {}; list.forEach(e => Object.entries(e).forEach(([k, v]) => { m[k] = (m[k] || 0) + v; })); return Object.entries(m).map(([k, v]) => EFF_TXT[k](v)).join(', '); }
-function pickEffTxt() { const P = S.pk, sp = spNow(); return effSum([HANDLES[P.handle].eff, ...P.adds.map(a => ADDS[a].eff), sp ? sp.eff : {}]); }
-const codexRows = () => SPECIALS.map(sp => {
-  const q = S.spc[sp.id];
-  if (q === undefined) return `<div class="rowi"><span class="nm">${ico('ic_pick')}<span class="dim">${HEADS[sp.head].n} 머리 ???</span></span></div>`;
-  return `<div class="rowi"><span class="nm">${ico('ic_pick')}${sp.n} <small>${QUAL[q]}</small> <small class="eff">${effSum([sp.eff])}</small></span>${S.pk.sp === sp.id ? '' : `<button class="btn small" data-a="spEquip" data-o="${sp.id}">들기</button>`}${q < 2 ? `<button class="btn small" data-a="spHammer" data-o="${sp.id}">${GOLD}${REHAMMER_GOLD}</button>` : ''}</div>`;
-}).join('');
+const effMap = list => { const m = {}; list.forEach(e => Object.entries(e).forEach(([k, v]) => { m[k] = (m[k] || 0) + v; })); return m; };
+const effSum = list => Object.entries(effMap(list)).map(([k, v]) => EFF_TXT[k](v)).join(', ');
+const effChips = m => { const t = Object.entries(m).map(([k, v]) => `<span>${EFF_TXT[k](v)}</span>`).join(''); return t ? `<div class="effs">${t}</div>` : ''; };
+const curEffMap = () => { const P = S.pk, sp = spNow(); return effMap([HANDLES[P.handle].eff, ...P.adds.map(a => ADDS[a].eff), sp ? sp.eff : {}]); };
+function pickEffTxt() { return Object.entries(curEffMap()).map(([k, v]) => EFF_TXT[k](v)).join(', '); }
+const spMatch = (head, handle, adds) => SPECIALS.find(v => v.head === head && v.handle === handle && v.adds.length === adds.length && v.adds.every(a => adds.includes(a)));
+// 곡괭이 그림 (공방, 도감, 대장간 카드, 기획 72번): 머리 빛깔, 자루 종류, 박힌 추가 재료, 특수면 빛과 반짝임, 모르는 건 검은 그림자
+const curCfg = () => ({ c: S.pk.head ? HEADS[S.pk.head].col : TIER_COL[S.pick || 0], hd: S.pk.handle, ad: S.pk.adds, sp: S.pk.sp ? 1 : 0 });
+const hexA = (h, a) => `rgba(${parseInt(h.slice(1, 3), 16)},${parseInt(h.slice(3, 5), 16)},${parseInt(h.slice(5, 7), 16)},${a})`;
+function drawPickArt(c, W, g) {
+  c.clearRect(0, 0, W, W); c.save(); c.translate(W / 2, W / 2 + W * .05); c.scale(W / 100, W / 100); c.rotate(-.62);
+  const dk = !!g.dark, ink = dk ? '#120c08' : OUT, lw = 3.2, fill = col => (dk ? '#24180f' : col);
+  if (g.sp && !dk) { const gr = c.createRadialGradient(0, -24, 2, 0, -24, 52); gr.addColorStop(0, hexA(g.c, .6)); gr.addColorStop(1, hexA(g.c, 0)); c.fillStyle = gr; c.beginPath(); c.arc(0, -24, 52, 0, 7); c.fill(); }
+  const H = { wood: ['#b07a44', '#8a5a30'], oldwood: ['#6e4a2c', '#4e321c'], bone: ['#f1e8d4', '#c9bd9f'], leather: ['#8a5a32', '#5e3a1e'] }[g.hd] || ['#b07a44', '#8a5a30'];
+  c.lineJoin = 'round'; c.lineCap = 'round';
+  c.beginPath(); c.roundRect(-4.5, -30, 9, 76, 4); c.fillStyle = fill(H[0]); c.fill(); c.lineWidth = lw; c.strokeStyle = ink; c.stroke();
+  if (!dk) {
+    if (g.hd === 'leather') for (let y = -8; y < 42; y += 7) { c.beginPath(); c.moveTo(-4.5, y); c.lineTo(4.5, y + 4); c.strokeStyle = H[1]; c.lineWidth = 2.2; c.stroke(); }
+    else if (g.hd === 'bone') [[0, 44], [0, -26]].forEach(([x, y]) => { c.beginPath(); c.arc(x - 3, y, 4.5, 0, 7); c.arc(x + 3, y, 4.5, 0, 7); c.fillStyle = H[0]; c.fill(); c.lineWidth = 2.4; c.strokeStyle = ink; c.stroke(); });
+    else { c.beginPath(); c.moveTo(-1.5, -20); c.lineTo(-1.5, 36); c.moveTo(1.8, -6); c.lineTo(1.8, 18); c.strokeStyle = H[1]; c.lineWidth = 1.3; c.stroke(); }
+    if (g.hd === 'oldwood') [[3, 4], [-3, 24], [2, 34]].forEach(([x, y]) => { c.beginPath(); c.arc(x, y, 2.6, 0, 7); c.fillStyle = '#6fae54'; c.fill(); });
+  }
+  // 머리: 반달 모양 쇠
+  c.beginPath(); c.moveTo(-44, -14); c.quadraticCurveTo(0, -60, 44, -14); c.quadraticCurveTo(0, -40, -44, -14); c.closePath();
+  if (dk) c.fillStyle = fill(); else { const gh = c.createLinearGradient(0, -48, 0, -20); gh.addColorStop(0, shade(g.c, 45)); gh.addColorStop(1, shade(g.c, -25)); c.fillStyle = gh; }
+  c.fill(); c.lineWidth = lw; c.strokeStyle = ink; c.stroke();
+  if (!dk) { c.beginPath(); c.moveTo(-34, -22); c.quadraticCurveTo(0, -52, 34, -22); c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 2; c.stroke(); }
+  c.beginPath(); c.roundRect(-7.5, -40, 15, 15, 3); c.fillStyle = fill('#6b7480'); c.fill(); c.lineWidth = 2.6; c.strokeStyle = ink; c.stroke();
+  if (!dk) (g.ad || []).forEach((id, i) => {
+    const [x, y] = [[-19, -33], [19, -33]][i] || [0, -33], o = ORES[id] || {};
+    c.beginPath(); c.moveTo(x, y - 6.5); c.lineTo(x + 5.5, y); c.lineTo(x, y + 6.5); c.lineTo(x - 5.5, y); c.closePath(); c.fillStyle = o.color || '#fff'; c.fill(); c.lineWidth = 2; c.strokeStyle = ink; c.stroke();
+    c.beginPath(); c.moveTo(x - 1.5, y - 3); c.lineTo(x + 1, y - 1); c.strokeStyle = o.light || '#fff'; c.lineWidth = 1.6; c.stroke();
+  });
+  if (g.sp && !dk) [[-30, -50], [34, -44], [0, -62], [40, -8]].forEach(([x, y], i) => { const r = 3 + (i % 2) * 1.5; c.beginPath(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, rr = k % 2 ? r * .35 : r; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } c.closePath(); c.fillStyle = '#fffbe0'; c.fill(); });
+  c.restore();
+}
+function paintPicks() { sheet.querySelectorAll('canvas[data-pick]').forEach(cv => { try { drawPickArt(cv.getContext('2d'), cv.width, JSON.parse(cv.dataset.pick)); } catch (e) { /* 그림만 건너뜀 */ } }); }
+// 공방 미리보기 세기: 품질은 망치질 전이라 보통으로 셈
+function statFor(t, effs) { const e = k => accOnly(k) + (effs[k] || 0); return { pow: PICK_POW[t] + (S.sharp || 0) * 4 + e('pow'), atk: (PICK_ATK[t] + e('atk')) * (e('atkx') ? 2 : 1), spd: Math.min(SPD_MAX, e('spd')) }; }
+function statBars(cur, nw) {
+  const row = (name, a, b, max, fmt) => `<span>${name}</span><span class="bar"><i class="nw" style="width:${Math.min(100, b / max * 100)}%"></i><i class="cur" style="width:${Math.min(100, Math.min(a, b) / max * 100)}%"></i></span><b class="${b > a ? 'up' : b < a ? 'down' : ''}">${fmt(b)}</b>`;
+  return `<div class="stats3">${row('파워', cur.pow, nw.pow, 200, v => v)}${row('공격', cur.atk, nw.atk, 40, v => v)}${row('빠르기', cur.spd, nw.spd, SPD_MAX, v => `${Math.round((1 + v) * 100)}%`)}</div>`;
+}
+// 곡괭이 공방: 칸(머리, 자루, 재료)을 누르면 아래 재료 판이 바뀜. 고르면 다음 칸으로 넘어감
 function showForge(mode) {
   if ((mode === 'next' && !PICKS[S.pick + 1]) || (mode === 'special' && S.pick < 4)) return;
-  if (!forgeSel || forgeSel.mode !== mode) forgeSel = { mode, head: 'gold', handle: 'wood', adds: [] };
-  const F = forgeSel, chip = (k, id, label, on, ok) => `<button class="chip${on ? ' on' : ''}" data-a="fsel" data-k="${k}" data-o="${id}"${ok ? '' : ' disabled'}>${label}</button>`;
-  const cnt = (id, n) => `<span class="ore ${id}"></span>${n > 1 ? `${Math.min(have(id), n)}/${n} ` : ''}`;
-  let body = '';
-  if (F.mode === 'special') body += `<p class="dim">머리</p><div class="chips">${Object.entries(HEADS).map(([id, h]) => chip('head', id, `${cnt(h.item, HEAD_N)}${h.n}`, F.head === id, true)).join('')}</div>`;
-  body += `<p class="dim" style="margin-top:8px">자루</p><div class="chips">${Object.entries(HANDLES).map(([id, h]) => chip('handle', id, `${h.k ? cnt(h.item, h.k) : ''}${h.n}`, F.handle === id, have(h.item) >= h.k)).join('')}</div>`;
-  body += `<p class="dim" style="margin-top:8px">추가 재료 ${F.adds.length}/${forgeSlots()}</p><div class="chips">${Object.entries(ADDS).map(([id, a]) => chip('add', id, `${cnt(id, a.k)}${ORES[id].name}`, F.adds.includes(id), F.adds.includes(id) || have(id) >= a.k)).join('')}</div>`;
-  const et = effSum([HANDLES[F.handle].eff, ...F.adds.map(a => ADDS[a].eff)]), need = forgeNeed(), ok = hasAll(need) && S.gold >= forgeGold();
-  body += `<p style="margin-top:10px">${needHtml(need, forgeGold())}</p>` + (et ? `<p class="eff">${et}</p>` : '');
-  openSheet(ico('ic_pick') + (F.mode === 'special' ? '특수 곡괭이' : PICKS[S.pick + 1].name), body, `<button class="btn" data-a="smithyBack">뒤로</button><button class="btn primary" data-a="forgeGo"${ok ? '' : ' disabled'}>망치질</button>`);
+  if (!forgeSel || forgeSel.mode !== mode) forgeSel = { mode, head: 'gold', handle: 'wood', adds: [], slot: mode === 'special' ? 'head' : 'handle' };
+  const F = forgeSel, sp = F.mode === 'special', slots = forgeSlots(), adds = forgeAdds(), t = sp ? 4 : S.pick + 1;
+  const known = sp ? spMatch(F.head, F.handle, adds) : null, kn = known && S.spc[known.id] !== undefined ? known : null;
+  const effs = effMap([HANDLES[F.handle].eff, ...adds.map(a => ADDS[a].eff), kn ? kn.eff : {}]);
+  const cfg = { c: sp ? HEADS[F.head].col : TIER_COL[t], hd: F.handle, ad: F.adds.filter(Boolean), sp: kn ? 1 : 0 };
+  const name = kn ? kn.n : sp ? `${HEADS[F.head].n} 곡괭이` : PICKS[t].name, short = id => ORES[id].name;
+  const sock = (key, icon, label, full, lock) => `<button class="sock${F.slot === key ? ' on' : ''}${full ? ' full' : ''}${lock ? ' lock' : ''}" data-a="fslot" data-o="${key}"${lock ? ' disabled' : ''}>${icon}<em>${label}</em></button>`;
+  let socks = '';
+  if (sp) socks += sock('head', `<span class="ore ${HEADS[F.head].item}"></span>`, `${HEADS[F.head].n} 머리`, true, false);
+  socks += sock('handle', `<span class="ore ${HANDLES[F.handle].item}"></span>`, '자루', true, false);
+  [0, 1].forEach(i => { const id = F.adds[i], lock = i >= slots; socks += sock('a' + i, lock ? ico('ic_lock') : id ? `<span class="ore ${id}"></span>` : '', lock ? '' : id ? short(id) : '재료', !!id, lock); });
+  const cell = (k, id, item, label, n, on, ok, ef) => `<button class="${on ? 'on' : ''}" data-a="fsel" data-k="${k}" data-o="${id}"${ok ? '' : ' disabled'}><span class="ore ${item}"></span>${label}<small>${n ? `${Math.min(have(item), n)}/${n}` : '기본'}</small>${ef ? `<small class="ef">${ef}</small>` : ''}</button>`;
+  let tray;
+  if (F.slot === 'head') tray = Object.entries(HEADS).map(([id, h]) => cell('head', id, h.item, h.n, HEAD_N, F.head === id, true, '')).join('');
+  else if (F.slot === 'handle') tray = Object.entries(HANDLES).map(([id, h]) => cell('handle', id, h.item, short(h.item), h.k, F.handle === id, have(h.item) >= h.k, effSum([h.eff]))).join('');
+  else tray = Object.entries(ADDS).map(([id, a]) => cell('add', id, id, short(id), a.k, F.adds.includes(id), F.adds.includes(id) || have(id) >= a.k, effSum([a.eff]))).join('');
+  const need = forgeNeed(), ok = hasAll(need) && S.gold >= forgeGold();
+  const body = `<div class="forgeui"><div class="pv${cfg.sp || sp ? ' sp' : ''}"><canvas width="300" height="300" data-pick='${JSON.stringify(cfg)}'></canvas></div><p class="pvname">${name}</p>`
+    + statBars({ pow: pickPower(), atk: power(), spd: swingSpd() }, statFor(t, effs))
+    + `<div class="sockets">${socks}</div><div class="tray">${tray}</div>${effChips(effs)}<div class="costline">${needHtml(need, forgeGold())}</div></div>`;
+  openSheet(ico('ic_hearth') + (sp ? '특수 곡괭이' : '곡괭이 공방'), body, `<button class="btn" data-a="smithyBack">뒤로</button><button class="btn primary" data-a="forgeGo"${ok ? '' : ' disabled'}>망치질</button>`);
 }
 function forgeSelect(k, id) {
   const F = forgeSel; if (!F) return;
-  if (k === 'head' && HEADS[id]) F.head = id;
-  else if (k === 'handle' && HANDLES[id]) F.handle = id;
-  else if (k === 'add' && ADDS[id]) { if (F.adds.includes(id)) F.adds = F.adds.filter(a => a !== id); else { F.adds.push(id); if (F.adds.length > forgeSlots()) F.adds.shift(); } }
+  if (k === 'head' && HEADS[id]) { F.head = id; F.slot = 'handle'; }
+  else if (k === 'handle' && HANDLES[id]) { F.handle = id; F.slot = 'a0'; }
+  else if (k === 'add' && ADDS[id]) {
+    let i = F.slot === 'a1' ? 1 : F.slot === 'a0' ? 0 : (F.adds[0] ? 1 : 0); if (i >= forgeSlots()) i = 0;
+    if (F.adds[i] === id) F.adds[i] = undefined;
+    else { F.adds = F.adds.map(a => (a === id ? undefined : a)); F.adds[i] = id; if (i === 0 && forgeSlots() > 1) F.slot = 'a1'; }
+  }
   showForge(F.mode);
+}
+// 곡괭이 도감: 카드 여덟 장. 만든 건 그림과 이름, 모르는 건 그림자와 머리 이름만
+function showCodex() {
+  const n = Object.keys(S.spc).length;
+  const card = sp => {
+    const q = S.spc[sp.id];
+    if (q === undefined) return `<div class="card unk"><canvas width="172" height="172" data-pick='${JSON.stringify({ c: HEADS[sp.head].col, hd: sp.handle, ad: [], dark: 1 })}'></canvas><span class="nm2">???</span><small>${HEADS[sp.head].n} 머리</small></div>`;
+    const eq = S.pk.sp === sp.id;
+    return `<button class="card${eq ? ' eq' : ''}" data-a="spCard" data-o="${sp.id}">${eq ? '<span class="rib">들고 있음</span>' : ''}<span class="qd">${QUAL[q]}</span><canvas width="172" height="172" data-pick='${JSON.stringify({ c: HEADS[sp.head].col, hd: sp.handle, ad: sp.adds, sp: 1 })}'></canvas><span class="nm2">${sp.n}</span><small>${effSum([sp.eff])}</small></button>`;
+  };
+  openSheet(ico('ic_note') + '곡괭이 도감', `<div class="codexhead"><small>${n}/${SPECIALS.length}</small><span class="bar"><i style="width:${n / SPECIALS.length * 100}%"></i></span></div><div class="codex">${SPECIALS.map(card).join('')}</div>`, `<button class="btn" data-a="smithyBack">뒤로</button>`);
+}
+function showSpCard(id) {
+  const sp = SPECIALS.find(v => v.id === id), q = S.spc[id]; if (!sp || q === undefined) return;
+  const eq = S.pk.sp === id, ic = k => `<span class="ore ${k}"></span>`;
+  const body = `<div class="forgeui"><div class="pv sp"><canvas width="300" height="300" data-pick='${JSON.stringify({ c: HEADS[sp.head].col, hd: sp.handle, ad: sp.adds, sp: 1 })}'></canvas></div><p class="pvname">${sp.n}</p><p class="pvq">${QUAL[q]}${eq ? ', 들고 있음' : ''}</p>`
+    + `<div class="recipe">${ic(HEADS[sp.head].item)}<i>+</i>${ic(HANDLES[sp.handle].item)}<i>+</i>${sp.adds.map(ic).join('')}</div>${effChips(sp.eff)}</div>`;
+  openSheet(ico('ic_pick') + sp.n, body, `<button class="btn" data-a="codex">뒤로</button>${eq ? '' : `<button class="btn primary" data-a="spEquip" data-o="${id}">들기</button>`}${q < 2 ? `<button class="btn" data-a="spHammer" data-o="${id}">${ico('ic_hearth')}${GOLD}${REHAMMER_GOLD}</button>` : ''}`);
 }
 function startHammer() {
   const F = forgeSel; if (!F || !hasAll(forgeNeed()) || S.gold < forgeGold()) return;
@@ -4575,7 +4697,7 @@ function strike() {
   setTimeout(() => done(q), 350);
 }
 function finishForge(q) {
-  const F = forgeSel, need = forgeNeed(), gold = forgeGold(); forgeSel = null;
+  const F = forgeSel, need = forgeNeed(), gold = forgeGold(); forgeSel = null; F.adds = F.adds.filter(Boolean);
   Object.entries(need).forEach(([k, n]) => { take(k, n); }); S.gold -= gold;
   let news = '';
   if (F.mode === 'special') {   // 정해진 머리, 자루, 추가 재료 둘이 맞으면 특수 곡괭이 (도감에 남음)
@@ -4589,7 +4711,7 @@ function finishForge(q) {
 // 도감의 특수 곡괭이: 바꿔 들기, 돈을 내고 망치질만 다시 해서 품질 올리기 (재료와 효과는 그대로, 품질은 내려가지 않음)
 function spEquip(id) {
   const sp = SPECIALS.find(v => v.id === id); if (!sp || S.spc[id] === undefined) return;
-  S.pk = { handle: sp.handle, adds: [...sp.adds], head: sp.head, sp: id }; S.pickQ = S.spc[id]; SFX.open(2); save(); renderHud(); showSmithy();
+  S.pk = { handle: sp.handle, adds: [...sp.adds], head: sp.head, sp: id }; S.pickQ = S.spc[id]; SFX.open(2); save(); renderHud(); showCodex();
 }
 function spHammer(id) {
   const sp = SPECIALS.find(v => v.id === id); if (!sp || S.spc[id] === undefined || S.spc[id] >= 2 || S.gold < REHAMMER_GOLD) return;
@@ -4890,6 +5012,9 @@ function act(b) {
   else if (a === 'forge') showForge('next');
   else if (a === 'forgeSp') showForge('special');
   else if (a === 'fsel') forgeSelect(b.dataset.k, b.dataset.o);
+  else if (a === 'fslot') { if (forgeSel) { forgeSel.slot = b.dataset.o; showForge(forgeSel.mode); } }
+  else if (a === 'codex') showCodex();
+  else if (a === 'spCard') showSpCard(b.dataset.o);
   else if (a === 'forgeGo') startHammer();
   else if (a === 'smithyBack') { forgeSel = null; showSmithy(); }
   else if (a === 'spEquip') spEquip(b.dataset.o);

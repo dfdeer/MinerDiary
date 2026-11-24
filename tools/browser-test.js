@@ -449,7 +449,7 @@ const shot = process.argv[2];
   const pw0 = await page.evaluate(() => { S.inv.copperBar = 3; S.gold += 100; showSmithy(); return window.MinerDiary.power(); });
   await page.click('#sheet [data-a="sharp"]');
   ok(await page.locator('#sheet [data-a="craft"][data-o="sickle"]').count() === 1, '대장간에서 낫을 만들 수 있음');
-  ok((await st()).sharp === 1 && await page.evaluate(() => window.MinerDiary.power()) === pw0 + 4 && (await page.textContent('#sheet')).includes('곡괭이 파워'), `대장간 날 세우기로 곡괭이 파워 +4 (${pw0} 다음 ${pw0 + 4})`);
+  ok((await st()).sharp === 1 && await page.evaluate(() => window.MinerDiary.power()) === pw0 + 4 && (await page.textContent('#sheet .pkcard')).includes(`파워 ${pw0 + 4}`), `대장간 날 세우기로 곡괭이 파워 +4 (${pw0} 다음 ${pw0 + 4})`);
   await page.click('#sheet [data-a="close"]');
 
   // 13-0c. 강가 다리 고치기, 낚싯대, 낚시 세 번 (찌가 잠길 때 당김). 시장과 밭이 강 건너라 다리가 먼저 (기획 67번)
@@ -878,7 +878,7 @@ const shot = process.argv[2];
     await page.click('#sheet [data-a="fsel"][data-k="handle"][data-o="oldwood"]');
     await page.click('#sheet [data-a="fsel"][data-k="add"][data-o="fiber"]');
     await page.click('#sheet [data-a="fsel"][data-k="add"][data-o="coal"]');
-    ok((await page.textContent('#sheet')).includes('추가 재료 2/2'), '금 곡괭이부터 추가 재료 두 칸');
+    ok(await page.locator('#sheet .sock[data-o="a1"]:not(.lock)').count() === 1 && await page.locator('#sheet canvas[data-pick]').count() === 1 && (await page.textContent('#sheet .stats3')).includes('빠르기'), '곡괭이 공방: 곡괭이 그림, 세기 막대, 금 곡괭이부터 추가 재료 두 칸 (기획 72번)');
     await page.click('#sheet [data-a="forgeGo"]');
     for (let k = 0; k < 3; k++) {
       await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
@@ -886,8 +886,10 @@ const shot = process.argv[2];
     await page.waitForSelector('#sheet h2:has-text("대장장이")', { timeout: 3000 });
     const r1 = await page.evaluate(() => ({ pick: S.pick, h: S.pk.handle, a: S.pk.adds.slice().sort().join(), spd: swingSpd(), oldwood: have('oldwood'), fiber: have('fiber') }));
     ok(r1.pick === 4 && r1.h === 'oldwood' && r1.a === 'coal,fiber' && Math.abs(r1.spd - sp0 - .1 - .1 - .08) < 1e-9 && !r1.oldwood && !r1.fiber, `고목 자루와 풀실로 곡괭이질 빠르기가 오름 (${Math.round((1 + r1.spd) * 100)}%, 품질 최상 +10%)`);
-    await visit('smithy', '#sheet [data-a="forgeSp"]');
-    ok((await page.textContent('#sheet')).includes('곡괭이 도감 0/8') && (await page.locator('#sheet .dim:has-text("???")').count()) === 8, '금 곡괭이 다음엔 특수 곡괭이 만들기와 빈 도감 여덟 칸');
+    await visit('smithy', '#sheet [data-a="codex"]');
+    await page.click('#sheet [data-a="codex"]');
+    ok((await page.textContent('#sheet')).includes('0/8') && (await page.locator('#sheet .card.unk').count()) === 8, '금 곡괭이 다음엔 특수 곡괭이 만들기와 그림자 카드 여덟 장의 도감');
+    await page.click('#sheet [data-a="smithyBack"]');
     const atk0 = await page.evaluate(() => power());
     await page.click('#sheet [data-a="forgeSp"]');
     for (const [k, o] of [['head', 'ruby'], ['handle', 'bone'], ['add', 'ruby'], ['add', 'manastone']]) await page.click(`#sheet [data-a="fsel"][data-k="${k}"][data-o="${o}"]`);
@@ -898,11 +900,14 @@ const shot = process.argv[2];
     await page.waitForSelector('#sheet h2:has-text("대장장이")', { timeout: 3000 });
     const r2 = await page.evaluate(() => ({ sp: S.pk.sp, q: S.spc.hunter, atk: power(), pick: S.pick, gem: have('rubyGem') }));
     ok(r2.sp === 'hunter' && r2.q === 2 && r2.pick === 4 && !r2.gem && r2.atk === (9 + 2 + 3) * 2 && (await page.textContent('#sheet')).includes('도감에 새 곡괭이'), `루비 머리, 뼈 자루, 루비, 마석으로 사냥꾼 곡괭이 (공격 ${atk0} 다음 ${r2.atk})`);
-    await page.evaluate(() => { closeSheet(); S.spc.bolt = 0; showSmithy(); });
-    ok((await page.textContent('#sheet')).includes('곡괭이 도감 2/8') && await page.locator('#sheet [data-a="spEquip"][data-o="bolt"]').count() === 1 && await page.locator('#sheet [data-a="spHammer"][data-o="hunter"]').count() === 0, '도감에서 다른 특수 곡괭이를 들 수 있고, 최상은 다시 망치질 단추가 없음');
+    const noRe = await page.evaluate(() => { closeSheet(); S.spc.bolt = 0; showSpCard('hunter'); return !document.querySelector('#sheet [data-a="spHammer"]'); });
+    await page.evaluate(() => showCodex());
+    ok(noRe && (await page.textContent('#sheet')).includes('2/8') && await page.locator('#sheet .card.eq').count() === 1 && await page.locator('#sheet .card.unk').count() === 6, '도감 카드: 든 곡괭이는 표시, 최상은 다시 망치질 단추가 없음');
+    await page.click('#sheet [data-a="spCard"][data-o="bolt"]');
     await page.click('#sheet [data-a="spEquip"][data-o="bolt"]');
     const r3 = await page.evaluate(() => ({ sp: S.pk.sp, spd: swingSpd(), q: S.pickQ }));
     ok(r3.sp === 'bolt' && r3.q === 0 && Math.abs(r3.spd - Math.min(.4, sp0 + .25 + .08)) < 1e-9, `번개 곡괭이를 들면 곡괭이질 빠르기 ${Math.round((1 + r3.spd) * 100)}% (최대 140%)`);
+    await page.click('#sheet [data-a="spCard"][data-o="bolt"]');
     await page.click('#sheet [data-a="spHammer"][data-o="bolt"]');
     for (let k = 0; k < 3; k++) {
       await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
