@@ -1161,15 +1161,6 @@ function chibi(c, X, Y, s, o) {
   const GX = swing <= 0 ? gX0 : shX + Math.cos(phi) * armL, GY = swing <= 0 ? gY0 : shY + Math.sin(phi) * armL, UX = Math.cos(th), UY = Math.sin(th);
   const pickaxe = () => {
     const ax = GX - UX * kb, ay = GY - UY * kb, bx = GX + UX * kt, by = GY + UY * kt, nx = -UY, ny = UX;
-    if (o.tool === 'sword') {   // 검: 짧은 자루, 가로 날밑, 곧은 날
-      const g = [GX + UX * 6, GY + UY * 6], e = [GX + UX * (kt + 16), GY + UY * (kt + 16)];
-      limb(c, GX - UX * 7, GY - UY * 7, g[0], g[1], '#6b4424', 6);
-      c.beginPath(); c.moveTo(g[0] + nx * 4.5, g[1] + ny * 4.5); c.lineTo(e[0] + nx * 2, e[1] + ny * 2); c.lineTo(e[0] + UX * 7, e[1] + UY * 7); c.lineTo(e[0] - nx * 2, e[1] - ny * 2); c.lineTo(g[0] - nx * 4.5, g[1] - ny * 4.5); c.closePath();
-      c.fillStyle = '#dfe6ee'; c.fill(); c.lineWidth = 2.6; c.strokeStyle = OUT; c.lineJoin = 'round'; c.stroke();
-      LN(c, g[0] + UX * 3, g[1] + UY * 3, e[0], e[1], 'rgba(255,255,255,.75)', 1.6);
-      limb(c, g[0] - nx * 9, g[1] - ny * 9, g[0] + nx * 9, g[1] + ny * 9, '#d9a640', 5);
-      return;
-    }
     if (o.tool === 'sickle') {   // 낫: 나무 자루 끝에 둥글게 휜 날
       limb(c, ax, ay, bx, by, '#a8703a', 6);
       // 날: 자루 끝에서 옆으로 뻗어 반달처럼 휜 넓적한 날 (바깥 곡선과 안쪽 곡선 사이를 채움)
@@ -2087,7 +2078,7 @@ function glintDir(x, y) {
   });
   return out;
 }
-let mparts = [], mfloats = [], mbumps = [], mswing = 0, mshake = 0, mrecoil = 0, swingTool = 'pick';   // 손에 드는 것: 곡괭이, 검(사냥), 낫(가시덤불) (기획 69번)
+let mparts = [], mfloats = [], mbumps = [], mswing = 0, mshake = 0, mrecoil = 0, swingTool = 'pick';   // 손에 드는 것: 곡괭이, 낫(가시덤불) (기획 69번, 70번)
 // 곡괭이질: 누르면 휘두르기 시작, 곡괭이가 땅에 닿는 순간(휘두르기의 58%쯤) 실제로 캐짐. 그동안 다른 누르기는 받지 않음
 let strikeQ = null, animK = 1;
 // 못 캔다는 표시: 친 칸 위에 붉은 금지 표시가 튀어나왔다 사라짐 (땅속, 숲)
@@ -2384,7 +2375,7 @@ function showStats() {
     travelOpen() ? row(ico('ic_map'), '길 기력', S.rail ? '0' : `${Math.round((S.donkey ? .2 : S.cart ? .6 : 1) * 100)}%`, S.rail ? '광차 철길' : S.donkey ? '당나귀 수레' : S.cart ? '손수레' : '걸어서') : '',
     row(PWR, '최대 기력', S.max, ''),
     row(ico('ic_boot'), '걸음 기력', `${stepsPerEnergy()}칸마다 1`, accEff('forestFree') ? '숲은 0' : '숲은 5칸마다 1'),
-    row(ico('ic_sword'), '무기', `${SWORDS[S.sword || 0].name} 공격 ${power()}`, ''),
+    row(ico('ic_sword'), '공격', `${power()}`, PK().name),
   ].join('');
   openSheet(ico('ic_stat') + '능력치', `<div class="rows">${rows}</div>`, `<button class="btn" data-a="bag">${ico('ic_bag')}가방</button>`);
 }
@@ -3272,7 +3263,7 @@ function forestTap(px, py) {
 
 /* ===== 성 밖 사냥터 (기획 4번 9단계): 성벽 문을 고치면 점심부터 나갈 수 있음 =====
    점심엔 멧돼지, 저녁부터 그림자 늑대, 새벽엔 달빛 정령. 몬스터를 누르면 다가가 저절로 휘두름(한 번에 기력 1).
-   몬스터가 옆에 붙으면 때려서 기력이 깎임. 검을 만들면 세게 침 (곡괭이로도 약하게 칠 수 있음) */
+   몬스터가 옆에 붙으면 때려서 기력이 깎임. 곡괭이로 치고, 좋은 곡괭이일수록 세게 침 (기획 70번) */
 const HW = 30, HH = 30;
 const MONS = {
   boar:   { n: '멧돼지', hp: 4, hit: 2, speed: 1.6, drop: [['meat', 1], ['leather', .6]] },
@@ -3293,8 +3284,9 @@ const STAGES = {
 };
 const stageOf = () => STAGES.home;
 const stageCleared = n => !!((S.huntClear || {}).home || {})[n];
-const SWORDS = [{ name: '곡괭이', power: 1 }, { name: '구리 검', power: 2, need: { copperBar: 3 }, gold: 150 }, { name: '철 검', power: 4, need: { ironBar: 4 }, gold: 500 }, { name: '은 검', power: 6, need: { silverBar: 4 }, gold: 1200 }];
-const power = () => SWORDS[S.sword || 0].power;
+// 싸울 때도 곡괭이 (검은 없앰, 기획 70번). 공격력은 곡괭이 단계를 따름: 낡은 1, 구리 2, 철 4, 은 6, 금 9
+const PICK_ATK = [1, 2, 4, 6, 9];
+const power = () => PICK_ATK[S.pick || 0];
 // 단계 n(0부터)의 싸움터: 가운데가 트인 들판, 아래 가운데가 마을로 가는 길. 몬스터는 위쪽에 모여 있음
 const raidNow = () => { const e = evActive('raid'); return e && !e.won && phaseIndex() >= 2 ? e : null; };
 function raidWave(w) { return w === 0 ? ['boar', 'boar', 'wolf'] : ['wolf', 'wolf', 'boar', 'boar', ...(stageCleared(3) ? ['spirit'] : [])]; }
@@ -3431,7 +3423,7 @@ function huntTick(dt, H = S.hunt, blk = hBlocked) {
   const tgt = H.mons.find(o => o.id === hero.atk && o.hp > 0);
   if (tgt && !hero.path.length && Math.hypot(tgt.x - hero.x, tgt.y - hero.y) >= 1.35) chaseStep();
   if (tgt && Math.hypot(tgt.x - hero.x, tgt.y - hero.y) < 1.35 && swingCd <= 0 && !hero.path.length) {
-    swingCd = .55; mswing = 1; swingTool = S.sword ? 'sword' : 'pick';   // 검을 만들기 전엔 곡괭이로 싸움
+    swingCd = .55; mswing = 1; swingTool = 'pick';
     if (tgt.x > hero.x) { hero.back = false; hero.fx = 1; } else { hero.back = true; hero.fx = -1; }
     tgt.hp -= power(); tgt.hurt = .2; SFX.dig(); if (tgt.st === 'wind') { tgt.st = 'rest'; tgt.stT = .6; }   // 멈칫할 때 치면 돌진이 끊김
     hunts.push({ x: tgt.x, y: tgt.y, text: `${power()}`, col: '#fff', life: 1 });
@@ -3536,11 +3528,6 @@ function sharpen() {
   const sh = SHARP[S.sharp || 0]; if (!sh || !hasAll(sh.need) || S.gold < sh.gold) return;
   Object.entries(sh.need).forEach(([k, n]) => { take(k, n); }); S.gold -= sh.gold; S.sharp = (S.sharp || 0) + 1;
   SFX.stairs(); toast(`${ico('ic_pick')}파워 ${pickPower()}`); save(); renderHud(); showSmithy();
-}
-function makeSword() {
-  const next = SWORDS[(S.sword || 0) + 1]; if (!next || !hasAll(next.need) || S.gold < next.gold) return;
-  Object.entries(next.need).forEach(([k, n]) => { take(k, n); }); S.gold -= next.gold; S.sword = (S.sword || 0) + 1;
-  SFX.stairs(); toast(`${ico('ic_sword')}${next.name}`); save(); renderHud(); showSmithy();
 }
 
 /* ===== 야시장 (기획 35번): 사냥 다음 퀘스트부터, 저녁과 새벽에 시장 한쪽에 수상한 상인이 섬 =====
@@ -4325,7 +4312,7 @@ function showCard(o, msg) {
   }
   if (!o.done) { ruinCard(o); return; }
   if ((S.damaged || {})[o.id]) { const ok2 = S.gold >= FIX.gold && have('wood') >= FIX.wood; openSheet(`${ico('ic_warn')}부서진 ${o.name}`, '<p class="dim">습격 때 부서짐</p>', `<button class="btn primary" data-a="fix" data-o="${o.id}" ${ok2 ? '' : 'disabled'}>${GOLD}${FIX.gold} <span class="ore wood"></span>${FIX.wood}</button>`); return; }
-  if (o.id === 'gate') { const am = phaseIndex() === 0, rd = raidNow(); openSheet(`${ico('ic_sword')}성 밖 토벌`, (rd ? `<p class="warn">${ico('ic_warn')}몬스터가 몰려옴</p>` : '') + `<p>${ico('ic_sword')}${SWORDS[S.sword || 0].name}</p>` + (am ? '<p class="dim">점심부터</p>' : '') + stageRows(), (travelOpen() ? `<button class="btn" data-a="world">${ico('ic_map')}지도</button>` : '') + (rd ? `<button class="btn primary" data-a="raid">${ico('ic_sword')}막기</button>` : '')); return; }
+  if (o.id === 'gate') { const am = phaseIndex() === 0, rd = raidNow(); openSheet(`${ico('ic_sword')}성 밖 토벌`, (rd ? `<p class="warn">${ico('ic_warn')}몬스터가 몰려옴</p>` : '') + `<p>${ico('ic_pick')}${PK().name} <small>공격 ${power()}</small></p>` + (am ? '<p class="dim">점심부터</p>' : '') + stageRows(), (travelOpen() ? `<button class="btn" data-a="world">${ico('ic_map')}지도</button>` : '') + (rd ? `<button class="btn primary" data-a="raid">${ico('ic_sword')}막기</button>` : '')); return; }
   if (o.id === 'house') {
     showHouse();
   } else if (o.id === 'chief') {
@@ -4423,7 +4410,7 @@ const RESTORE = {
   kitchen: { gold: 1000, need: { wood: 15, ironBar: 2 }, who: '식당 주인', line: '식당을 다시 열게 됐어요. 재료 두 가지를 골라 요리해 봐요. 처음 찾은 맛은 적어 둘게요. 점심이랑 저녁엔 마을 사람들이 부탁도 하러 와요.' },
   jewel: { gold: 1500, need: { silverBar: 3, crystal: 2 }, who: '세공사', line: '세공소를 고쳐 줘서 고마워요. 원석을 가져오면 같이 깎아요. 결을 따라 정확히 두드릴수록 보석이 더 나와요. 귀한 원석일수록 까다롭고요.' },
   museum: { gold: 3000, need: { silverBar: 3, goldBar: 2, wood: 30 }, who: '학자', line: '박물관이 다시 문을 열었네요. 광산과 숲, 강, 성 밖에서 얻은 것을 종류마다 하나씩 기증해 줘요. 모일수록 이 마을이 왜 무너졌는지도 조금씩 보일 거예요.' },
-  gate: { gold: 2000, need: { ironBar: 5, wood: 20 }, who: '촌장', line: '성벽 문이 다시 열렸어요. 성 밖 들판엔 짐승이 다녀요. 낮엔 멧돼지 정도지만 저녁부터는 그림자 늑대가, 새벽엔 달빛 정령이 나와요. 대장간에서 검을 만들어 가면 훨씬 수월할 거예요.' },
+  gate: { gold: 2000, need: { ironBar: 5, wood: 20 }, who: '촌장', line: '성벽 문이 다시 열렸어요. 성 밖 들판엔 짐승이 다녀요. 낮엔 멧돼지 정도지만 저녁부터는 그림자 늑대가, 새벽엔 달빛 정령이 나와요. 좋은 곡괭이를 들고 가면 훨씬 수월할 거예요.' },
   market: { gold: 800, need: { wood: 10 }, who: '시장 상인', line: '시장이 다시 열렸어요. 값은 날마다 바뀌어요. 많이 팔면 값이 떨어지니 나눠서 파는 게 좋아요. 내일 무엇이 오를지도 알려 줄게요.', then: () => rollMarket(true) },
 };
 const canRestore = id => { const i = QUESTS.findIndex(q => q.id === id); return i >= 0 && S.quest >= i; };
@@ -4475,8 +4462,6 @@ function showSmithy() {
   const sh = SHARP[S.sharp || 0];
   pick = `<div class="rowi"><span class="nm">${ico('ic_pick')}곡괭이 파워</span><b>${pickPower()}</b></div>` + pick;
   pick += sh ? `<div class="rowi"><span class="nm">날 세우기 +${(S.sharp || 0) + 1} <small class="eff">파워 +4</small> ${needHtml(sh.need, sh.gold)}</span><button class="btn small" data-a="sharp" ${hasAll(sh.need) && S.gold >= sh.gold ? '' : 'disabled'}>세우기</button></div>` : `<div class="rowi"><span class="nm">날 세우기 +5</span></div>`;
-  const sw = SWORDS[(S.sword || 0) + 1];
-  pick += `<div class="rowi"><span class="nm">${ico('ic_sword')}${SWORDS[S.sword || 0].name}</span></div>` + (sw ? `<div class="rowi"><span class="nm">${sw.name} ${needHtml(sw.need, sw.gold)}</span><button class="btn small" data-a="sword" ${hasAll(sw.need) && S.gold >= sw.gold ? '' : 'disabled'}>만들기</button></div>` : '');
   const crafts = CRAFTS.filter(r => (r.kind !== 'slot' || S.acc.slots < 2) && !(r.kind === 'tool' && (S[r.id] || (r.id === 'cart' && S.donkey)))).map(r => `<div class="rowi"><span class="nm">${r.kind === 'slot' ? ico('ic_ring') + '장신구 고리' : accIco(r.id) + (ACC[r.id] || ITEMS[r.id] || TOOLS[r.id]).n}${r.kind === 'acc' ? ` <small class="eff">${accDesc(r.id)}</small>` : r.kind === 'tool' && TOOLS[r.id].d ? ` <small class="eff">${TOOLS[r.id].d}</small>` : ''} ${needHtml(r.need, r.gold)}</span><button class="btn small" data-a="craft" data-o="${r.id}" ${hasAll(r.need) && S.gold >= r.gold ? '' : 'disabled'}>만들기</button></div>`).join('');
   const recs = RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b)).map(([[a, b, o], i]) => `<div class="rowi"><span class="nm">${accIco(a)}<span class="${owned(a) ? '' : 'lack'}">${ACC[a].n}</span> + ${accIco(b)}<span class="${owned(b) ? '' : 'lack'}">${ACC[b].n}</span> ${ico('ic_arrow')} ${owned(a) && owned(b) ? ACC[o].n : '?'}</span><button class="btn small" data-a="combine" data-n="${i}" ${owned(a) && owned(b) && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`).join('');
   openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div><p class="dim" style="margin-top:10px">만들기</p><div class="rows">${crafts}</div>` + (recs ? `<p class="dim" style="margin-top:10px">합치기</p><div class="rows">${recs}</div>` : ''));
@@ -4776,7 +4761,7 @@ document.addEventListener('input', e => { if (e.target.dataset && e.target.datas
 document.addEventListener('change', e => { if (e.target.dataset && (e.target.dataset.vol === 'sfx' || e.target.dataset.vol === 'master')) SFX.coin(); });
 document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled) return; act(b); });
 /* 확정 (기획 66번): 돈이나 물건이 빠지는 단추는 한 번 더 묻고 확정. 확정 창엔 무엇인지와 값만 */
-const CONFIRM = new Set(['restore', 'home', 'buy', 'mbuy', 'nbuy', 'nsell', 'sword', 'sharp', 'smelt', 'donate', 'craft', 'combine', 'cut', 'donkey', 'fix', 'rail', 'kreq', 'inn', 'sellAll', 'forge']);
+const CONFIRM = new Set(['restore', 'home', 'buy', 'mbuy', 'nbuy', 'nsell', 'sharp', 'smelt', 'donate', 'craft', 'combine', 'cut', 'donkey', 'fix', 'rail', 'kreq', 'inn', 'sellAll', 'forge']);
 let autoOk = false, cfPend = null;   // autoOk: 시험용 (확정을 건너뜀)
 function askConfirm(b) {
   cfPend = { html: sheet.innerHTML, closable: sheetClosable, a: b.dataset.a, o: b.dataset.o, n: b.dataset.n };
@@ -4827,7 +4812,6 @@ function act(b) {
   else if (a === 'board') doBoard(n);
   else if (a === 'nsell') nightSell(n);
   else if (a === 'donate') donate(b.dataset.o);
-  else if (a === 'sword') makeSword();
   else if (a === 'sharp') sharpen();
   else if (a === 'world') showWorld();
   else if (a === 'travel') travel(b.dataset.o);
