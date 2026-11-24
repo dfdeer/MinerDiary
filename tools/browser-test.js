@@ -921,6 +921,15 @@ const shot = process.argv[2];
     }
     await page.waitForSelector('#sheet h2:has-text("대장장이")', { timeout: 3000 });
     ok(await page.evaluate(() => S.spc.bolt === 2 && S.pickQ === 2 && S.pk.adds.includes('fiber')), '다시 망치질하면 재료와 효과는 그대로 두고 품질만 오름');
+    // 곡괭이 걸이 (기획 74번): 마을 아래 단추로 언제든 바꿔 듦
+    await page.evaluate(() => { closeSheet(); renderDock(); });
+    ok(await page.locator('#dock [data-a="rack"]').count() === 1, '특수 곡괭이가 생기면 마을 아래에 곡괭이 걸이 단추');
+    await page.click('#dock [data-a="rack"]');
+    ok(await page.locator('#sheet [data-a="rackPick"]').count() === 3 && await page.locator('#sheet .card.eq').count() === 1, '곡괭이 걸이엔 보통 곡괭이 하나와 만든 특수 곡괭이 둘');
+    await page.click('#sheet [data-a="rackPick"][data-o="base"]');
+    ok(await page.evaluate(() => !S.pk.sp && S.pk.handle === 'oldwood' && S.pk.adds.slice().sort().join() === 'coal,fiber' && S.pickQ === 2 && pickName() === '금 곡괭이'), '걸이에서 보통 곡괭이로 바꾸면 자루와 재료, 품질이 그대로 돌아옴');
+    await page.click('#sheet [data-a="rackPick"][data-o="hunter"]');
+    ok(await page.evaluate(() => S.pk.sp === 'hunter' && power() === 28), '걸이에서 사냥꾼 곡괭이로 바꿔 듦');
     await page.evaluate(() => closeSheet());
     await visit('smithy', '#sheet [data-a="close"]');
   }
