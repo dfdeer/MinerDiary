@@ -658,6 +658,7 @@ const shot = process.argv[2];
   ok(await page.evaluate(() => window.MinerDiary.scene() === 'hunt' && S.hunt.stage === 1 && S.hunt.mons.some(m => m.kind === 'wolf')), '다음 단계 단추로 2단계 (늑대가 섞임)');
   // 돌진과 빛 구슬, 왕 멧돼지의 부름
   const beh = await page.evaluate(async () => {
+    hero.atk = null; hero.path = [];   // 쫓던 몬스터가 있으면 멈칫할 때 쳐서 돌진이 끊기니 비움
     const H = S.hunt, b = H.mons.find(m => m.kind === 'boar'); H.mons.forEach(m => { if (m !== b) m.hp = 0; }); b.hp = 99; b.x = hero.x + 3; b.y = hero.y; b.cd2 = 0; b.st = 'walk';
     const seen = new Set(); for (let i = 0; i < 120; i++) { huntTick(.02); seen.add(b.st); } b.hp = 0;
     H.won = true; H.mons.push(newMon(H.nid++, 'spirit', hero.x + 4, hero.y)); const sp = H.mons[H.mons.length - 1]; sp.cd2 = 0; huntTick(.02); const shot = H.shots.length > 0; sp.hp = 0; H.shots = [];
@@ -875,10 +876,16 @@ const shot = process.argv[2];
       Object.assign(S.inv, { goldBar: 5, oldwood: 2, fiber: 5, coal: 3, rubyGem: 5, bone: 3, ruby: 1, manastone: 1 }); S.gold += 9000; renderHud(); return s0; });
     await visit('smithy', '#sheet [data-a="forge"]');
     await page.click('#sheet [data-a="forge"]');
+    ok(await page.locator('#sheet .drawer').count() === 0 && await page.locator('#sheet .bslot[data-o="a1"]').count() === 1 && await page.locator('#sheet canvas[data-pick]').count() === 1 && (await page.textContent('#sheet .stats3')).includes('빠르기'), '곡괭이 공방: 작업대 가운데 곡괭이 그림과 둘레 칸, 세기 막대, 금 곡괭이부터 재료칸 둘 (기획 73번)');
+    await page.click('#sheet [data-a="fslot"][data-o="handle"]');
+    const hl = await page.evaluate(() => { const ids = [...document.querySelectorAll('#sheet .drawer [data-k="handle"]')].map(b => b.dataset.o); return { t: ids.join(), ok: ids.includes('oldwood') && ids.includes('bone') && ids.every(id => !HANDLES[id].k || have(HANDLES[id].item) > 0) && Object.keys(HANDLES).every(id => ids.includes(id) || have(HANDLES[id].item) === 0) }; });
+    ok(hl.ok, `자루칸을 누르면 아래에서 가진 자루만 목록으로 (${hl.t})`);
     await page.click('#sheet [data-a="fsel"][data-k="handle"][data-o="oldwood"]');
+    ok(await page.locator('#sheet .drawer').count() === 0, '고르면 목록이 닫히고 칸에 들어감');
+    await page.click('#sheet [data-a="fslot"][data-o="a0"]');
     await page.click('#sheet [data-a="fsel"][data-k="add"][data-o="fiber"]');
+    await page.click('#sheet [data-a="fslot"][data-o="a1"]');
     await page.click('#sheet [data-a="fsel"][data-k="add"][data-o="coal"]');
-    ok(await page.locator('#sheet .sock[data-o="a1"]:not(.lock)').count() === 1 && await page.locator('#sheet canvas[data-pick]').count() === 1 && (await page.textContent('#sheet .stats3')).includes('빠르기'), '곡괭이 공방: 곡괭이 그림, 세기 막대, 금 곡괭이부터 추가 재료 두 칸 (기획 72번)');
     await page.click('#sheet [data-a="forgeGo"]');
     for (let k = 0; k < 3; k++) {
       await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
@@ -892,7 +899,7 @@ const shot = process.argv[2];
     await page.click('#sheet [data-a="smithyBack"]');
     const atk0 = await page.evaluate(() => power());
     await page.click('#sheet [data-a="forgeSp"]');
-    for (const [k, o] of [['head', 'ruby'], ['handle', 'bone'], ['add', 'ruby'], ['add', 'manastone']]) await page.click(`#sheet [data-a="fsel"][data-k="${k}"][data-o="${o}"]`);
+    for (const [slot, k, o] of [['head', 'head', 'ruby'], ['handle', 'handle', 'bone'], ['a0', 'add', 'ruby'], ['a1', 'add', 'manastone']]) { await page.click(`#sheet [data-a="fslot"][data-o="${slot}"]`); await page.click(`#sheet [data-a="fsel"][data-k="${k}"][data-o="${o}"]`); }
     await page.click('#sheet [data-a="forgeGo"]');
     for (let k = 0; k < 3; k++) {
       await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
