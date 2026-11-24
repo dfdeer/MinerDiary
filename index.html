@@ -66,6 +66,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .goal{height:44px;border-radius:14px;padding:0 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;position:relative;overflow:hidden}
 .goal i{position:absolute;left:0;bottom:0;height:4px;background:var(--accent)}
 .goal span{color:var(--accent)}
+.dockr{display:flex;gap:8px;pointer-events:auto}
 .bag{height:44px;min-width:44px;border-radius:14px;padding:0 12px;display:flex;align-items:center;gap:6px;font-weight:700}
 .dock button:active,.pill.icon:active{transform:translateY(2px)}
 
@@ -4358,13 +4359,13 @@ function renderDock() {
   const mine = scene === 'mine' || scene === 'forest' || scene === 'hunt' || scene === 'town';
   minebar.hidden = !mine || !!trip;   // 이동 장면 동안엔 아래 단추를 숨김
   dock.hidden = mine || !sheet.hidden || !!trip;
-  if (!dock.hidden) dock.innerHTML = `<span></span><button class="bag plate${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button>`;
+  if (!dock.hidden) dock.innerHTML = `<span></span><span class="dockr">${rackOpen() ? `<button class="bag plate" data-a="rack" aria-label="곡괭이 걸이">${ico('ic_pick')}</button>` : ''}<button class="bag plate${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}${carryN()}/${bagCap()}</button></span>`;
   const bagBtn = `<button class="btn small bagm${carryN() >= bagCap() ? ' full' : ''}" data-a="bag" aria-label="가방">${ico('ic_bag')}<span>${carryN()}<small>/${bagCap()}</small></span><i style="width:${Math.min(100, Math.round(carryN() / bagCap() * 100))}%"></i></button>`;
   // 아래 막대 가운데: 작은 글씨로 어디인지, 큰 글씨로 지금 자리 (기획 68번)
   const loc = (tag, main, col) => `<div class="loc"><small><i style="background:${col};color:${col}"></i>${tag}</small><b>${main}</b></div>`;
   const fastBtn = `<button class="btn small" data-a="homeFastAsk" aria-label="집으로">${ico('ic_village')}</button>`;   // 마을로 가는 단추는 이것 하나 (걸어서 나가기 단추는 없앰, 11/20)
   const got = `<div class="got">${oreRow(S.carry)}</div>`;
-  if (scene === 'town') { minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button>${loc('마을', (townHere() || TOWNS.mtn).n, '#f0b64f')}${got}${bagBtn}`; }
+  if (scene === 'town') { minebar.innerHTML = `<button class="btn small" data-a="world" aria-label="지도">${ico('ic_map')}</button>${loc('마을', (townHere() || TOWNS.mtn).n, '#f0b64f')}${got}${rackOpen() ? `<button class="btn small" data-a="rack" aria-label="곡괭이 걸이">${ico('ic_pick')}</button>` : ''}${bagBtn}`; }
   else if (scene === 'hunt') minebar.innerHTML = `${fastBtn}${loc(S.hunt && S.hunt.raid ? '성벽 문' : '성 밖', S.hunt && S.hunt.raid ? '습격 막기' : S.hunt && S.hunt.stage !== undefined ? `${stageOf().n} ${S.hunt.stage + 1}단계` : '들판', '#ef7a62')}${got}${bagBtn}`;
   else if (scene === 'forest') minebar.innerHTML = `${fastBtn}${loc('숲', fPlace(Math.round(hero.x)), '#6fae54')}${got}${bagBtn}`;
   else if (mine && S.mine) {
@@ -4687,6 +4688,23 @@ function showCodex() {
   };
   openSheet(ico('ic_note') + '곡괭이 도감', `<div class="codexhead"><small>${n}/${SPECIALS.length}</small><span class="bar"><i style="width:${n / SPECIALS.length * 100}%"></i></span></div><div class="codex">${SPECIALS.map(card).join('')}</div>`, `<button class="btn" data-a="smithyBack">뒤로</button>`);
 }
+// 곡괭이 걸이 (기획 74번): 마을에 있으면 아래 단추로 언제든 바꿔 듦. 보통 곡괭이 하나와 만든 특수 곡괭이들
+const rackOpen = () => (scene === 'village' || scene === 'town') && Object.keys(S.spc || {}).length > 0;
+const pkBase = () => S.pkBase || { handle: 'wood', adds: [], head: null, sp: null, q: S.pickQ || 0 };
+function showRack() {
+  const b = pkBase(), cards = [], eqBase = !S.pk.sp;
+  const baseName = b.head ? `${HEADS[b.head].n} 곡괭이` : PICKS[S.pick || 0].name;
+  cards.push(`<button class="card${eqBase ? ' eq' : ''}" data-a="rackPick" data-o="base">${eqBase ? '<span class="rib">들고 있음</span>' : ''}<span class="qd">${QUAL[b.q || 0]}</span><canvas width="172" height="172" data-pick='${JSON.stringify({ c: b.head ? HEADS[b.head].col : TIER_COL[S.pick || 0], hd: b.handle, ad: b.adds, sp: 0 })}'></canvas><span class="nm2">${baseName}</span><small>${effSum([HANDLES[b.handle].eff, ...b.adds.map(a => ADDS[a].eff)]) || '덤 없음'}</small></button>`);
+  SPECIALS.filter(sp => S.spc[sp.id] !== undefined).forEach(sp => { const eq = S.pk.sp === sp.id;
+    cards.push(`<button class="card${eq ? ' eq' : ''}" data-a="rackPick" data-o="${sp.id}">${eq ? '<span class="rib">들고 있음</span>' : ''}<span class="qd">${QUAL[S.spc[sp.id]]}</span><canvas width="172" height="172" data-pick='${JSON.stringify({ c: HEADS[sp.head].col, hd: sp.handle, ad: sp.adds, sp: 1 })}'></canvas><span class="nm2">${sp.n}</span><small>${effSum([sp.eff])}</small></button>`); });
+  openSheet(ico('ic_pick') + '곡괭이 걸이', `<div class="codex">${cards.join('')}</div>`);
+}
+function rackPick(id) {
+  if (!rackOpen()) return;
+  if (id === 'base') { const b = pkBase(); S.pk = { handle: b.handle, adds: [...b.adds], head: b.head, sp: null }; S.pickQ = b.q || 0; }
+  else { const sp = SPECIALS.find(v => v.id === id); if (!sp || S.spc[id] === undefined) return; S.pk = { handle: sp.handle, adds: [...sp.adds], head: sp.head, sp: id }; S.pickQ = S.spc[id]; }
+  SFX.open(2); save(); renderHud(); showRack();
+}
 function showSpCard(id) {
   const sp = SPECIALS.find(v => v.id === id), q = S.spc[id]; if (!sp || q === undefined) return;
   const eq = S.pk.sp === id, ic = k => `<span class="ore ${k}"></span>`;
@@ -4731,7 +4749,8 @@ function finishForge(q) {
     S.pk = { handle: F.handle, adds: [...F.adds], head: F.head, sp: sp ? sp.id : null }; S.pickQ = q;
     if (sp) { if (S.spc[sp.id] === undefined) news = '도감에 새 곡괭이'; S.spc[sp.id] = Math.max(S.spc[sp.id] || 0, q); S.pickQ = S.spc[sp.id]; }
   } else { S.pick += 1; S.pickQ = q; S.pk = { handle: F.handle, adds: [...F.adds], head: null, sp: null }; questEvent('pick'); }
-  SFX.stairs(); save(); renderHud();
+  if (!S.pk.sp) S.pkBase = { ...S.pk, adds: [...S.pk.adds], q: S.pickQ };   // 곡괭이 걸이에 남는 보통 곡괭이 (특수가 아닌 마지막 곡괭이)
+  SFX.stairs(); save(); renderHud(); renderDock();
   openSheet('대장장이', `<p>${pickName()} 완성이에요. ${['쓸 만하게 나왔네요.', '솜씨가 좋은데요.', '이건 정말 잘 나왔어요.'][q]}</p><div class="feat"><span>${ico('ic_pick')}${pickName()} ${QUAL[S.pickQ]}</span>${news ? `<span>${ico('ic_star')}${news}</span>` : ''}</div>`);
 }
 // 도감의 특수 곡괭이: 바꿔 들기, 돈을 내고 망치질만 다시 해서 품질 올리기 (재료와 효과는 그대로, 품질은 내려가지 않음)
@@ -5042,6 +5061,8 @@ function act(b) {
   else if (a === 'fclose') { if (forgeSel) { forgeSel.open = null; showForge(forgeSel.mode); } }
   else if (a === 'fclear') { if (forgeSel && forgeSel.open && forgeSel.open[0] === 'a') { forgeSel.adds[+forgeSel.open.slice(1)] = undefined; forgeSel.open = null; showForge(forgeSel.mode); } }
   else if (a === 'codex') showCodex();
+  else if (a === 'rack') { if (rackOpen()) showRack(); }
+  else if (a === 'rackPick') rackPick(b.dataset.o);
   else if (a === 'spCard') showSpCard(b.dataset.o);
   else if (a === 'forgeGo') startHammer();
   else if (a === 'smithyBack') { forgeSel = null; showSmithy(); }
