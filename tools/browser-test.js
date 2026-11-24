@@ -310,6 +310,7 @@ const shot = process.argv[2];
   await page.evaluate(() => { S.sickle = 1; });
   await ftap(40, 3);
   ok(await page.evaluate(() => window.MinerDiary.fcell(40, 3)) === 'g', '낫이 있으면 가시덤불을 쳐서 길을 냄');
+  ok(await page.evaluate(() => swingTool) === 'sickle', '가시덤불을 칠 땐 손에 낫이 들림');
   await ftap(40, 2);
   await page.waitForFunction(() => S.forest.grove === 'mush', null, { timeout: 10000 });
   ok(await page.evaluate(() => Object.values(S.forest.it).filter(k => k === 'glowcap' || k === 'truffle' || k === 'mush').length) > 10, '버섯 골짜기엔 버섯과 빛버섯, 송로버섯이 잔뜩');
@@ -613,7 +614,11 @@ const shot = process.argv[2];
   for (let k = 0; k < 3; k++) await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
   await page.waitForSelector('#sheet h2:has-text("세공사")', { timeout: 3000 });
   s = await st();
-  ok(P(s, 'crystalGem') >= 1 && !P(s, 'crystal') && s.cutN === 1 && (await quest()).includes('깊이 10'), `수정 원석을 깎아 수정 보석 ${P(s, 'crystalGem')}개, 다음 퀘스트 「깊이 10 도달」`);
+  ok(P(s, 'crystalGem') >= 1 && !P(s, 'crystal') && s.cutN === 1 && (await quest()).includes('낫'), `수정 원석을 깎아 수정 보석 ${P(s, 'crystalGem')}개, 다음 퀘스트 「낫 만들기」`);
+  await page.evaluate(() => { const r = CRAFTS.find(q => q.id === 'sickle'); Object.entries(r.need).forEach(([k, n]) => { S.inv[k] = (S.inv[k] || 0) + n; }); S.gold += r.gold; renderHud(); });
+  await visit('smithy', '#sheet [data-a="craft"][data-o="sickle"]');
+  await page.click('#sheet [data-a="craft"][data-o="sickle"]');
+  ok((await st()).sickle === 1 && (await quest()).includes('깊이 10'), '대장간에서 낫을 만들면 다음 퀘스트 「깊이 10 도달」');
   await page.click('#sheet [data-a="close"]');
 
   // 13-0g. 성벽 문과 사냥: (깊이 10을 갔다 치고) 문을 고치고, 검을 만들고, 성 밖에서 몬스터 셋을 잡음
@@ -647,6 +652,7 @@ const shot = process.argv[2];
   }
   s = await st();
   ok(s.killN === 3 && (s.carry.meat || 0) + (s.carry.bone || 0) >= 1 && s.energy < e0 && (await quest()).includes('깊이 10') === false, `몬스터를 누르면 다가가 휘둘러 셋을 잡고 고기를 얻고 기력이 듦 (${e0}→${s.energy})`);
+  ok(await page.evaluate(() => swingTool) === 'sword', '몬스터를 칠 땐 손에 검이 들림');
   await page.waitForSelector('#sheet [data-a="leaveHunt"]', { timeout: 5000 }); s = await st();
   ok((await page.textContent('#sheet')).includes('1단계') && s.huntClear.home[0] === 1 && (s.carry.leather || 0) >= 2, '다 잡으면 「들판 1단계 토벌」, 처음 보상(가죽 둘)');
   await page.click('#sheet [data-a="stage"][data-n="1"]');
@@ -665,7 +671,9 @@ const shot = process.argv[2];
   ok(s.carry.meat >= 1, '마을 단추로 돌아오면 잡은 것은 가방에 그대로');
 
   // 13-0g2. 세계 지도와 눈 덮인 산마을: 짐을 꾸려 길을 떠나고, 산마을 시장에 팔고, 산 광산에 들어가고, 여관에서 자고, 돌아옴
-  ok((await quest()).includes('산마을'), '사냥 다음 퀘스트 「눈 덮인 산마을 가기」');
+  ok((await quest()).includes('토벌 3단계'), '사냥 다음 퀘스트 「들판 토벌 3단계 깨기」 (기획 69번)');
+  await page.evaluate(() => { S.huntClear.home[1] = S.huntClear.home[2] = 1; questEvent(); });
+  ok((await quest()).includes('산마을'), '토벌 3단계를 깨면 다음 퀘스트 「눈 덮인 산마을 가기」');
   await page.evaluate(() => { S.inv.coal = 10; S.gold += 100; S.energy = S.max; S.minE = S.dayStart - S.max * .35; renderHud(); });
   await visit('gate', '#sheet [data-a="world"]');
   await page.click('#sheet [data-a="world"]');
@@ -689,7 +697,7 @@ const shot = process.argv[2];
   { const p = await page.evaluate(() => window.MinerDiary.forestSpot(S.forest.zx, S.forest.zy)); await page.mouse.click(p.x, p.y); }
   await page.waitForFunction(() => window.MinerDiary.scene() === 'town', null, { timeout: 15000 });
   s = await st();
-  ok(s.loc === 'mtn' && s.visited.mtn && (await quest()).includes('야시장'), '길 끝까지 걸으면 눈 덮인 산마을에 도착, 다음 퀘스트로');
+  ok(s.loc === 'mtn' && s.visited.mtn && (await quest()).includes('손수레'), '길 끝까지 걸으면 눈 덮인 산마을에 도착, 다음 퀘스트 「손수레 만들기」');
   await page.evaluate(() => { S.carry.coal = 10; });
   if (shot) await page.screenshot({ path: path.join(shot, 'town.png') });
   const tclick = async (x, y, sel) => { const p = await page.evaluate(([x, y]) => window.MinerDiary.townSpot(x, y), [x, y]); await page.mouse.click(p.x, p.y); await page.waitForSelector(sel, { timeout: 15000 }); };
@@ -735,6 +743,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="craft"][data-o="cart"]');
   const wk = await page.evaluate(() => Math.ceil(roadSteps('mtn') / F_STEP));
   ok((await st()).cart === 1 && await page.evaluate(w => travelCost('mtn') === Math.ceil(w * .6) && travelCost('mtn') < w && bagCap() === 30, wk), `바로 가기 기력은 길을 가장 짧게 걸을 때 기력(${wk}), 손수레면 6할에 가방 30칸`);
+  ok((await quest()).includes('야시장'), '손수레를 만들면 다음 퀘스트 「저녁 야시장 거래」');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { S.gold += 3000; enterTown('mtn', 'road'); showTownObj(TOWN_OBJ[1]); });
   await page.click('#sheet [data-a="donkey"]');
