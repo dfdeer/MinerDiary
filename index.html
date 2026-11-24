@@ -309,6 +309,7 @@ const ORES = {
   berry:     { name: '딸기',     price: 120, color: '#e0405a', light: '#ffb0bc' },
   silverBar: { name: '은 주괴',   price: 280, color: '#e8eef4', light: '#ffffff' },
   goldBar:   { name: '금 주괴',   price: 560, color: '#f5cf45', light: '#fff4b8' },
+  moonBar:   { name: '월광 주괴', price: 900, color: '#c9bfff', light: '#ffffff' },
   herb2:     { name: '은빛 약초', price: 45,  color: '#9fd0c0', light: '#e0fff4' },
   glowcap:   { name: '빛버섯',   price: 70,  color: '#7fe0e0', light: '#e0ffff' },
   truffle:   { name: '송로버섯', price: 150, color: '#5a4030', light: '#a88a6a' },
@@ -324,9 +325,9 @@ const ORES = {
   moonshard: { name: '월광 조각', price: 200, color: '#e2dcff', light: '#ffffff' },
   meteor:    { name: '운석 조각', price: 350, color: '#5a4a6a', light: '#ffb070' },
 };
-const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'crystalGem', 'amethystGem', 'rubyGem', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry', 'meat', 'bone', 'manastone', 'moonshard', 'herb2', 'oldwood', 'bloom', 'fairy', 'glowcap', 'truffle', 'perch', 'goldfin', 'pearl', 'meteor'];
+const ORE_ORDER = ['copper', 'coal', 'iron', 'silver', 'gold', 'crystal', 'amethyst', 'ruby', 'moon', 'crystalGem', 'amethystGem', 'rubyGem', 'copperBar', 'ironBar', 'silverBar', 'goldBar', 'moonBar', 'herb', 'mush', 'wood', 'fiber', 'leather', 'carp', 'trout', 'catfish', 'eel', 'moonkoi', 'radish', 'potato', 'berry', 'meat', 'bone', 'manastone', 'moonshard', 'herb2', 'oldwood', 'bloom', 'fairy', 'glowcap', 'truffle', 'perch', 'goldfin', 'pearl', 'meteor'];
 /* ===== 대장간 (3단계): 용광로에 광석 5개와 석탄 1개를 넣고 자면 아침에 주괴. 주괴와 돈으로 곡괭이 강화 (망치질 박자로 품질) ===== */
-const SMELT = { copper: 'copperBar', iron: 'ironBar', silver: 'silverBar', gold: 'goldBar' }, SMELT_N = 5, FURNACE_MAX = 10;
+const SMELT = { copper: 'copperBar', iron: 'ironBar', silver: 'silverBar', gold: 'goldBar', moon: 'moonBar' }, SMELT_N = 5, FURNACE_MAX = 10;
 // 곡괭이: 구리는 7층까지, 철(가운데 단계)부터 단단한 바위와 10층, 은은 캐는 기력 1, 금은 단단한 바위도 쉽게. 높은 단계일수록 망치질이 빠르고 칸이 좁음
 const PICKS = [
   { name: '낡은 곡괭이', floor: 5 },
@@ -343,6 +344,39 @@ const SHARP = [{ need: { copperBar: 3 }, gold: 100 }, { need: { copperBar: 5 }, 
 const pickPower = () => Math.round(PICK_POW[S.pick || 0] * QUAL_POW[S.pickQ || 0]) + (S.sharp || 0) * 4 + accEff('pow');
 const canHard = () => pickPower() >= HARD_POW;
 const maxFloor = () => PK().floor;
+/* ===== 곡괭이 조합 (기획 71번): 머리(주괴)는 세기, 자루와 추가 재료는 덤 효과. 효과 이름표는 장신구와 같음(EFF_TXT) =====
+   추가 재료는 처음 1칸, 금 곡괭이부터 2칸. 금 곡괭이 다음엔 맨 끝 머리 넷으로 특수 곡괭이 (세기는 모두 같고 효과만 다름) */
+const HANDLES = {
+  wood: { n: '나뭇가지 자루', item: 'wood', k: 0, eff: {} },
+  oldwood: { n: '고목 자루', item: 'oldwood', k: 2, eff: { spd: .1 } },
+  bone: { n: '뼈 자루', item: 'bone', k: 3, eff: { atk: 2 } },
+  leather: { n: '가죽 감은 자루', item: 'leather', k: 3, eff: { hard: 1 } },
+};
+const ADDS = {
+  coal: { k: 3, eff: { pow: 3 } }, fiber: { k: 5, eff: { spd: .08 } }, crystal: { k: 1, eff: { glint2: 1 } }, amethyst: { k: 1, eff: { luck: .05 } },
+  pearl: { k: 1, eff: { magnet: .1 } }, glowcap: { k: 2, eff: { light: 1 } }, fairy: { k: 1, eff: { forestFree: 1 } }, ruby: { k: 1, eff: { atk: 3 } },
+  moon: { k: 1, eff: { glowFar: 1 } }, manastone: { k: 1, eff: { honey: 5 } }, meteor: { k: 1, eff: { pow: 6 } },
+};
+const HEADS = { gold: { n: '금', item: 'goldBar' }, moon: { n: '월광', item: 'moonBar' }, meteor: { n: '운석', item: 'meteor' }, ruby: { n: '루비', item: 'rubyGem' } };
+const HEAD_N = 5, SPECIAL_GOLD = 5000, REHAMMER_GOLD = 500;
+const SPECIALS = [
+  { id: 'veins', n: '황금 광맥 곡괭이', head: 'gold', handle: 'oldwood', adds: ['amethyst', 'crystal'], eff: { luck: .2, dowse: 1 } },
+  { id: 'harvest', n: '풍년 곡괭이', head: 'gold', handle: 'leather', adds: ['coal', 'pearl'], eff: { extra: 1 } },
+  { id: 'moonlight', n: '달빛 곡괭이', head: 'moon', handle: 'oldwood', adds: ['moon', 'glowcap'], eff: { light: 2, moonx: 3 } },
+  { id: 'bolt', n: '번개 곡괭이', head: 'moon', handle: 'bone', adds: ['manastone', 'fiber'], eff: { spd: .25 } },
+  { id: 'star', n: '별똥 곡괭이', head: 'meteor', handle: 'bone', adds: ['meteor', 'coal'], eff: { pow: 30, hard: 3 } },
+  { id: 'warden', n: '숲지기 곡괭이', head: 'meteor', handle: 'leather', adds: ['fairy', 'glowcap'], eff: { pow: 15, forestFree: 1 } },
+  { id: 'hunter', n: '사냥꾼 곡괭이', head: 'ruby', handle: 'bone', adds: ['ruby', 'manastone'], eff: { atkx: 1 } },
+  { id: 'wave', n: '물결 곡괭이', head: 'ruby', handle: 'oldwood', adds: ['pearl', 'amethyst'], eff: { magnet: .2, walk: 1 } },
+];
+const spNow = () => S && S.pk && S.pk.sp ? SPECIALS.find(q => q.id === S.pk.sp) : null;
+function pickEff(k) {
+  if (!S || !S.pk) return 0; const P = S.pk, sp = spNow();
+  return ((HANDLES[P.handle] || HANDLES.wood).eff[k] || 0) + P.adds.reduce((a, id) => a + ((ADDS[id] && ADDS[id].eff[k]) || 0), 0) + ((sp && sp.eff[k]) || 0);
+}
+const pickName = () => { const sp = spNow(); return sp ? sp.n : S.pk && S.pk.head ? `${HEADS[S.pk.head].n} 곡괭이` : PK().name; };
+// 곡괭이질 빠르기 (기획 71번): 품질, 자루, 추가 재료, 장갑, 특수 효과에서 오르고 최대 +40%
+const SPD_MAX = .4, swingSpd = () => Math.min(SPD_MAX, [0, .05, .1][S.pickQ || 0] + accEff('spd'));
 const digCost = t => (t === 'h' ? Math.max(1, (PK().hard || 3) - accEff('hard')) : PK().dig || DIG_COST);
 const PHASES = [{ name: '아침', at: 0 }, { name: '점심', at: 30 }, { name: '저녁', at: 60 }, { name: '새벽', at: 90 }];
 const GOAL = { id: 'smithy', name: '대장간', cost: 500 };
@@ -441,7 +475,7 @@ function questEvent(type, n) {
 /* ===== 상태와 저장 ===== */
 let S;
 function freshState() {
-  return { v: 5, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], farm: {}, home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0, vol: { master: 1, sfx: .8, bgm: .5 }, stash: {},
+  return { v: 6, pk: { handle: 'wood', adds: [], head: null, sp: null }, spc: {}, day: 1, max: MAX_ENERGY, energy: MAX_ENERGY, minE: MAX_ENERGY, dayStart: MAX_ENERGY, gold: 0, inv: {}, today: {}, deepest: 1, screen: 'village', mine: null, mute: false, quest: 0, qn: 0, introSeen: false, chiefDay: 0, restored: [], farm: {}, home: 0, pick: 0, pickQ: 0, furnace: null, carry: {}, items: { recall: 0, campRecall: 0, tent: 0 }, acc: { have: {}, eq: [], slots: 1 }, gatherN: 0, vol: { master: 1, sfx: .8, bgm: .5 }, stash: {},
     deep: { seed: (Math.random() * 1e6) | 0, L: 1, x: 0, y: 1, dug: {}, seen: {}, ups: {}, camps: [], lastCamp: null, steps: 0 } };
 }
 function load() {
@@ -449,7 +483,7 @@ function load() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const d = JSON.parse(raw);
-      if (d && d.v === 5) return Object.assign(freshState(), d);   // 저장 구조가 바뀌면 예전 기록은 새로 시작 (11/14 사용자 결정)
+      if (d && d.v === 6) return Object.assign(freshState(), d);   // 저장 구조가 바뀌면 예전 기록은 새로 시작 (11/14 사용자 결정)
     }
   } catch (e) { /* 저장소를 못 쓰면 새로 시작 */ }
   return freshState();
@@ -822,6 +856,7 @@ const ITEM_ART = {
   ironBar: ingot('#eef2f6', '#b8c2cc', '#8a949e', '#6a7480'),
   silverBar: [...ingot('#ffffff', '#e2e8ef', '#b4bcc6', '#8a94a0'), glint(19.4, 6.6, .7)],
   goldBar: [...ingot('#fff2a8', '#f2c230', '#c8961a', '#a87810'), glint(19.4, 6.4, .8)],
+  moonBar: [...ingot('#f4f0ff', '#c9bfff', '#9a8ee0', '#7d70c8'), glint(19.4, 6.4, .8), glint(5, 17, .6)],
   herb: [['M12 21v-8.5', 'none', 1.8, '#2b1a12'], ['M12 21v-8.5', 'none', .9, '#4a8a3a'], ['M12 13c-4.6.4-7.4-2.4-7.6-6.4 4.2-.2 7.4 2.2 7.6 6.4Z', '#4fae55'], ['M12 13c4.6.4 7.4-2.4 7.6-6.4-4.2-.2-7.4 2.2-7.6 6.4Z', '#5cbe60'], ['M12 11.6C9.6 9.6 9.4 6 12 3c2.6 3 2.4 6.6 0 8.6Z', '#6cc86a'], ['M5.6 7.6 11 12.4M18.4 7.6 13 12.4M12 4.4v6.6', 'none', .7, '#2f7a34'], [cP(15.8, 17.2, 1.7), '#e0405a', 1], [cP(15.4, 16.7, .5), '#ffb0bc', 0]],
   mush: [['M9.4 13.4h5.2l.8 7a1.4 1.4 0 0 1-1.4 1.4h-4a1.4 1.4 0 0 1-1.4-1.4Z', '#f4ead6'], ['M3 13.4C3 7.6 7 3.6 12 3.6s9 4 9 9.8Z', '#d9483a'], [cP(8, 9.4, 1.5), '#ffffff', 0], [cP(13.4, 6.6, 1.2), '#ffffff', 0], [cP(16.4, 10.4, 1.6), '#ffffff', 0], [cP(11.6, 11, .9), '#ffffff', 0], ['M5.6 7.8c1.2-1.8 2.8-2.8 4.6-3.2', 'none', 1, 'rgba(255,255,255,.5)']],
   wood: [['M3.4 17.6 18.6 6.2l2 2.6L5.4 20.2Z', '#a8703a'], ['M5.4 4.6 20.6 16l-2 2.6L3.4 7.2Z', '#c08a52'], [eP(19.6, 17.3, 1.4, 1.7), '#e8c48e', 1], [eP(4.4, 5.9, 1.4, 1.7), '#e8c48e', 1], ['M8.6 9.8 11 11.6M14 13.8l2.2 1.6', 'none', .8, '#8a5a2a'], ['M14.6 8.2l2.6-1.2', 'none', 1.2, '#2b1a12']],
@@ -2043,7 +2078,7 @@ function dBase(L, x, y) {
 function dOre(L, x, y) {
   const s = (S.deep.seed + L * 101) | 0;
   if (L === 0) return dBase(0, x, y) === 'w' || hh(x, y, s + 11) > .16 ? '' : hh(x, y, s + 19) < .6 ? 'copper' : 'coal';   // 숲 동굴: 구리와 석탄만
-  if (phase === 3 && hh(x, y, s + 17) < .004) return 'moon';   // 새벽에만 보이는 월광석
+  if (phase === 3 && hh(x, y, s + 17) < .004 * (1 + accEff('moonx'))) return 'moon';   // 새벽에만 보이는 월광석
   // 광맥 줄기: 굵은 무늬를 따라 같은 광석이 줄줄이 박힘 (하나를 찾으면 이어서 캘 수 있게). 가끔 외톨이 광석
   const vein = vnoise(x / 2.3, y / 2.3, s + 31) > .8;
   if (!vein && hh(x, y, s + 11) > .02) return '';
@@ -2095,7 +2130,7 @@ function drawNos(c, dt, z) {
   });
 }   // animK: 테스트에서 speed(k)로 빨라짐
 const STRIKE_T = .32;
-function swingHit(fn, tool = 'pick') { if (strikeQ) return false; mswing = 1; swingTool = tool; strikeQ = { t: STRIKE_T / animK, fn, scene }; return true; }
+function swingHit(fn, tool = 'pick') { if (strikeQ) return false; mswing = 1; swingTool = tool; strikeQ = { t: STRIKE_T / animK / (1 + swingSpd()), fn, scene }; return true; }
 function strikeTick(dt) { if (!strikeQ || (strikeQ.t -= dt) > 0) return; const q = strikeQ; strikeQ = null; if (q.scene === scene) q.fn(); }
 // 가방(S.carry)은 늘 들고 다님. 창고는 마을마다 숙소에 하나(처음 마을은 집 S.inv, 다른 마을은 여관 S.stash[마을])
 // 어느 마을 안에서는 가방과 그 마을 창고를 함께 씀(쓸 때는 가방부터). 마을 밖이나 다른 마을에서는 가방만
@@ -2354,6 +2389,7 @@ const EFF_TXT = {
   glowFar: () => '귀한 광맥 빛이 더 멀리', map2: () => '작은 지도 2배', walk: () => '땅속 걸음 기력 절반', forestFree: () => '숲 걸음 기력 0', rest: v => `야영 아침 기력 +${v}`,
   honey: v => `기력 바닥에서 +${v} (하루 한 번)`, hard: v => `단단한 바위 기력 -${v}`, luck: v => `광석 2배 확률 +${pct(v)}`, magnet: v => `쇠붙이 2배 확률 +${pct(v)}`,
   coal: v => `석탄 +${v}`, bag: v => `가방 +${v}칸`, extra: v => `캘 때마다 광석 +${v}`, pow: v => `곡괭이 파워 +${v}`,
+  spd: v => `곡괭이질 빠르기 +${pct(v)}`, atk: v => `공격 +${v}`, atkx: () => '공격 2배', moonx: () => '새벽 월광석 더 많이',
 };
 const accDesc = id => Object.entries((ACC[id] || {}).eff || {}).map(([k, v]) => EFF_TXT[k](v)).join(', ');
 // 능력치 창
@@ -2362,7 +2398,8 @@ function showStats() {
   const q = QUAL_BONUS[S.pickQ || 0], pb = PK().bonus || 0, lk = accEff('luck'), mg = accEff('magnet');
   const parts = [q ? `품질 ${pct(q)}` : '', pb ? `곡괭이 ${pct(pb)}` : '', lk ? `장신구 ${pct(lk)}` : ''].filter(Boolean).join(', ');
   const rows = [
-    row(ico('ic_pick'), PK().name, S.pick ? QUAL[S.pickQ] : ''),
+    row(ico('ic_pick'), pickName(), S.pick ? QUAL[S.pickQ] : ''),
+    row(ico('ic_pick'), '곡괭이질 빠르기', `${Math.round((1 + swingSpd()) * 100)}%`, swingSpd() >= SPD_MAX ? '최대' : ''),
     row(ico('ic_pick'), '곡괭이 파워', pickPower(), [`곡괭이 ${PICK_POW[S.pick || 0]}`, S.pickQ ? `품질 ×${QUAL_POW[S.pickQ]}` : '', S.sharp ? `날 +${S.sharp * 4}` : '', accEff('pow') ? `장신구 +${accEff('pow')}` : ''].filter(Boolean).join(', ')),
     row(PWR, '캐기 기력', digCost('r'), canHard() ? `단단한 바위 ${digCost('h')}` : '단단한 바위 못 캠'),
     row(ico('ic_star'), '광석 2배 확률', pct(doubleChance(false)), parts),
@@ -3286,7 +3323,7 @@ const stageOf = () => STAGES.home;
 const stageCleared = n => !!((S.huntClear || {}).home || {})[n];
 // 싸울 때도 곡괭이 (검은 없앰, 기획 70번). 공격력은 곡괭이 단계를 따름: 낡은 1, 구리 2, 철 4, 은 6, 금 9
 const PICK_ATK = [1, 2, 4, 6, 9];
-const power = () => PICK_ATK[S.pick || 0];
+const power = () => (PICK_ATK[S.pick || 0] + accEff('atk')) * (accEff('atkx') ? 2 : 1);
 // 단계 n(0부터)의 싸움터: 가운데가 트인 들판, 아래 가운데가 마을로 가는 길. 몬스터는 위쪽에 모여 있음
 const raidNow = () => { const e = evActive('raid'); return e && !e.won && phaseIndex() >= 2 ? e : null; };
 function raidWave(w) { return w === 0 ? ['boar', 'boar', 'wolf'] : ['wolf', 'wolf', 'boar', 'boar', ...(stageCleared(3) ? ['spirit'] : [])]; }
@@ -3423,7 +3460,7 @@ function huntTick(dt, H = S.hunt, blk = hBlocked) {
   const tgt = H.mons.find(o => o.id === hero.atk && o.hp > 0);
   if (tgt && !hero.path.length && Math.hypot(tgt.x - hero.x, tgt.y - hero.y) >= 1.35) chaseStep();
   if (tgt && Math.hypot(tgt.x - hero.x, tgt.y - hero.y) < 1.35 && swingCd <= 0 && !hero.path.length) {
-    swingCd = .55; mswing = 1; swingTool = 'pick';
+    swingCd = .55 / (1 + swingSpd()); mswing = 1; swingTool = 'pick';
     if (tgt.x > hero.x) { hero.back = false; hero.fx = 1; } else { hero.back = true; hero.fx = -1; }
     tgt.hp -= power(); tgt.hurt = .2; SFX.dig(); if (tgt.st === 'wind') { tgt.st = 'rest'; tgt.stT = .6; }   // 멈칫할 때 치면 돌진이 끊김
     hunts.push({ x: tgt.x, y: tgt.y, text: `${power()}`, col: '#fff', life: 1 });
@@ -3909,7 +3946,7 @@ const ACC = {
   insole:   { n: '이끼 깔창', ic: 'ic_insole', eff: { forestFree: 1 } },
   charm:    { n: '쉼표 부적', ic: 'ic_charm', eff: { rest: 10 } },
   honey:    { n: '꿀단지', ic: 'ic_honey', eff: { honey: 10 } },
-  gloves:   { n: '단단 장갑', ic: 'ic_glove', eff: { hard: 1, pow: 5 } },
+  gloves:   { n: '단단 장갑', ic: 'ic_glove', eff: { hard: 1, pow: 5, spd: .05 } },
   clover:   { n: '행운 클로버', ic: 'ic_clover', eff: { luck: .1 } },
   magnet:   { n: '자석 돌', ic: 'ic_magnet', eff: { magnet: .15 } },
   pouch:    { n: '석탄 주머니', ic: 'ic_pouch', eff: { coal: 1 } },
@@ -3920,7 +3957,7 @@ const ACC = {
   glowdowse: { n: '빛 추', ic: 'ic_dowse', eff: { dowse: 1, light: 2, glowFar: 1 } },
   starlens: { n: '별빛 렌즈', ic: 'ic_lens', eff: { light: 2, glint2: 1 } },
   trailboots: { n: '숲길 장화', ic: 'ic_boot', eff: { walk: 1, forestFree: 1 } },
-  minergloves: { n: '광부 장갑', ic: 'ic_glove', eff: { hard: 1, magnet: .15, pow: 8 } },
+  minergloves: { n: '광부 장갑', ic: 'ic_glove', eff: { hard: 1, magnet: .15, pow: 8, spd: .05 } },
   luckpouch: { n: '네잎 주머니', ic: 'ic_clover', eff: { luck: .1, coal: 1 } },
   sleepcharm: { n: '단잠 부적', ic: 'ic_charm', eff: { rest: 10, honey: 10 } },
   plenty:   { n: '풍요의 고리', ic: 'ic_plenty', eff: { extra: 1 } },
@@ -3952,7 +3989,7 @@ const CRAFTS = [
 ];
 // 떠돌이 상인이 파는 것
 const SHOP = [{ id: 'radishSeed', kind: 'item', gold: 10, farm: 1 }, { id: 'potatoSeed', kind: 'item', gold: 20, farm: 1 }, { id: 'berrySeed', kind: 'item', gold: 40, farm: 1 }, { id: 'recall', kind: 'item', gold: 80 }, { id: 'tent', kind: 'item', gold: 100 }, { id: 'campRecall', kind: 'item', gold: 150 }, { id: 'compass', kind: 'acc', gold: 150 }, { id: 'pouch', kind: 'acc', gold: 120 }];
-function accEff(k) { if (!S || !S.acc) return 0; return S.acc.eq.reduce((a, id) => a + ((ACC[id] && ACC[id].eff[k]) || 0), 0); }
+function accEff(k) { if (!S || !S.acc) return 0; return S.acc.eq.reduce((a, id) => a + ((ACC[id] && ACC[id].eff[k]) || 0), 0) + pickEff(k); }   // 장신구와 곡괭이 조합 효과를 함께 셈
 const accIco = id => ico((ACC[id] || ITEMS[id] || TOOLS[id]).ic);
 const owned = id => (S.acc.have[id] || 0);
 const freeOwned = id => owned(id) - S.acc.eq.filter(e => e === id).length;
@@ -4312,7 +4349,7 @@ function showCard(o, msg) {
   }
   if (!o.done) { ruinCard(o); return; }
   if ((S.damaged || {})[o.id]) { const ok2 = S.gold >= FIX.gold && have('wood') >= FIX.wood; openSheet(`${ico('ic_warn')}부서진 ${o.name}`, '<p class="dim">습격 때 부서짐</p>', `<button class="btn primary" data-a="fix" data-o="${o.id}" ${ok2 ? '' : 'disabled'}>${GOLD}${FIX.gold} <span class="ore wood"></span>${FIX.wood}</button>`); return; }
-  if (o.id === 'gate') { const am = phaseIndex() === 0, rd = raidNow(); openSheet(`${ico('ic_sword')}성 밖 토벌`, (rd ? `<p class="warn">${ico('ic_warn')}몬스터가 몰려옴</p>` : '') + `<p>${ico('ic_pick')}${PK().name} <small>공격 ${power()}</small></p>` + (am ? '<p class="dim">점심부터</p>' : '') + stageRows(), (travelOpen() ? `<button class="btn" data-a="world">${ico('ic_map')}지도</button>` : '') + (rd ? `<button class="btn primary" data-a="raid">${ico('ic_sword')}막기</button>` : '')); return; }
+  if (o.id === 'gate') { const am = phaseIndex() === 0, rd = raidNow(); openSheet(`${ico('ic_sword')}성 밖 토벌`, (rd ? `<p class="warn">${ico('ic_warn')}몬스터가 몰려옴</p>` : '') + `<p>${ico('ic_pick')}${pickName()} <small>공격 ${power()}</small></p>` + (am ? '<p class="dim">점심부터</p>' : '') + stageRows(), (travelOpen() ? `<button class="btn" data-a="world">${ico('ic_map')}지도</button>` : '') + (rd ? `<button class="btn primary" data-a="raid">${ico('ic_sword')}막기</button>` : '')); return; }
   if (o.id === 'house') {
     showHouse();
   } else if (o.id === 'chief') {
@@ -4453,18 +4490,16 @@ function showSmithy() {
     const rows = Object.keys(SMELT).filter(o => have(o) >= SMELT_N).map(o => { const n = smeltN(o); return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${Math.max(n, 1) * SMELT_N} <span class="ore coal"></span>${Math.max(n, 1)} ${ico('ic_arrow')} <span class="ore ${SMELT[o]}"></span>${n}</span><button class="btn small" data-a="smelt" data-o="${o}" ${n ? '' : 'disabled'}>넣기</button></div>`; }).join('');
     smelt = rows || `<p class="dim">광석 ${SMELT_N}, 석탄 1 ${ico('ic_arrow')} 주괴 1</p>`;
   }
-  const cur = PICKS[S.pick], next = PICKS[S.pick + 1];
-  let pick = `<div class="rowi"><span class="nm">${ico('ic_pick')}${cur.name}${S.pick ? ` <small>${QUAL[S.pickQ]}</small>` : ''}</span></div>`;
-  if (next) {
-    const ok = Object.entries(next.need).every(([k, n]) => have(k) >= n) && S.gold >= next.gold;
-    pick += `<div class="rowi"><span class="nm">${next.name} ${Object.entries(next.need).map(([k, n]) => `<span class="ore ${k}"></span>${Math.min(have(k), n)}/${n}`).join(' ')} ${GOLD}${next.gold}</span><button class="btn small ${ok ? 'primary' : ''}" data-a="forge" ${ok ? '' : 'disabled'}>강화</button></div>`;
-  }
+  const next = PICKS[S.pick + 1], pe = pickEffTxt();
+  let pick = `<div class="rowi"><span class="nm">${ico('ic_pick')}${pickName()}${S.pick ? ` <small>${QUAL[S.pickQ]}</small>` : ''}${pe ? ` <small class="eff">${pe}</small>` : ''}</span></div>`;
+  if (next) pick += `<div class="rowi"><span class="nm">${next.name} ${needHtml(next.need, next.gold)}</span><button class="btn small primary" data-a="forge">만들기</button></div>`;
+  else pick += `<div class="rowi"><span class="nm">특수 곡괭이 ${needHtml({}, SPECIAL_GOLD)}</span><button class="btn small primary" data-a="forgeSp">만들기</button></div>`;
   const sh = SHARP[S.sharp || 0];
   pick = `<div class="rowi"><span class="nm">${ico('ic_pick')}곡괭이 파워</span><b>${pickPower()}</b></div>` + pick;
   pick += sh ? `<div class="rowi"><span class="nm">날 세우기 +${(S.sharp || 0) + 1} <small class="eff">파워 +4</small> ${needHtml(sh.need, sh.gold)}</span><button class="btn small" data-a="sharp" ${hasAll(sh.need) && S.gold >= sh.gold ? '' : 'disabled'}>세우기</button></div>` : `<div class="rowi"><span class="nm">날 세우기 +5</span></div>`;
   const crafts = CRAFTS.filter(r => (r.kind !== 'slot' || S.acc.slots < 2) && !(r.kind === 'tool' && (S[r.id] || (r.id === 'cart' && S.donkey)))).map(r => `<div class="rowi"><span class="nm">${r.kind === 'slot' ? ico('ic_ring') + '장신구 고리' : accIco(r.id) + (ACC[r.id] || ITEMS[r.id] || TOOLS[r.id]).n}${r.kind === 'acc' ? ` <small class="eff">${accDesc(r.id)}</small>` : r.kind === 'tool' && TOOLS[r.id].d ? ` <small class="eff">${TOOLS[r.id].d}</small>` : ''} ${needHtml(r.need, r.gold)}</span><button class="btn small" data-a="craft" data-o="${r.id}" ${hasAll(r.need) && S.gold >= r.gold ? '' : 'disabled'}>만들기</button></div>`).join('');
   const recs = RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b)).map(([[a, b, o], i]) => `<div class="rowi"><span class="nm">${accIco(a)}<span class="${owned(a) ? '' : 'lack'}">${ACC[a].n}</span> + ${accIco(b)}<span class="${owned(b) ? '' : 'lack'}">${ACC[b].n}</span> ${ico('ic_arrow')} ${owned(a) && owned(b) ? ACC[o].n : '?'}</span><button class="btn small" data-a="combine" data-n="${i}" ${owned(a) && owned(b) && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`).join('');
-  openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div><p class="dim" style="margin-top:10px">만들기</p><div class="rows">${crafts}</div>` + (recs ? `<p class="dim" style="margin-top:10px">합치기</p><div class="rows">${recs}</div>` : ''));
+  openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div>` + (S.pick >= 4 ? `<p class="dim" style="margin-top:10px">곡괭이 도감 ${Object.keys(S.spc).length}/${SPECIALS.length}</p><div class="rows">${codexRows()}</div>` : '') + `<p class="dim" style="margin-top:10px">만들기</p><div class="rows">${crafts}</div>` + (recs ? `<p class="dim" style="margin-top:10px">합치기</p><div class="rows">${recs}</div>` : ''));
 }
 const smeltN = o => Math.min(FURNACE_MAX, Math.floor(have(o) / SMELT_N), have('coal'));   // 주괴 하나에 광석 5개와 석탄 1개
 function smelt(o) {
@@ -4475,10 +4510,46 @@ function smelt(o) {
 }
 // 망치질: 바늘이 오가는 막대에서 가운데를 맞춰 세 번 두드림. 맞춘 정도로 품질
 let hammer = null;
+// 곡괭이 만들기 창 (기획 71번): 머리(특수만), 자루, 추가 재료를 고르고 망치질
+let forgeSel = null;
+function forgeNeed() {
+  const F = forgeSel, m = {}, add = (k, n) => { if (n) m[k] = (m[k] || 0) + n; };
+  if (F.mode === 'special') add(HEADS[F.head].item, HEAD_N); else Object.entries(PICKS[S.pick + 1].need).forEach(([k, n]) => add(k, n));
+  const H = HANDLES[F.handle]; add(H.item, H.k); F.adds.forEach(a => add(a, ADDS[a].k)); return m;
+}
+const forgeGold = () => (forgeSel.mode === 'special' ? SPECIAL_GOLD : PICKS[S.pick + 1].gold);
+const forgeSlots = () => (forgeSel.mode === 'special' || S.pick + 1 >= 4 ? 2 : 1);   // 추가 재료: 처음 1칸, 금 곡괭이부터 2칸
+function effSum(list) { const m = {}; list.forEach(e => Object.entries(e).forEach(([k, v]) => { m[k] = (m[k] || 0) + v; })); return Object.entries(m).map(([k, v]) => EFF_TXT[k](v)).join(', '); }
+function pickEffTxt() { const P = S.pk, sp = spNow(); return effSum([HANDLES[P.handle].eff, ...P.adds.map(a => ADDS[a].eff), sp ? sp.eff : {}]); }
+const codexRows = () => SPECIALS.map(sp => {
+  const q = S.spc[sp.id];
+  if (q === undefined) return `<div class="rowi"><span class="nm">${ico('ic_pick')}<span class="dim">${HEADS[sp.head].n} 머리 ???</span></span></div>`;
+  return `<div class="rowi"><span class="nm">${ico('ic_pick')}${sp.n} <small>${QUAL[q]}</small> <small class="eff">${effSum([sp.eff])}</small></span>${S.pk.sp === sp.id ? '' : `<button class="btn small" data-a="spEquip" data-o="${sp.id}">들기</button>`}${q < 2 ? `<button class="btn small" data-a="spHammer" data-o="${sp.id}">${GOLD}${REHAMMER_GOLD}</button>` : ''}</div>`;
+}).join('');
+function showForge(mode) {
+  if ((mode === 'next' && !PICKS[S.pick + 1]) || (mode === 'special' && S.pick < 4)) return;
+  if (!forgeSel || forgeSel.mode !== mode) forgeSel = { mode, head: 'gold', handle: 'wood', adds: [] };
+  const F = forgeSel, chip = (k, id, label, on, ok) => `<button class="chip${on ? ' on' : ''}" data-a="fsel" data-k="${k}" data-o="${id}"${ok ? '' : ' disabled'}>${label}</button>`;
+  const cnt = (id, n) => `<span class="ore ${id}"></span>${n > 1 ? `${Math.min(have(id), n)}/${n} ` : ''}`;
+  let body = '';
+  if (F.mode === 'special') body += `<p class="dim">머리</p><div class="chips">${Object.entries(HEADS).map(([id, h]) => chip('head', id, `${cnt(h.item, HEAD_N)}${h.n}`, F.head === id, true)).join('')}</div>`;
+  body += `<p class="dim" style="margin-top:8px">자루</p><div class="chips">${Object.entries(HANDLES).map(([id, h]) => chip('handle', id, `${h.k ? cnt(h.item, h.k) : ''}${h.n}`, F.handle === id, have(h.item) >= h.k)).join('')}</div>`;
+  body += `<p class="dim" style="margin-top:8px">추가 재료 ${F.adds.length}/${forgeSlots()}</p><div class="chips">${Object.entries(ADDS).map(([id, a]) => chip('add', id, `${cnt(id, a.k)}${ORES[id].name}`, F.adds.includes(id), F.adds.includes(id) || have(id) >= a.k)).join('')}</div>`;
+  const et = effSum([HANDLES[F.handle].eff, ...F.adds.map(a => ADDS[a].eff)]), need = forgeNeed(), ok = hasAll(need) && S.gold >= forgeGold();
+  body += `<p style="margin-top:10px">${needHtml(need, forgeGold())}</p>` + (et ? `<p class="eff">${et}</p>` : '');
+  openSheet(ico('ic_pick') + (F.mode === 'special' ? '특수 곡괭이' : PICKS[S.pick + 1].name), body, `<button class="btn" data-a="smithyBack">뒤로</button><button class="btn primary" data-a="forgeGo"${ok ? '' : ' disabled'}>망치질</button>`);
+}
+function forgeSelect(k, id) {
+  const F = forgeSel; if (!F) return;
+  if (k === 'head' && HEADS[id]) F.head = id;
+  else if (k === 'handle' && HANDLES[id]) F.handle = id;
+  else if (k === 'add' && ADDS[id]) { if (F.adds.includes(id)) F.adds = F.adds.filter(a => a !== id); else { F.adds.push(id); if (F.adds.length > forgeSlots()) F.adds.shift(); } }
+  showForge(F.mode);
+}
 function startHammer() {
-  const next = PICKS[S.pick + 1]; if (!next) return;
-  if (!Object.entries(next.need).every(([k, n]) => have(k) >= n) || S.gold < next.gold) return;
-  openHammer('망치질', next.period, next.zone, q => finishForge(q));
+  const F = forgeSel; if (!F || !hasAll(forgeNeed()) || S.gold < forgeGold()) return;
+  const P = F.mode === 'special' ? PICKS[4] : PICKS[S.pick + 1];
+  openHammer('망치질', P.period, P.zone, q => finishForge(q));
 }
 // 막대 놀이: period 바늘이 한 번 오가는 초(두드릴 때마다 빨라짐), zone 맞는 칸 넓이, done(품질 0~2)
 function openHammer(title, period, zone, done) {
@@ -4504,11 +4575,28 @@ function strike() {
   setTimeout(() => done(q), 350);
 }
 function finishForge(q) {
-  const next = PICKS[S.pick + 1];
-  Object.entries(next.need).forEach(([k, n]) => { take(k, n); });
-  S.gold -= next.gold; S.pick += 1; S.pickQ = q;
-  SFX.stairs(); questEvent('pick'); save(); renderHud();
-  openSheet('대장장이', `<p>${next.name} 완성이에요. ${['쓸 만하게 나왔네요.', '솜씨가 좋은데요.', '이건 정말 잘 나왔어요.'][q]}</p><div class="feat"><span>${ico('ic_pick')}${next.name} ${QUAL[q]}</span></div>`);
+  const F = forgeSel, need = forgeNeed(), gold = forgeGold(); forgeSel = null;
+  Object.entries(need).forEach(([k, n]) => { take(k, n); }); S.gold -= gold;
+  let news = '';
+  if (F.mode === 'special') {   // 정해진 머리, 자루, 추가 재료 둘이 맞으면 특수 곡괭이 (도감에 남음)
+    const sp = SPECIALS.find(v => v.head === F.head && v.handle === F.handle && v.adds.length === F.adds.length && v.adds.every(a => F.adds.includes(a)));
+    S.pk = { handle: F.handle, adds: [...F.adds], head: F.head, sp: sp ? sp.id : null }; S.pickQ = q;
+    if (sp) { if (S.spc[sp.id] === undefined) news = '도감에 새 곡괭이'; S.spc[sp.id] = Math.max(S.spc[sp.id] || 0, q); S.pickQ = S.spc[sp.id]; }
+  } else { S.pick += 1; S.pickQ = q; S.pk = { handle: F.handle, adds: [...F.adds], head: null, sp: null }; questEvent('pick'); }
+  SFX.stairs(); save(); renderHud();
+  openSheet('대장장이', `<p>${pickName()} 완성이에요. ${['쓸 만하게 나왔네요.', '솜씨가 좋은데요.', '이건 정말 잘 나왔어요.'][q]}</p><div class="feat"><span>${ico('ic_pick')}${pickName()} ${QUAL[S.pickQ]}</span>${news ? `<span>${ico('ic_star')}${news}</span>` : ''}</div>`);
+}
+// 도감의 특수 곡괭이: 바꿔 들기, 돈을 내고 망치질만 다시 해서 품질 올리기 (재료와 효과는 그대로, 품질은 내려가지 않음)
+function spEquip(id) {
+  const sp = SPECIALS.find(v => v.id === id); if (!sp || S.spc[id] === undefined) return;
+  S.pk = { handle: sp.handle, adds: [...sp.adds], head: sp.head, sp: id }; S.pickQ = S.spc[id]; SFX.open(2); save(); renderHud(); showSmithy();
+}
+function spHammer(id) {
+  const sp = SPECIALS.find(v => v.id === id); if (!sp || S.spc[id] === undefined || S.spc[id] >= 2 || S.gold < REHAMMER_GOLD) return;
+  openHammer('다시 망치질', PICKS[4].period, PICKS[4].zone, q => {
+    S.gold -= REHAMMER_GOLD; S.spc[id] = Math.max(S.spc[id], q); if (S.pk.sp === id) S.pickQ = S.spc[id];
+    SFX.stairs(); save(); renderHud(); openSheet('대장장이', `<p>${['다시 두드려 봤어요.', '솜씨가 좋은데요.', '이건 정말 잘 나왔어요.'][q]}</p><div class="feat"><span>${ico('ic_pick')}${sp.n} ${QUAL[S.spc[id]]}</span></div>`);
+  });
 }
 /* ===== 낚시 (기획 4번 4단계): 다리를 고치면 낚싯대. 강을 누르면 물가로 걸어가서 찌를 던지고, 찌가 잠길 때 당김 =====
    아침과 저녁에 빨리 물고 종류가 많음. 새벽엔 달빛 잉어. 던질 때 기력 2 */
@@ -4761,7 +4849,7 @@ document.addEventListener('input', e => { if (e.target.dataset && e.target.datas
 document.addEventListener('change', e => { if (e.target.dataset && (e.target.dataset.vol === 'sfx' || e.target.dataset.vol === 'master')) SFX.coin(); });
 document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled) return; act(b); });
 /* 확정 (기획 66번): 돈이나 물건이 빠지는 단추는 한 번 더 묻고 확정. 확정 창엔 무엇인지와 값만 */
-const CONFIRM = new Set(['restore', 'home', 'buy', 'mbuy', 'nbuy', 'nsell', 'sharp', 'smelt', 'donate', 'craft', 'combine', 'cut', 'donkey', 'fix', 'rail', 'kreq', 'inn', 'sellAll', 'forge']);
+const CONFIRM = new Set(['restore', 'home', 'buy', 'mbuy', 'nbuy', 'nsell', 'sharp', 'smelt', 'donate', 'craft', 'combine', 'cut', 'donkey', 'fix', 'rail', 'kreq', 'inn', 'sellAll', 'forgeGo', 'spHammer']);
 let autoOk = false, cfPend = null;   // autoOk: 시험용 (확정을 건너뜀)
 function askConfirm(b) {
   cfPend = { html: sheet.innerHTML, closable: sheetClosable, a: b.dataset.a, o: b.dataset.o, n: b.dataset.n };
@@ -4799,7 +4887,13 @@ function act(b) {
   else if (a === 'cast') startFish(fishLake);
   else if (a === 'trade') { if (autoOk) trade(b.dataset.o); else showSellQty(b.dataset.o, 't'); }
   else if (a === 'smelt') smelt(b.dataset.o);
-  else if (a === 'forge') startHammer();
+  else if (a === 'forge') showForge('next');
+  else if (a === 'forgeSp') showForge('special');
+  else if (a === 'fsel') forgeSelect(b.dataset.k, b.dataset.o);
+  else if (a === 'forgeGo') startHammer();
+  else if (a === 'smithyBack') { forgeSel = null; showSmithy(); }
+  else if (a === 'spEquip') spEquip(b.dataset.o);
+  else if (a === 'spHammer') spHammer(b.dataset.o);
   else if (a === 'strike') strike();
   else if (a === 'forest') enterForest();
   else if (a === 'toChief') { closeSheet(); const o = OBJ.find(v => v.id === 'chief'); mark(o.gx, o.gy, '233,176,79', o.w, o.d); goTo(o); }
@@ -4901,7 +4995,7 @@ function frame(ms) {
   const dt = Math.min(.05, (ms - last) / 1000 || 0); last = ms; tnow = ms / 1000;
   phase = phaseIndex();
   walkStep(dt); camStep(dt);
-  mswing = Math.max(0, mswing - dt * 1.8 * animK); mrecoil = Math.max(0, mrecoil - dt * 2.4 * animK); strikeTick(dt);   // 곡괭이질은 어느 장면이든 같은 빠르기로 끝남 (숲과 길에서도)
+  mswing = Math.max(0, mswing - dt * 1.8 * animK * (1 + swingSpd())); mrecoil = Math.max(0, mrecoil - dt * 2.4 * animK); strikeTick(dt);   // 곡괭이질은 어느 장면이든 같은 빠르기로 끝남 (숲과 길에서도)
   if (follow && !cam.to) { const [tx, ty] = heroFocus(); const k = Math.min(1, dt * 5); cam.fx += (tx - cam.fx) * k; cam.fy += (ty - cam.fy) * k; }
   OBJ.forEach(o => { if (o.done && o.grow < 1) o.grow = Math.min(1, o.grow + dt * 1.6); });
   if (scene === 'mine' && S.mine) {

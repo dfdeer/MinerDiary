@@ -309,7 +309,7 @@ const shot = process.argv[2];
   ok(await page.evaluate(() => window.MinerDiary.fcell(40, 3)) === 'q' && (await page.textContent('#toast')).includes('낫 필요'), '낫이 없으면 가시덤불을 못 침');
   await page.evaluate(() => { S.sickle = 1; });
   await ftap(40, 3);
-  ok(await page.evaluate(() => window.MinerDiary.fcell(40, 3)) === 'g', '낫이 있으면 가시덤불을 쳐서 길을 냄');
+  ok(await page.waitForFunction(() => window.MinerDiary.fcell(40, 3) === 'g', null, { timeout: 3000 }).then(() => true).catch(() => false), '낫이 있으면 가시덤불을 쳐서 길을 냄');   // 곡괭이질이 닿을 때까지 기다림
   ok(await page.evaluate(() => swingTool) === 'sickle', '가시덤불을 칠 땐 손에 낫이 들림');
   await ftap(40, 2);
   await page.waitForFunction(() => S.forest.grove === 'mush', null, { timeout: 10000 });
@@ -428,6 +428,8 @@ const shot = process.argv[2];
   const forge = async () => {
     await visit('smithy', '#sheet [data-a="forge"]');
     await page.click('#sheet [data-a="forge"]');
+    await page.waitForSelector('#sheet [data-a="forgeGo"]');   // 만들기 창: 자루와 추가 재료를 고름 (기본은 나뭇가지 자루, 추가 재료 없음)
+    await page.click('#sheet [data-a="forgeGo"]');
     await page.mouse.click(30, 200); await page.waitForTimeout(100);
     ok(await page.locator('#sheet [data-a="close"]').count() === 0 && await page.locator('#sheet').isVisible(), '망치질 중에는 창을 닫을 수 없고 바깥을 눌러도 안 닫힘');
     for (let k = 0; k < 3; k++) {
@@ -866,6 +868,50 @@ const shot = process.argv[2];
   ok(s.screen === 'village' && s.items.recall === 0 && s.carry.copper >= 3, '귀환서를 쓰면 바로 마을, 가방은 그대로');
   await page.waitForTimeout(800);
   await visit('smithy', '#sheet [data-a="close"]');
+
+  // 13-3. 곡괭이 조합 (기획 71번): 자루와 추가 재료, 금 곡괭이 다음 특수 곡괭이와 도감, 곡괭이질 빠르기
+  {
+    const sp0 = await page.evaluate(() => { closeSheet(); S.pick = 3; S.pickQ = 0; S.pk = { handle: 'wood', adds: [], head: null, sp: null }; const s0 = swingSpd();
+      Object.assign(S.inv, { goldBar: 5, oldwood: 2, fiber: 5, coal: 3, rubyGem: 5, bone: 3, ruby: 1, manastone: 1 }); S.gold += 9000; renderHud(); return s0; });
+    await visit('smithy', '#sheet [data-a="forge"]');
+    await page.click('#sheet [data-a="forge"]');
+    await page.click('#sheet [data-a="fsel"][data-k="handle"][data-o="oldwood"]');
+    await page.click('#sheet [data-a="fsel"][data-k="add"][data-o="fiber"]');
+    await page.click('#sheet [data-a="fsel"][data-k="add"][data-o="coal"]');
+    ok((await page.textContent('#sheet')).includes('추가 재료 2/2'), '금 곡괭이부터 추가 재료 두 칸');
+    await page.click('#sheet [data-a="forgeGo"]');
+    for (let k = 0; k < 3; k++) {
+      await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
+    }
+    await page.waitForSelector('#sheet h2:has-text("대장장이")', { timeout: 3000 });
+    const r1 = await page.evaluate(() => ({ pick: S.pick, h: S.pk.handle, a: S.pk.adds.slice().sort().join(), spd: swingSpd(), oldwood: have('oldwood'), fiber: have('fiber') }));
+    ok(r1.pick === 4 && r1.h === 'oldwood' && r1.a === 'coal,fiber' && Math.abs(r1.spd - sp0 - .1 - .1 - .08) < 1e-9 && !r1.oldwood && !r1.fiber, `고목 자루와 풀실로 곡괭이질 빠르기가 오름 (${Math.round((1 + r1.spd) * 100)}%, 품질 최상 +10%)`);
+    await visit('smithy', '#sheet [data-a="forgeSp"]');
+    ok((await page.textContent('#sheet')).includes('곡괭이 도감 0/8') && (await page.locator('#sheet .dim:has-text("???")').count()) === 8, '금 곡괭이 다음엔 특수 곡괭이 만들기와 빈 도감 여덟 칸');
+    const atk0 = await page.evaluate(() => power());
+    await page.click('#sheet [data-a="forgeSp"]');
+    for (const [k, o] of [['head', 'ruby'], ['handle', 'bone'], ['add', 'ruby'], ['add', 'manastone']]) await page.click(`#sheet [data-a="fsel"][data-k="${k}"][data-o="${o}"]`);
+    await page.click('#sheet [data-a="forgeGo"]');
+    for (let k = 0; k < 3; k++) {
+      await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
+    }
+    await page.waitForSelector('#sheet h2:has-text("대장장이")', { timeout: 3000 });
+    const r2 = await page.evaluate(() => ({ sp: S.pk.sp, q: S.spc.hunter, atk: power(), pick: S.pick, gem: have('rubyGem') }));
+    ok(r2.sp === 'hunter' && r2.q === 2 && r2.pick === 4 && !r2.gem && r2.atk === (9 + 2 + 3) * 2 && (await page.textContent('#sheet')).includes('도감에 새 곡괭이'), `루비 머리, 뼈 자루, 루비, 마석으로 사냥꾼 곡괭이 (공격 ${atk0} 다음 ${r2.atk})`);
+    await page.evaluate(() => { closeSheet(); S.spc.bolt = 0; showSmithy(); });
+    ok((await page.textContent('#sheet')).includes('곡괭이 도감 2/8') && await page.locator('#sheet [data-a="spEquip"][data-o="bolt"]').count() === 1 && await page.locator('#sheet [data-a="spHammer"][data-o="hunter"]').count() === 0, '도감에서 다른 특수 곡괭이를 들 수 있고, 최상은 다시 망치질 단추가 없음');
+    await page.click('#sheet [data-a="spEquip"][data-o="bolt"]');
+    const r3 = await page.evaluate(() => ({ sp: S.pk.sp, spd: swingSpd(), q: S.pickQ }));
+    ok(r3.sp === 'bolt' && r3.q === 0 && Math.abs(r3.spd - Math.min(.4, sp0 + .25 + .08)) < 1e-9, `번개 곡괭이를 들면 곡괭이질 빠르기 ${Math.round((1 + r3.spd) * 100)}% (최대 140%)`);
+    await page.click('#sheet [data-a="spHammer"][data-o="bolt"]');
+    for (let k = 0; k < 3; k++) {
+      await page.evaluate(() => new Promise(r => { const f = () => { const n = window.MinerDiary.needle(); if (n !== null && Math.abs(n - .5) < .03) { document.querySelector('#sheet [data-a="strike"]').click(); r(); } else requestAnimationFrame(f); }; f(); }));
+    }
+    await page.waitForSelector('#sheet h2:has-text("대장장이")', { timeout: 3000 });
+    ok(await page.evaluate(() => S.spc.bolt === 2 && S.pickQ === 2 && S.pk.adds.includes('fiber')), '다시 망치질하면 재료와 효과는 그대로 두고 품질만 오름');
+    await page.evaluate(() => closeSheet());
+    await visit('smithy', '#sheet [data-a="close"]');
+  }
 
   // 14. 화면 밖으로 끌어도 계속 움직이고, 말풍선으로 돌아옴
   await page.click('#sheet [data-a="close"]');
