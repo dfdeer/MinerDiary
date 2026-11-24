@@ -628,10 +628,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="restore"][data-o="gate"]');
   ok((await st()).restored.includes('gate') && (await quest()).includes('사냥'), '성벽 문을 고치면 퀘스트 「성 밖에서 사냥」');
   await page.click('#sheet [data-a="close"]');
-  await visit('smithy', '#sheet [data-a="sword"]');
-  await page.click('#sheet [data-a="sword"]');
-  ok((await st()).sword === 1 && !P(await st(), 'copperBar'), '대장간에서 구리 주괴로 구리 검');
-  await page.click('#sheet [data-a="close"]');
+  ok(await page.evaluate(() => power() === PICK_ATK[S.pick] && !document.querySelector('[data-a="sword"]')), '검은 없고 공격력은 곡괭이 단계를 따름 (기획 70번)');
   await visit('gate', '#sheet [data-a="stage"][data-n="0"]');
   ok(await page.locator('#sheet [data-a="stage"][data-n="0"]').isDisabled() === (await page.evaluate(() => phaseIndex())) < 1 && await page.locator('#sheet [data-a="stage"][data-n="1"]').isDisabled(), '성벽 문은 점심부터 열리고, 토벌 2단계는 1단계를 깨야 열림');
   await page.click('#sheet [data-a="close"]');
@@ -652,7 +649,7 @@ const shot = process.argv[2];
   }
   s = await st();
   ok(s.killN === 3 && (s.carry.meat || 0) + (s.carry.bone || 0) >= 1 && s.energy < e0 && (await quest()).includes('깊이 10') === false, `몬스터를 누르면 다가가 휘둘러 셋을 잡고 고기를 얻고 기력이 듦 (${e0}→${s.energy})`);
-  ok(await page.evaluate(() => swingTool) === 'sword', '몬스터를 칠 땐 손에 검이 들림');
+  ok(await page.evaluate(() => swingTool) === 'pick', '몬스터도 곡괭이로 침');
   await page.waitForSelector('#sheet [data-a="leaveHunt"]', { timeout: 5000 }); s = await st();
   ok((await page.textContent('#sheet')).includes('1단계') && s.huntClear.home[0] === 1 && (s.carry.leather || 0) >= 2, '다 잡으면 「들판 1단계 토벌」, 처음 보상(가죽 둘)');
   await page.click('#sheet [data-a="stage"][data-n="1"]');
@@ -945,7 +942,7 @@ const shot = process.argv[2];
   /* ===== 숲 몬스터: 초입엔 없고, 깊은 숲은 밤에만, 오래된 숲부터는 늘 나옴. 눌러서 잡음 ===== */
   {
     const fp = await open(390, 844);
-    const r1 = await fp.evaluate(() => { closeSheet(); S.introSeen = true; S.sword = 2; window.MinerDiary.speed(10); S.forestOpen = { 1: 1 }; enterForest(); const day = S.forest.mons.length; leaveForest(); S.forestOpen = { 1: 1, 2: 1 }; enterForest(); const f = S.forest; return { day, n: f.mons.length, deep: f.mons.every(m => m.x < F_ZONES[1].x) }; });
+    const r1 = await fp.evaluate(() => { closeSheet(); S.introSeen = true; S.pick = 2; window.MinerDiary.speed(10); S.forestOpen = { 1: 1 }; enterForest(); const day = S.forest.mons.length; leaveForest(); S.forestOpen = { 1: 1, 2: 1 }; enterForest(); const f = S.forest; return { day, n: f.mons.length, deep: f.mons.every(m => m.x < F_ZONES[1].x) }; });
     ok(r1.day === 0 && r1.n >= 3 && r1.deep, '숲 초입과 낮의 깊은 숲엔 몬스터가 없고, 오래된 숲엔 늑대가 있음');
     const wp = await fp.evaluate(() => { const f = S.forest, m = f.mons[0]; f.mons.forEach(o => { if (o !== m) o.hp = 0; }); const hx = Math.round(hero.x), hy = Math.round(hero.y); for (let i = 0; i < f.seen.length; i++) f.seen[i] = 1; for (let y = hy - 3; y <= hy; y++) for (let x = hx - 3; x <= hx; x++) if (fIn(x, y) && f.t[fI(x, y)] !== 'x') f.t[fI(x, y)] = 'g'; m.x = m.wx = hx - 2; m.y = m.wy = hy - 2; m.cd2 = 99; return [m.x, m.y, m.id]; });
     { const p = await fp.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), wp); await fp.mouse.click(p.x, p.y); }
