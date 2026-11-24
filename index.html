@@ -3431,7 +3431,7 @@ function huntTick(dt, H = S.hunt, blk = hBlocked) {
   const tgt = H.mons.find(o => o.id === hero.atk && o.hp > 0);
   if (tgt && !hero.path.length && Math.hypot(tgt.x - hero.x, tgt.y - hero.y) >= 1.35) chaseStep();
   if (tgt && Math.hypot(tgt.x - hero.x, tgt.y - hero.y) < 1.35 && swingCd <= 0 && !hero.path.length) {
-    swingCd = .55; mswing = 1; swingTool = 'sword';
+    swingCd = .55; mswing = 1; swingTool = S.sword ? 'sword' : 'pick';   // 검을 만들기 전엔 곡괭이로 싸움
     if (tgt.x > hero.x) { hero.back = false; hero.fx = 1; } else { hero.back = true; hero.fx = -1; }
     tgt.hp -= power(); tgt.hurt = .2; SFX.dig(); if (tgt.st === 'wind') { tgt.st = 'rest'; tgt.stT = .6; }   // 멈칫할 때 치면 돌진이 끊김
     hunts.push({ x: tgt.x, y: tgt.y, text: `${power()}`, col: '#fff', life: 1 });
