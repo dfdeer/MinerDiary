@@ -48,6 +48,11 @@ const shot = process.argv[2];
   /* ===== 폰 크기 ===== */
   const page = await open(390, 844);
   const { st, tap, visit } = helpers(page);
+  // 창 움직임 (기획 88번): 처음 열면 아래에서 올라오고, 닫으면 똑같이 생긴 그림자 창이 내려가다 사라짐 (진짜 창은 바로 닫힘)
+  {
+    const an = await page.evaluate(async () => { closeSheet(); await new Promise(r => setTimeout(r, 700)); showMenu(); const opened = sheet.classList.contains('in') && getComputedStyle(sheet).animationName === 'sheetIn'; showBag(); const swapped = sheet.classList.contains('swap'); closeSheet(); const ghost = document.querySelectorAll('.sheet-ghost').length === 1 && sheet.hidden && !document.querySelector('.sheet-ghost #sheet,.sheet-ghost[id]'); await new Promise(r => setTimeout(r, 700)); return { opened, swapped, ghost, gone: document.querySelectorAll('.sheet-ghost,.veil-ghost').length === 0 }; });
+    ok(an.opened && an.swapped && an.ghost && an.gone, `창은 아래에서 쓱 올라오고, 열린 채 바뀌면 살짝 바뀌고, 닫으면 쓱 내려가 사라짐 (${JSON.stringify(an)})`);
+  }
   // 걷는 길 (11/25 사용자 결정): 가장 짧은 길 가운데 위로 갈 땐 오른쪽 위(y-1), 아래로 갈 땐 왼쪽 아래(y+1)를 먼저. 걸음 수는 가장 짧은 그대로
   {
     const r = await page.evaluate(() => { const up = bfs(26, 15, (x, y) => x === 23 && y === 12), dn = bfs(26, 15, (x, y) => x === 29 && y === 18); return { up, dn }; });
@@ -807,6 +812,8 @@ const shot = process.argv[2];
   ok((await quest()).includes('야시장'), '손수레를 만들면 다음 퀘스트 「저녁 야시장 거래」');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { S.gold += 3000; enterTown('mtn', 'road'); showTownObj(TOWN_OBJ[1]); });
+  await page.click('#sheet [data-a="twTab"][data-o="buy"]');
+  ok(await page.locator('#sheet [data-a="tsell"]').count() === 0 && await page.locator('#sheet .seg .on').textContent() === '구매', '산마을 시장도 살 것이 있으면 구매와 판매 칸 (기획 88번)');
   await page.click('#sheet [data-a="donkey"]');
   ok((await st()).donkey === 1 && await page.evaluate(w => travelCost('mtn') === Math.ceil(w * .2) && bagCap() === 40, wk), '산마을 시장에서 당나귀 수레를 사면 길 기력 2할, 가방 40칸');
   await page.evaluate(() => { closeSheet(); homeFromTown(); });

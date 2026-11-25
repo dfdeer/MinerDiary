@@ -194,7 +194,13 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #veil{position:fixed;inset:0;z-index:4;background:rgba(10,6,3,.28)}
 #skip{position:fixed;right:calc(16px * var(--z,1));bottom:calc(24px * var(--z,1) + env(safe-area-inset-bottom));z-index:6;width:calc(64px * var(--z,1));height:calc(64px * var(--z,1));border-radius:12px;display:grid;place-items:center;gap:0;font-size:calc(12px * var(--z,1))}
 #skip .ico{width:calc(26px * var(--z,1));height:calc(26px * var(--z,1));margin:0}
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:5;max-width:620px;margin:0 auto;border-radius:20px 20px 0 0;border-bottom:0;padding:14px var(--sr) var(--sb) var(--sl);max-height:62vh;overflow:auto;touch-action:pan-y;overscroll-behavior:contain;animation:up .18s ease-out}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:5;max-width:620px;margin:0 auto;border-radius:20px 20px 0 0;border-bottom:0;padding:14px var(--sr) var(--sb) var(--sl);max-height:62vh;overflow:auto;touch-action:pan-y;overscroll-behavior:contain}
+.sheet.in{animation:sheetIn .34s cubic-bezier(.2,.9,.25,1.08)}.sheet.swap{animation:sheetSwap .16s ease-out}
+.sheet-ghost{pointer-events:none;z-index:5;animation:sheetOut .24s cubic-bezier(.5,0,.8,.4) forwards}
+#veil.in{animation:veilIn .25s ease-out}.veil-ghost{position:fixed;inset:0;z-index:4;background:rgba(10,6,3,.28);pointer-events:none;animation:veilOut .24s ease-in forwards}
+@keyframes sheetIn{from{transform:translateY(105%)}}@keyframes sheetOut{to{transform:translateY(105%)}}@keyframes sheetSwap{from{opacity:.35;transform:translateY(8px)}}
+@keyframes veilIn{from{opacity:0}}@keyframes veilOut{to{opacity:0}}
+@media (prefers-reduced-motion:reduce){.sheet.in,.sheet.swap,#veil.in{animation:none}}
 @keyframes up{from{transform:translateY(24px);opacity:0}}
 .sheet header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 /* 창 제목 줄은 안을 스크롤해도 맨 위에 붙어 있음 (11/25) */
@@ -4022,6 +4028,7 @@ function enterTownMine() {
 }
 function leaveTownMine() { const id = S.deep.town; restoreHomeDeep(); S.mine = null; S.exiting = false; fade = .8; SFX.stairs(); enterTown(id, 'mine'); }
 // 마을 창
+let twTab = 'sell';
 function showTownObj(o) {
   const T = townHere();
   if (o.id === 'inn') {
@@ -4031,9 +4038,13 @@ function showTownObj(o) {
     openSheet(ico('ic_village') + '여관', roomHtml('inn', hots) + `<p>${T.greet}</p>` + (late ? '<p class="warn">새벽 취침</p>' : ''));
   } else if (o.id === 'tmarket') {
     const rows = ORE_ORDER.filter(k => have(k)).map(k => { const m = T.price[k] || 1, cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${k}"></span>${ORES[k].name} <small>×${have(k)}</small> <small class="${cls}">${GOLD}${townPrice(k)}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="tsell" data-o="${k}">${GOLD}${townPrice(k) * have(k)}</button></div>`; }).join('');
-    const buy = S.donkey || S.loc !== 'mtn' ? '' : `<p class="dim" style="margin-top:10px">구매</p><div class="rows"><div class="rowi"><span class="nm">${ico('ic_donkey')}당나귀 수레 <small class="eff">길 기력 2할, 가방 +20칸</small></span><button class="btn small" data-a="donkey" ${S.gold >= DONKEY_GOLD ? '' : 'disabled'}>${GOLD}${DONKEY_GOLD}</button></div></div>`;
+    const buy = S.donkey || S.loc !== 'mtn' ? '' : `<div class="rows"><div class="rowi"><span class="nm">${ico('ic_donkey')}당나귀 수레 <small class="eff">길 기력 2할, 가방 +20칸</small></span><button class="btn small" data-a="donkey" ${S.gold >= DONKEY_GOLD ? '' : 'disabled'}>${GOLD}${DONKEY_GOLD}</button></div></div>`;
     const want = Object.entries(T.price).filter(([, m]) => m > 1.05).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => `<span class="ore ${k}"></span>`).join('');
-    openSheet(ico('ic_shop') + `${T.short} 시장`, roomHtml('tmarket', []) + `<p class="dim">비싸게 삼 ${want}</p>` + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + buy);
+    // 살 것(당나귀 수레)이 있으면 떠돌이 상인처럼 구매와 판매 칸으로 나눔 (기획 88번)
+    if (twTab === 'buy' && !buy) twTab = 'sell';
+    const seg = buy ? `<div class="seg"><button class="${twTab === 'buy' ? 'on' : ''}" data-a="twTab" data-o="buy">${ico('ic_shop')}구매</button><button class="${twTab === 'sell' ? 'on' : ''}" data-a="twTab" data-o="sell">${ico('ic_gold')}판매${rows ? `<small>${ORE_ORDER.filter(k => have(k)).length}</small>` : ''}</button></div>` : '';
+    const body = buy && twTab === 'buy' ? buy : `<p class="dim">비싸게 삼 ${want}</p>` + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>');
+    openSheet(ico('ic_shop') + `${T.short} 시장`, roomHtml('tmarket', []) + seg + body);
   } else if (o.id === 'tmine') {
     const kinds = [...new Set(T.ores.flat().map(([k]) => k))].slice(0, 6).map(k => `<span class="ore ${k}"></span>`).join('');
     openSheet(ico('ic_pick') + `${T.mine} 광산`, roomHtml('mine', [{ a: 'townmine', box: [236, 120, 404, 300], name: '들어가기' }]) + `<p>${kinds}</p>`);
@@ -4576,7 +4587,10 @@ function openSheet(title, body, btns, closable = true) {
   sheet.innerHTML = `<header><h2>${title}</h2>${closable ? `<button class="x" data-a="close" aria-label="닫기">${ico('ic_close')}</button>` : ''}</header>${body}${btns ? `<div class="btns">${btns}</div>` : ''}`;
   sheet.querySelectorAll('p').forEach(lineBreaks);
   document.getElementById('veil').hidden = false;
-  sheet.hidden = false; sheet.style.animation = 'none'; void sheet.offsetWidth; sheet.style.animation = '';
+  const fresh = sheet.hidden;
+  document.querySelectorAll('.sheet-ghost,.veil-ghost').forEach(g => g.remove());   // 닫히던 창이 아직 내려가는 중이면 치움
+  sheet.hidden = false; sheet.classList.remove('in', 'swap'); void sheet.offsetWidth; sheet.classList.add(fresh ? 'in' : 'swap');
+  const vl = document.getElementById('veil'); if (fresh) { vl.classList.remove('in'); void vl.offsetWidth; vl.classList.add('in'); }
   paintPicks(); paintRooms(roomT); renderDock();
 }
 // 창 바깥(어두운 막)을 누르면 창을 닫음. 망치질처럼 닫을 수 없는 창은 그대로
@@ -4593,7 +4607,19 @@ function lineBreaks(el) {
     n.replaceWith(f);
   });
 }
-function hideSheet() { sheet.hidden = true; document.getElementById('veil').hidden = true; renderDock(); }
+// 닫을 땐 창을 곧바로 숨기고(누르기와 판단은 바로 닫힌 것으로), 똑같이 생긴 그림자 창이 아래로 쓱 내려가며 사라짐
+function hideSheet() {
+  const vl = document.getElementById('veil');
+  if (!sheet.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const g = sheet.cloneNode(true); g.removeAttribute('id'); g.classList.remove('in', 'swap'); g.classList.add('sheet-ghost'); g.setAttribute('aria-hidden', 'true');
+    g.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+    const src = sheet.querySelectorAll('canvas'), dst = g.querySelectorAll('canvas'); dst.forEach((cv, i) => { try { cv.getContext('2d').drawImage(src[i], 0, 0); } catch (e) { /* 그림만 건너뜀 */ } });
+    const top = sheet.scrollTop; document.body.appendChild(g); g.scrollTop = top;
+    g.addEventListener('animationend', () => g.remove()); setTimeout(() => g.remove(), 600);
+    if (!vl.hidden) { const vg = document.createElement('div'); vg.className = 'veil-ghost'; document.body.appendChild(vg); vg.addEventListener('animationend', () => vg.remove()); setTimeout(() => vg.remove(), 600); }
+  }
+  sheet.hidden = true; vl.hidden = true; renderDock();
+}
 function closeSheet() { selected = null; hideSheet(); }
 function sheetH() { return sheet.hidden ? 0 : sheet.getBoundingClientRect().height; }
 function bottomH() { return scene !== 'village' ? minebar.getBoundingClientRect().height : Math.max(sheetH(), 64); }
@@ -5583,7 +5609,7 @@ function showMarket() {
   if (!S.market) rollMarket(true);
   const M = S.market;
   // 시장 안 그림 (기획 84번): 노점 셋(시세판, 음식, 재료)을 누르면 그 노점 물건이 아래에
-  const tabs = roomHtml('market', [['trade', '시세', 16], ['food', '음식', 222], ['mat', '재료', 428]].map(([k, n, x]) => ({ a: 'mtab', o: k, box: [x - 2, 56, x + 202, 262], name: n, on: marketTab === k })));
+  const tabs = roomHtml('market', [['trade', '판매', 16, '시세'], ['food', '음식', 222, '구매'], ['mat', '재료', 428, '구매']].map(([k, n, x, sub]) => ({ a: 'mtab', o: k, box: [x - 2, 56, x + 202, 262], name: n, sub, on: marketTab === k })));
   if (marketTab === 'food') {
     const rows = FOOD_SHOP.map(([id, g], i) => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small class="eff">${PWR}+${ITEMS[id].eat}</small>${S.items[id] ? ` <small>×${S.items[id]}</small>` : ''}</span><button class="btn small" data-a="mbuy" data-o="food" data-n="${i}" ${S.gold >= g ? '' : 'disabled'}>${GOLD}${g}</button></div>`).join('');
     openSheet(ico('ic_shop') + '시장', tabs + `<p>갓 구운 빵이랑 따뜻한 꼬치 있어요. 일하다 출출할 때 하나씩 먹어요.</p><div class="rows">${rows}</div>`); return;
@@ -5672,6 +5698,7 @@ function act(b) {
   else if (a === 'smithyBack') { forgeSel = null; showSmithy('pick'); }
   else if (a === 'smTab') showSmithy(b.dataset.o);
   else if (a === 'mTab') showMerchant(b.dataset.o);
+  else if (a === 'twTab') { twTab = b.dataset.o; showTownObj(TOWN_OBJ[1]); }
   else if (a === 'kTab') showKitchen(b.dataset.o);
   else if (a === 'spEquip') spEquip(b.dataset.o);
   else if (a === 'spHammer') spHammer(b.dataset.o);
