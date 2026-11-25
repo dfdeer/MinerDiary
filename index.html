@@ -70,6 +70,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .goal i{position:absolute;left:0;bottom:0;height:4px;background:var(--accent)}
 .goal span{color:var(--accent)}
 .dockr{display:flex;gap:8px;pointer-events:auto}
+.endcard{text-align:center}.endcard .pvname{font-size:22px;color:var(--accent);margin:6px 0 12px}
 .day .wxi .ico{width:16px;height:16px;margin:0 2px 0 0;vertical-align:-3px}
 .bag{height:44px;min-width:44px;border-radius:14px;padding:0 12px;display:flex;align-items:center;gap:6px;font-weight:700}
 .dock button:active,.pill.icon:active{transform:translateY(2px)}
@@ -541,6 +542,8 @@ const QUESTS = [
   { id: 'king', text: '왕 멧돼지 토벌', need: 1, target: 'gate', reward: 1500, prog: () => (stageCleared(4) ? 1 : 0) },
   { id: 'deep20', text: '깊이 20 도달', need: 20, target: 'mine', reward: 2000 },
   { id: 'deep30', text: '깊이 30 도달', need: 30, target: 'mine', reward: 5000 },
+  { id: 'heart', text: '산의 심장 찾기', need: 1, target: 'mine', reward: 3000, prog: () => (S.heartSeen ? 1 : 0) },   // 큰 이야기 (기획 79번)
+  { id: 'calm', text: '산의 심장 달래기', target: 'mine', reward: 10000 },
 ];
 const questNow = () => QUESTS[S.quest];
 const questProg = q => (q.prog ? q.prog() : q.id === 'ore' ? S.qn : q.id.startsWith('deep') ? S.deepest : q.id === 'gold' ? S.gold : q.id.startsWith('pick') ? S.pick : q.id === 'lore' ? S.loreN || 0 : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : q.id === 'cut' ? S.cutN || 0 : q.id === 'hunt' ? S.killN || 0 : q.id === 'chest' ? S.chestN || 0 : q.id === 'board' ? S.boardN || 0 : TOWNS[q.id] ? ((S.visited || {})[q.id] ? 1 : 0) : q.id === 'rail' ? S.rail || 0 : q.id === 'donate' ? (S.museum || []).length : 0);
@@ -1906,6 +1909,19 @@ function drawIsland(c) {
     if (k > heroAt && it.shape && !cam.to && cam.s <= 1.05 && overlapsHero(it)) { hidden = true; a = Math.min(a, .32); }
     if (a < 1) ghostStart(c); it.f(); if (a < 1) ghostEnd(c, a);
   });
+  // 엔딩 뒤 광장 축제 등불 (기획 79번): 광장 네 귀퉁이 등불을 잇는 줄에 색 깃발과 작은 등
+  if (S.heartCalm) {
+    const cs = [[PLAZA.x0, PLAZA.y0], [PLAZA.x1 + 1, PLAZA.y0], [PLAZA.x1 + 1, PLAZA.y1 + 1], [PLAZA.x0, PLAZA.y1 + 1]], cols = ['#e0405a', '#f2c230', '#5fb2e8', '#6fae54', '#b9a8ff'];
+    cs.forEach((a2, i) => {
+      const b2 = cs[(i + 1) % 4], A = iso(a2[0], a2[1], 1.8), B = iso(b2[0], b2[1], 1.8), M = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2 + ZU * .55];
+      c.beginPath(); c.moveTo(A[0], A[1]); c.quadraticCurveTo(M[0], M[1], B[0], B[1]); c.strokeStyle = '#4a3a2a'; c.lineWidth = Math.max(1, TW * .015); c.stroke();
+      for (let k = 1; k < 8; k++) {
+        const t = k / 8, x = (1 - t) * (1 - t) * A[0] + 2 * (1 - t) * t * M[0] + t * t * B[0], y = (1 - t) * (1 - t) * A[1] + 2 * (1 - t) * t * M[1] + t * t * B[1], sw = Math.sin(tnow * 2 + k + i) * TW * .015;
+        if (night && k % 2) { Cc(c, x, y + TW * .05, TW * .14, 'rgba(255,200,110,.25)'); Cc(c, x, y + TW * .05, TW * .045, '#ffd27a'); }
+        else { c.beginPath(); c.moveTo(x - TW * .05, y); c.lineTo(x + TW * .05, y); c.lineTo(x + sw, y + TW * .1); c.closePath(); c.fillStyle = cols[(k + i) % cols.length]; c.fill(); }
+      }
+    });
+  }
   // 고른 건물 테두리는 건물 위에 한 번 더 (바닥판에 가려지지 않게)
   if (selected && selected.kind !== 'npc') {
     const o = selected, pulse = .55 + .25 * Math.sin(tnow * 5), pts = area(o.gx, o.gy, o.w, o.d, 1.04);
@@ -2124,7 +2140,7 @@ function camStep(dt) {
    칸 종류: r 바위, h 단단한 바위, f 바닥, d 내려가는 구멍, u 올라가는 줄(깊이 1의 입구는 마을로 나가는 사다리), c 야영지 */
 function rnd(n) { return Math.floor(Math.random() * n); }
 function pickFrom(list, r = Math.random()) { let acc = 0; for (const [o, w] of list) { acc += w; if (r < acc) return o; } return list[list.length - 1][0]; }
-const FLOORISH = t => t === 'f' || t === 'u' || t === 'd' || t === 'c' || t === 'T' || t === 'J';
+const FLOORISH = t => t === 'f' || t === 'u' || t === 'd' || t === 'c' || t === 'T' || t === 'J' || t === 'Q';
 const ROCKISH = t => t === 'r' || t === 'h' || t === 'w';
 const D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const ZONES = [
@@ -2278,7 +2294,10 @@ const LORE = {
   5: { n: 1, acc: 'firefly', gold: 300, text: '오늘은 깊이 다섯까지 내려왔어요. 벽 너머에서 낮게 울리는 소리가 나요. 반장님은 바람 소리래요. 그래도 다들 귀를 기울이며 곡괭이를 내리쳐요.' },
   8: { n: 2, acc: 'magnet', gold: 600, text: '벽 틈으로 처음 보는 빛이 새어 나왔어요. 금보다 밝고 달빛보다 차가웠어요. 다들 더 파자고 했어요. 그날 밤 굴 전체가 숨을 쉬듯 흔들렸어요.' },
   12: { n: 3, acc: 'charm', gold: 1200, text: '우리가 깨운 건 광맥이 아니었어요. 그 빛은 아래에서 우리를 부르고 있었어요. 마을을 떠나기로 했어요. 누군가 이걸 읽는다면 더 깊이 내려가 그 빛의 정체를 확인해 줘요.' },
+  18: { n: 4, acc: 'lens', gold: 2000, text: '마지막으로 혼자 내려왔어요. 빛은 산의 심장이었어요. 우리가 수정과 달빛 돌을 캐낼 때마다 심장이 아프게 떨었어요. 흔들림은 화가 난 게 아니라 아파서였어요.' },
+  24: { n: 5, acc: 'clover', gold: 3000, text: '심장은 깊이 서른에 있어요. 가져간 것을 돌려주면 다시 잠들 거예요. 월광 주괴와 곱게 다듬은 루비, 수정을 바쳐 줘요. 그러면 마을도 다시 숨을 쉴 거예요.' },
 };
+const LORE_N = Object.keys(LORE).length;
 function placeLore(L, x, y) {
   const D = S.deep; if (D.town) return; D.lore = D.lore || {};
   if (!LORE[L] || D.lore[L]) return;
@@ -2287,16 +2306,53 @@ function placeLore(L, x, y) {
   D.dug[dKey(L, cx - 1, cy)] = 'J'; D.dug[dKey(L, cx + 1, cy)] = 'T';
   D.lore[L] = [cx, cy, 0];
 }
+// 산의 심장 (기획 79번): 깊이 30에 처음 가면 가까이에 넓은 방과 가운데 빛나는 심장. 가져간 것(월광 주괴, 루비 보석, 수정 보석)을 바치면 잠들고 엔딩
+const HEART_L = 30, HEART_NEED = { moonBar: 3, rubyGem: 2, crystalGem: 3 };
+function placeHeart(L, x, y) {
+  const D = S.deep; if (D.town || L !== HEART_L || D.heart) return;
+  const a = H32(D.seed + 977) * Math.PI * 2, cx = Math.round(x + Math.cos(a) * 12), cy = Math.round(y + Math.sin(a) * 12);
+  for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) { const m = Math.max(Math.abs(dx), Math.abs(dy)); D.dug[dKey(L, cx + dx, cy + dy)] = m === 5 ? 'r' : 'f'; }
+  D.dug[dKey(L, cx, cy)] = 'Q'; D.heart = [cx, cy];
+}
+function showHeart() {
+  if (!S.heartSeen) { S.heartSeen = 1; questEvent(); }
+  if (S.heartCalm) { openSheet(`${ico('ic_star')}산의 심장`, '<p class="dim">고요히 잠듦</p>', `<button class="btn" data-a="endingAgain">${ico('ic_note')}이야기 다시 보기</button>`); save(); return; }
+  const ok = hasAll(HEART_NEED);
+  openSheet(`${ico('ic_star')}산의 심장`, `<p>커다란 수정 심장이 아프게 떨고 있음</p><div class="costline">${needHtml(HEART_NEED, 0)}</div>`, `<button class="btn primary" data-a="calmHeart"${ok ? '' : ' disabled'}>바치기</button>`);
+  save(); renderHud();
+}
+function calmHeart() {
+  if (S.heartCalm || !hasAll(HEART_NEED)) return;
+  Object.entries(HEART_NEED).forEach(([k, n]) => take(k, n)); S.heartCalm = S.day; SFX.fanfare(); questEvent('calm'); save(); renderHud(); showEnding(0);
+}
+// 엔딩: 심장이 잠들고 마을 사람들이 한마디씩, 마지막엔 기록 카드. 그 뒤로도 계속 놀 수 있음
+const ENDING = [
+  ['산의 심장', '따뜻한 빛이 굴 가득 번지더니, 떨림이 천천히 멎었어요. 깊은 곳에서 긴 숨소리가 들려요.'],
+  ['촌장', '광산에서 들려오던 울림이 오늘 아침 멎었어요. 다들 무슨 일인지 알아요. 고마워요, 정말로.'],
+  ['대장장이', '오늘은 망치 소리가 유난히 맑게 울리네요. 산도 기분이 좋은가 봐요.'],
+  ['식당 주인', '떠났던 사람들이 하나둘 돌아오고 있어요. 오늘 밤은 광장에서 다 같이 먹기로 했어요.'],
+  ['학자', '옛 광부들의 일지와 박물관의 유물이 하나의 이야기로 이어졌어요. 이 마을의 역사는 당신이 마저 썼어요.'],
+  ['촌장', '광장에 등불을 달았어요. 앞으로도 이 마을의 광부로 남아 줘요. 광산은 여전히 끝없이 깊으니까요.'],
+];
+function showEnding(k) {
+  if (k >= ENDING.length) {
+    const days = S.day, deep = S.deepest, n = Object.keys(S.spc || {}).length;
+    openSheet(`${ico('ic_star')}광부일기`, `<div class="endcard"><p class="pvname">마을이 다시 숨을 쉼</p><div class="rows"><div class="rowi"><span class="nm">${ico('ic_note')}지난 날</span><b>${days}일</b></div><div class="rowi"><span class="nm">${ico('ic_pick')}가장 깊이 간 곳</span><b>깊이 ${deep}</b></div><div class="rowi"><span class="nm">${ico('ic_pick')}곡괭이 도감</span><b>${n}/${SPECIALS.length}</b></div><div class="rowi"><span class="nm">${ico('ic_treasure')}박물관 기증</span><b>${(S.museum || []).length}</b></div></div></div>`, `<button class="btn primary" data-a="endingDone">계속하기</button>`);
+    return;
+  }
+  const [who, line] = ENDING[k];
+  openSheet(who, `<p>${line}</p>`, `<span class="tag">${k + 1}/${ENDING.length}</span>${k ? `<button class="btn" data-a="ending" data-n="${k - 1}">이전</button>` : ''}<button class="btn primary" data-a="ending" data-n="${k + 1}">다음</button>`, false);
+}
 function readLore(x, y) {
   const L = S.deep.L, R = LORE[L]; if (!R) return;
   S.deep.dug[dKey(L, x, y)] = 'f'; S.deep.lore[L][2] = 1; S.loreN = (S.loreN || 0) + 1;
   S.gold += R.gold; gainAcc(R.acc); SFX.fanfare();
-  openSheet(`${ico('ic_scroll')}옛 광부 일지 ${R.n}/3`, `<p>${R.text}</p><p class="news">${GOLD}+${R.gold} ${accIco(R.acc)}${ACC[R.acc].n}</p>`);
+  openSheet(`${ico('ic_scroll')}옛 광부 일지 ${R.n}/${LORE_N}`, `<p>${R.text}</p><p class="news">${GOLD}+${R.gold} ${accIco(R.acc)}${ACC[R.acc].n}</p>`);
   save(); renderHud();
 }
 function startDeep(L, x, y) {
   const D = S.deep; D.L = L; D.x = x; D.y = y;
-  placeLore(L, x, y);
+  placeLore(L, x, y); placeHeart(L, x, y);
   // 끝없는 깊이 기록: 30을 넘으면 10층마다 보상
   if (L > S.deepest && L > 30 && L % 10 === 0) { S.gold += L * 100; setTimeout(() => toast(`${ico('ic_star')}깊이 ${L} ${GOLD}+${L * 100}`), 600); }
   S.mine = { L }; S.screen = 'mine'; scene = 'mine'; FLAT = true;
@@ -2476,6 +2532,7 @@ function mineArrive() {
     if (t === 'c') { showCamp(); return; }
     if (t === 'T') { openChest(x, y); return; }
     if (t === 'J') { readLore(x, y); return; }
+    if (t === 'Q') { showHeart(); return; }
   }
   hero.goal = null; save();
 }
@@ -2707,6 +2764,16 @@ function drawMine(c, dt) {
           INK = Math.max(1.2, TW * .02); c.beginPath(); const q0 = iso(x + .5, y + .5, 0); c.ellipse(q0[0], q0[1], TW * .36, TH * .36, 0, 0, 7); c.fillStyle = '#0a0503'; c.fill(); c.lineWidth = INK; c.strokeStyle = OUT; c.stroke();
           const rg = c.createRadialGradient(q0[0], q0[1], 1, q0[0], q0[1], TW * .9); rg.addColorStop(0, `rgba(255,214,130,${g * .4})`); rg.addColorStop(1, 'rgba(255,214,130,0)'); Cc(c, q0[0], q0[1], TW * .9, rg);
           INK = Math.max(1, TW * .018);
+        } else if (t === 'Q') {   // 산의 심장: 커다란 수정 덩어리가 고동침. 잠들면 따뜻한 금빛
+          const q0 = iso(x + .5, y + .5, 0), u = TW / 80, calm = !!S.heartCalm, beat = calm ? .5 + .1 * Math.sin(tnow * 1.2) : .55 + .45 * Math.pow(Math.abs(Math.sin(tnow * 2.6)), 6);
+          const col = calm ? ['#ffe9a8', '#f2c230', '#c8961a'] : ['#ffd0e4', '#ff7aa8', '#c8407a'];
+          const gl = c.createRadialGradient(q0[0], q0[1] - u * 34, 1, q0[0], q0[1] - u * 34, u * (90 + beat * 40)); gl.addColorStop(0, calm ? `rgba(255,220,120,${.5 * beat})` : `rgba(255,120,170,${.55 * beat})`); gl.addColorStop(1, 'rgba(255,150,180,0)'); Cc(c, q0[0], q0[1] - u * 34, u * (90 + beat * 40), gl);
+          E(c, q0[0], q0[1] + u * 2, u * 30, u * 10, 'rgba(0,0,0,.35)');
+          const sc = 1 + beat * .06, pts = k => [q0[0] + k[0] * u * sc, q0[1] + k[1] * u * sc];
+          inkPoly(c, [[-22, 0], [-26, -30], [-10, -62], [0, -70], [12, -60], [26, -32], [20, 0]].map(pts), col[1], Math.max(1.4, u * 2));
+          inkPoly(c, [[-10, -62], [0, -70], [12, -60], [2, -34]].map(pts), col[0], Math.max(1, u * 1.2));
+          inkPoly(c, [[-22, 0], [-26, -30], [2, -34], [-4, 0]].map(pts), col[2], Math.max(1, u * 1.2));
+          [[-14, -40], [10, -48], [4, -18]].forEach(([a2, b2], k) => { const tw = .5 + .5 * Math.sin(tnow * 4 + k); c.fillStyle = `rgba(255,255,255,${.8 * tw})`; c.beginPath(); c.arc(...pts([a2, b2]), u * 2.2, 0, 7); c.fill(); });
         } else if (t === 'J') {   // 옛 광부 일지 (낡은 받침대 위 책과 등불)
           const q0 = iso(x + .5, y + .5, 0), u = TW / 80, fl = .7 + .3 * Math.sin(tnow * 7 + y);
           const gl = c.createRadialGradient(q0[0], q0[1] - u * 20, 1, q0[0], q0[1] - u * 20, u * 60); gl.addColorStop(0, `rgba(255,200,120,${.4 * fl})`); gl.addColorStop(1, 'rgba(255,200,120,0)'); Cc(c, q0[0], q0[1] - u * 20, u * 60, gl);
@@ -2800,6 +2867,7 @@ function drawArrows(c) {
     if (accEff('hole')) { const h2 = nearestHole(); if (h2) list.push([h2, '#9fd3ff', 'ic_plumb']); }
     if (accEff('camp') && S.deep.lastCamp && S.deep.lastCamp[0] === S.deep.L) list.push([[S.deep.lastCamp[1], S.deep.lastCamp[2]], '#ff8a7a', 'ic_tent']);
     const lr = S.deep.lore && S.deep.lore[S.deep.L]; if (lr && !lr[2] && Math.hypot(lr[0] - hero.x, lr[1] - hero.y) > 3.5) list.push([[lr[0], lr[1]], '#f2c230', 'ic_scroll']);   // 옛 갱도는 늘 화살표
+    const ht = S.deep.L === HEART_L && S.deep.heart; if (ht && !S.heartCalm && Math.hypot(ht[0] - hero.x, ht[1] - hero.y) > 3.5) list.push([[ht[0], ht[1]], '#ff8fb8', 'ic_star']);   // 산의 심장도 늘 화살표
   } else if (scene === 'forest' && accEff('home')) list.push([[S.forest.ex, S.forest.ey], '#ffd27a', 'ic_compass']);
   list.forEach(([[tx, ty], col, icn]) => {
     const q = iso(tx + .5, ty + .5, 0), dx = (q[0] - p[0]), dy = (q[1] - p[1]), d = Math.hypot(dx, dy); if (d < TW * .6) return;
@@ -2819,7 +2887,7 @@ function drawMiniMap(c) {
     if (!seenGet(x, y)) continue; const t = mT(x, y);
     const dx = x - hx - fx2, dy = y - hy - fy2, px = mx + mw / 2 + (dx - dy) * sc * .75, py = my + mh / 2 + (dx + dy) * sc * .375;
     if (px < mx - sc || px > mx + mw + sc || py < my - sc || py > my + mh + sc) continue;
-    c.fillStyle = t === 'd' ? '#9fd3ff' : t === 'u' ? '#ffd27a' : t === 'c' ? '#ff8a7a' : t === 'T' || t === 'J' ? '#f2c230' : FLOORISH(t) ? '#a8906e' : '#4a3a2c';
+    c.fillStyle = t === 'd' ? '#9fd3ff' : t === 'u' ? '#ffd27a' : t === 'c' ? '#ff8a7a' : t === 'T' || t === 'J' ? '#f2c230' : t === 'Q' ? '#ff7aa8' : FLOORISH(t) ? '#a8906e' : '#4a3a2c';
     c.beginPath(); c.moveTo(px, py - sc * .375); c.lineTo(px + sc * .75, py); c.lineTo(px, py + sc * .375); c.lineTo(px - sc * .75, py); c.closePath(); c.fill();
   }
   c.fillStyle = '#fff'; c.fillRect(mx + mw / 2 - 1.5 * z, my + mh / 2 - 1.5 * z, 3 * z, 3 * z);
@@ -5103,7 +5171,7 @@ document.addEventListener('input', e => { if (e.target.dataset && e.target.datas
 document.addEventListener('change', e => { if (e.target.dataset && (e.target.dataset.vol === 'sfx' || e.target.dataset.vol === 'master')) SFX.coin(); });
 document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled) return; act(b); });
 /* 확정 (기획 66번): 돈이나 물건이 빠지는 단추는 한 번 더 묻고 확정. 확정 창엔 무엇인지와 값만 */
-const CONFIRM = new Set(['restore', 'home', 'buy', 'mbuy', 'nbuy', 'nsell', 'sharp', 'smelt', 'donate', 'craft', 'combine', 'cut', 'donkey', 'fix', 'rail', 'kreq', 'inn', 'sellAll', 'forgeGo', 'spHammer']);
+const CONFIRM = new Set(['restore', 'home', 'buy', 'mbuy', 'nbuy', 'nsell', 'sharp', 'smelt', 'donate', 'craft', 'combine', 'cut', 'donkey', 'fix', 'rail', 'kreq', 'inn', 'sellAll', 'forgeGo', 'spHammer', 'calmHeart']);
 let autoOk = false, cfPend = null;   // autoOk: 시험용 (확정을 건너뜀)
 function askConfirm(b) {
   cfPend = { html: sheet.innerHTML, closable: sheetClosable, a: b.dataset.a, o: b.dataset.o, n: b.dataset.n };
@@ -5148,6 +5216,10 @@ function act(b) {
   else if (a === 'fclose') { if (forgeSel) { forgeSel.open = null; showForge(forgeSel.mode); } }
   else if (a === 'fclear') { if (forgeSel && forgeSel.open && forgeSel.open[0] === 'a') { forgeSel.adds[+forgeSel.open.slice(1)] = undefined; forgeSel.open = null; showForge(forgeSel.mode); } }
   else if (a === 'codex') showCodex();
+  else if (a === 'calmHeart') calmHeart();
+  else if (a === 'ending') showEnding(n);
+  else if (a === 'endingAgain') showEnding(0);
+  else if (a === 'endingDone') { closeSheet(); toast(`${ico('ic_star')}광장에 축제 등불`); }
   else if (a === 'rack') { if (rackOpen()) showRack(); }
   else if (a === 'rackPick') rackPick(b.dataset.o);
   else if (a === 'spCard') showSpCard(b.dataset.o);
