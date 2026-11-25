@@ -172,6 +172,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="close"]');
   // 4-2. 광산(땅속) 입장
   await visit('mine', '#sheet [data-a="enter"]');
+  ok(await roomOk(page) === 'ok', `광산 입구 그림에서 문을 눌러 들어감 (기획 87번) (${await roomOk(page)})`);
   ok((await page.textContent('#sheet')).includes('최고 깊이') && !(await page.textContent('#sheet')).includes('가장 깊이'), '광산 창엔 「최고 깊이」');
   await page.click('#sheet [data-a="enter"]');
   const lb = await page.waitForFunction(() => { const l = document.querySelector('#minebar .loc'); return !!l && /깊이 \d+/.test(l.querySelector('b').textContent) && l.querySelector('small').textContent.length > 0 && !!document.querySelector('#minebar .bagm i'); }, null, { timeout: 8000 }).then(() => true).catch(async () => page.evaluate(() => document.querySelector('#minebar').innerHTML.replace(/<svg.*?<\/svg>/g, '').slice(0, 300)));
@@ -409,6 +410,7 @@ const shot = process.argv[2];
   // 10-3. 상인에게서 나침반과 귀환서 사기
   await page.evaluate(() => { S.gold = Math.max(S.gold, 300); renderHud(); });
   await visit('merchant', '#sheet [data-a="mTab"]');
+  ok(await roomOk(page) === 'no hot', '떠돌이 상인 창 위에 상인과 수레 그림 (기획 87번)');
   await page.click('#sheet [data-a="mTab"][data-o="buy"]');
   ok(await page.locator('#sheet [data-a="sell"]').count() === 0 && await page.locator('#sheet .seg .on').textContent() === '구매', '떠돌이 상인은 구매와 판매 칸이 나뉨 (기획 83번)');
   const gB = (await st()).gold;
@@ -646,6 +648,7 @@ const shot = process.argv[2];
   // 13-0e2. 의뢰판: 촌장에게 날마다 의뢰 셋. 물건 의뢰 하나를 끝냄
   const bi = await page.evaluate(() => { const L = todayBoard().list, i = L.findIndex(b => b.kind === 'item'); S.inv[L[i].item] = (S.inv[L[i].item] || 0) + L[i].n; return i; });
   await visit('chief', `#sheet [data-a="board"][data-n="${bi}"]`);
+  ok(await roomOk(page) === 'no hot', '촌장 창 위에 촌장 그림 (기획 87번)');
   ok(await page.locator('#sheet [data-a="board"]').count() === 3, '촌장에게 가면 의뢰판에 의뢰 셋');
   const gBd = (await st()).gold, bd = (await st()).board.list[bi];
   await page.click(`#sheet [data-a="board"][data-n="${bi}"]`);
@@ -965,6 +968,9 @@ const shot = process.argv[2];
     await page.evaluate(() => toVillage('home'));
     await page.waitForTimeout(300);
     ok(await page.evaluate(() => S.heartCalm > 0 && window.MinerDiary.scene() === 'village'), '엔딩 뒤에도 계속 놀 수 있고 광장에 축제 등불');
+    // 엔딩 뒤 끝없는 깊이 기록 (기획 86번)
+    const dq = await page.evaluate(() => { S.quest = QUESTS.length; const t0 = questNow().text; const g0 = S.gold; S.deepest = Math.max(S.deepest, 45); questEvent(); return { t0, t1: questNow().text, dg: S.gold - g0, end: S.endDeep }; });
+    ok(dq.t0 === '깊이 40 기록' && dq.t1 === '깊이 50 기록' && dq.dg === 4000 && dq.end === 40, `엔딩 뒤엔 깊이 10마다 기록 퀘스트가 이어짐 (${JSON.stringify(dq)})`);
   }
 
   // 13-3. 곡괭이 조합 (기획 71번): 자루와 추가 재료, 금 곡괭이 다음 특수 곡괭이와 도감, 곡괭이질 빠르기
