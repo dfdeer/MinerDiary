@@ -70,6 +70,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .goal i{position:absolute;left:0;bottom:0;height:4px;background:var(--accent)}
 .goal span{color:var(--accent)}
 .dockr{display:flex;gap:8px;pointer-events:auto}
+.day .wxi .ico{width:16px;height:16px;margin:0 2px 0 0;vertical-align:-3px}
 .bag{height:44px;min-width:44px;border-radius:14px;padding:0 12px;display:flex;align-items:center;gap:6px;font-weight:700}
 .dock button:active,.pill.icon:active{transform:translateY(2px)}
 
@@ -636,6 +637,7 @@ function newDay(kind) {
   growFarm();
   if (S.furnace) { smelted = S.furnace; S.inv[smelted.bar] = (S.inv[smelted.bar] || 0) + smelted.n; S.furnace = null; }
   S.day += 1; S.energy = Math.round(S.max * START_FRAC[kind]); S.minE = S.dayStart = S.energy;
+  S.wx = rollWx(S.day); if (S.wx === 'rain') Object.values(S.farm || {}).forEach(p2 => { p2.watered = true; });   // 비 오는 날은 밭이 저절로 젖음
   S.today = {}; S.mine = null; S.screen = 'village'; scene = 'village'; FLAT = false;
   hero.x = HOME[0]; hero.y = HOME[1]; hero.path = []; hero.target = null; selected = null;
   cam.to = null; cam.s = 1; follow = true; snapCam(); fade = 1.2;
@@ -707,9 +709,18 @@ function evLine(e) {
   if (e.k === 'boom') return `<div class="rowi"><span class="nm">${ico('ic_up')}<span class="ore ${e.ore}"></span>${ORES[e.ore].name} 값 두 배</span><b>${S.day < e.from ? '내일부터' : until}</b></div>`;
   return '';
 }
+/* ===== 날씨 (기획 78번): 하루에 하나. 맑음, 비(밭이 저절로 젖고 물고기가 빨리 묾), 가뭄(작물 값이 오르고 물 준 밭도 반쯤만 자람), 안개(몬스터가 귀한 것을 더 잘 떨어뜨리고 바깥이 뿌옇게)
+   날짜와 판 씨앗으로 정해져서 내일 날씨를 미리 알 수 있음. 첫 이틀은 늘 맑음 */
+const WX = { clear: { n: '맑음', ic: 'ic_sun' }, rain: { n: '비', ic: 'ic_rain' }, drought: { n: '가뭄', ic: 'ic_heat' }, fog: { n: '안개', ic: 'ic_fog' } };
+const WX_EFF = { clear: '', rain: '밭이 저절로 젖음, 물고기가 빨리 묾', drought: '작물 값 오름, 밭이 반쯤만 자람', fog: '몬스터가 귀한 것을 더 떨어뜨림' };
+let wxFixed = null;   // 시험용: 날씨를 하나로 고정
+function rollWx(day) { if (wxFixed) return wxFixed; if (day <= 2) return 'clear'; const r = H32(day * 7919 + ((S && S.deep && S.deep.seed) || 0)); return r < .55 ? 'clear' : r < .77 ? 'rain' : r < .88 ? 'drought' : 'fog'; }
+const wxNow = () => (wxFixed || (S && WX[S.wx] ? S.wx : 'clear'));
+const CROPS_SELL = { radish: 1, potato: 1, berry: 1 };
 function showNews() {
   const L = (S.ev ? S.ev.list : []).filter(e => e.to >= S.day);
-  openSheet(ico('ic_note') + '소식', L.length ? `<div class="rows">${L.map(evLine).join('')}</div>` : '<p class="dim">소식 없음</p>');
+  const wt = (k, d) => `<div class="rowi"><span class="nm">${ico(WX[k].ic)}${d} ${WX[k].n}</span>${WX_EFF[k] ? `<small class="eff">${WX_EFF[k]}</small>` : ''}</div>`;
+  openSheet(ico('ic_note') + '소식', `<div class="rows">${wt(wxNow(), '오늘')}${wt(rollWx(S.day + 1), '내일')}</div>` + (L.length ? `<div class="rows" style="margin-top:10px">${L.map(evLine).join('')}</div>` : ''));
 }
 // 숲에 들어갈 때 운석 자리 (본 숲, 열린 구역, 입구에서 떨어진 풀밭)
 function placeMeteor() {
@@ -871,6 +882,10 @@ const ICONS = {
   ic_down: [['M12 19 4 7h16Z', '#f0907a', 1.2]],
   ic_arrow: [['M4 12h12', 'none', 2.4, '#e8d9bd'], ['M13 7l6 5-6 5Z', '#e8d9bd', 0]],
   ic_moon: [['M15.5 3.2A9 9 0 1 0 20.8 15 7 7 0 0 1 15.5 3.2Z', '#f2e6a8']],
+  ic_sun: [['M12 2.6v3M12 18.4v3M2.6 12h3M18.4 12h3M5.4 5.4l2.1 2.1M16.5 16.5l2.1 2.1M5.4 18.6l2.1-2.1M16.5 7.5l2.1-2.1', 'none', 2, '#f2c230'], ['M12 7.4a4.6 4.6 0 1 0 .01 0Z', '#f2c230']],
+  ic_heat: [['M12 2.6v3M12 18.4v3M2.6 12h3M18.4 12h3M5.4 5.4l2.1 2.1M16.5 16.5l2.1 2.1M5.4 18.6l2.1-2.1M16.5 7.5l2.1-2.1', 'none', 2, '#f07a3a'], ['M12 7.4a4.6 4.6 0 1 0 .01 0Z', '#f09a3c']],
+  ic_rain: [['M6.6 15.4a4 4 0 0 1 .5-7.9 5.4 5.4 0 0 1 10.4 1.5 3.2 3.2 0 0 1-.4 6.4Z', '#d4dde8'], ['M8.5 17.5l-1.2 3M12.5 17.5l-1.2 3M16.5 17.5l-1.2 3', 'none', 1.8, '#5fb2e8']],
+  ic_fog: [['M3.5 8.5h17M5.5 12.5h15M3.5 16.5h14', 'none', 2.2, '#cfd8e3']],
   ic_sword: [['M16.8 3.2h4v4L10.5 17.5l-4-4Z', '#dfe6ee'], ['M5 12.5l6.5 6.5-1.6 1.6-6.5-6.5Z', '#8a5a32'], ['M4.2 17.8l2 2-2.6 2.6-2-2Z', '#e9b04f']],
   ic_warn: [['M12 2.8 22 20.5H2Z', '#f2c230'], ['M10.9 8.5h2.2l-.4 6.3h-1.4Z', '#2b1a12', 0], ['M12 16.4a1.3 1.3 0 1 0 .01 0Z', '#2b1a12', 0]],
   ic_box: [['M3.5 8.5h17v11.5h-17Z', '#b47a44'], ['M3.5 8.5 6 4.5h12l2.5 4Z', '#d39a5a'], ['M3.5 12.5h17M12 8.5v11.5', 'none', 1.4], ['M10.6 11.4h2.8v2.6h-2.8Z', '#f2c230', 1.2]],
@@ -3550,7 +3565,7 @@ function huntTick(dt, H = S.hunt, blk = hBlocked) {
     tgt.hp -= power(); tgt.hurt = .2; SFX.dig(); if (tgt.st === 'wind') { tgt.st = 'rest'; tgt.stT = .6; }   // 멈칫할 때 치면 돌진이 끊김
     hunts.push({ x: tgt.x, y: tgt.y, text: `${power()}`, col: '#fff', life: 1 });
     if (tgt.hp <= 0) {
-      const got = MONS[tgt.kind].drop.filter(([, p2]) => Math.random() < p2).map(([k]) => k), room = got.filter((k, i) => carryN() + i < bagCap());
+      const got = MONS[tgt.kind].drop.filter(([, p2]) => Math.random() < (p2 < 1 && wxNow() === 'fog' ? p2 + .25 : p2)).map(([k]) => k), room = got.filter((k, i) => carryN() + i < bagCap());
       room.forEach(k => addItem(k, 1));
       toast(room.length ? room.map(k => `<span class="ore ${k}"></span>${ORES[k].name}`).join(' ') : `${ico('ic_bag')}가득`);
       S.killN = (S.killN || 0) + 1; S.today._kill = (S.today._kill || 0) + 1; hero.atk = null; SFX.ore(2); questEvent('hunt'); save(); renderDock();
@@ -3996,6 +4011,23 @@ function deadTreeAt(c, x, y) {
   [[-1, 40, 18], [1, 52, 16], [-1, 62, 12], [1, 30, 14]].forEach(([d, h, l], k) => { if (k === 3 && n < .5) return; const a = q[0] + u, b = q[1] - u * h; L(c, a, b, a + d * u * l, b - u * l * .8, OUT, u * 5); L(c, a, b, a + d * u * l, b - u * l * .8, '#4a3a32', u * 3); });
   if (n > .6) Cc(c, q[0] + u * 3, q[1] - u * 74, u * 3, `rgba(255,140,60,${.5 + .4 * Math.sin(tnow * 4 + n * 9)})`);
 }
+// 하늘 날씨 (기획 78번): 비는 비스듬한 빗줄기와 어두운 빛, 안개는 가장자리부터 뿌옇게, 가뭄은 노란 볕
+let rain = [];
+function drawWeather(c, dt) {
+  const w = wxNow(); if (w === 'clear') return;
+  if (w === 'rain') {
+    R(c, 0, 0, W, H, 'rgba(30,45,70,.22)');
+    while (rain.length < 90) rain.push({ x: Math.random() * (W + 80), y: Math.random() * H, v: 520 + Math.random() * 260, l: 10 + Math.random() * 10 });
+    c.strokeStyle = 'rgba(200,220,255,.45)'; c.lineWidth = 1.3; c.beginPath();
+    rain.forEach(d => { d.y += d.v * dt; d.x -= d.v * .25 * dt; if (d.y > H) { d.y = -20; d.x = Math.random() * (W + 80); } c.moveTo(d.x, d.y); c.lineTo(d.x + d.l * .25, d.y - d.l); });
+    c.stroke();
+  } else if (w === 'fog') {
+    const g = c.createRadialGradient(W / 2, H / 2, H * .12, W / 2, H / 2, H * .7); g.addColorStop(0, 'rgba(220,225,230,.05)'); g.addColorStop(1, 'rgba(220,225,230,.62)'); R(c, 0, 0, W, H, g);
+    const t = tnow * .02; c.fillStyle = 'rgba(235,238,242,.08)'; for (let k = 0; k < 4; k++) { const y = H * (.2 + k * .2), x = ((t * 60 * (k % 2 ? 1 : -1)) % W + W) % W; E(c, x, y, W * .45, H * .06, c.fillStyle); E(c, x - W, y, W * .45, H * .06, c.fillStyle); }
+  } else if (w === 'drought') {
+    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(255,190,90,.22)'); g.addColorStop(1, 'rgba(255,150,60,.08)'); R(c, 0, 0, W, H, g);
+  }
+}
 // 화면 위 날씨: 산마을 눈, 화산 마을 불티, 항구 갈매기
 function drawSnow(c, dt, fxIn) {
   const fx = fxIn || (townHere() || {}).fx;
@@ -4354,7 +4386,7 @@ function renderHud() {
   // 퀘스트 줄은 내용이 바뀔 때만 다시 그림 (반짝임과 손가락 움직임이 끊기지 않게)
   const qh = questHtml(), qr = document.getElementById('qrow'); if (qr.dataset.h !== qh) { qr.innerHTML = qh; qr.dataset.h = qh; }
   const evN = S.ev ? S.ev.list.filter(e => e.to >= S.day).length : 0;
-  document.getElementById('hudTop').innerHTML = `<button class="pill plate day" data-a="news" aria-label="소식">${S.day}일차 <span class="ph">${p.name}</span>${evN ? '<i class="evdot"></i>' : ''}</button>
+  document.getElementById('hudTop').innerHTML = `<button class="pill plate day" data-a="news" aria-label="소식">${wxNow() !== 'clear' ? `<span class="wxi">${ico(WX[wxNow()].ic)}</span>` : ''}${S.day}일차 <span class="ph">${p.name}</span>${evN ? '<i class="evdot"></i>' : ''}</button>
     <div class="energy plate ${low ? 'low' : ''}"><i class="fill" style="width:${pct}%"></i>${marks}<b>${PWR}${S.energy}</b><small>${u.name}까지 ${u.left}</small></div>
     <div class="pill plate gold">${GOLD}${S.gold}</div>
     <button class="pill icon plate" data-a="menu" aria-label="메뉴">${ico('ic_settings')}</button>`;
@@ -4842,7 +4874,7 @@ function startFish(lake) {
   if (!spend(2)) return;
   fishLake = lake === true;
   renderHud();
-  const ph = phaseIndex(), wait = (ph === 0 || ph === 2 ? 1 : 1.8) + Math.random() * 2;
+  const ph = phaseIndex(), wait = ((ph === 0 || ph === 2 ? 1 : 1.8) + Math.random() * 2) * (wxNow() === 'rain' ? .6 : 1);   // 비 오는 날엔 빨리 묾
   fishing = { t0: performance.now(), bite: wait * 1000, win: 750, done: false };
   openSheet(ico('ic_rod') + '낚시', '<div class="fishing"><div class="say" id="fsay"></div><div class="bob" id="fbob"></div></div>', `<button class="btn primary big" data-a="pull">${ico('ic_fish')}</button>`);
   requestAnimationFrame(fishTick);
@@ -4908,7 +4940,7 @@ function harvest(n) {
   SFX.ore(2); questEvent('harvest'); save(); renderHud(); closeSheet();
 }
 // 밤사이: 물 준 칸만 하루 자람
-function growFarm() { Object.values(S.farm || {}).forEach(p2 => { if (p2.watered) p2.days++; p2.watered = false; }); }
+function growFarm() { const dry = wxNow() === 'drought'; Object.values(S.farm || {}).forEach(p2 => { if (p2.watered && !(dry && Math.random() < .5)) p2.days++; p2.watered = false; }); }   // 가뭄엔 물 준 밭도 반쯤만 자람
 // 밭 칸 그림: 물 준 칸은 흙이 짙고, 자란 만큼 싹, 잎, 열매
 function drawCrops(c, o) {
   const u = TW / 100, ink = Math.max(1.2, TW * .018);
@@ -5024,7 +5056,7 @@ function rollMarket(first) {
   if (up) M.next[up] = clampM(M.next[up] * 1.15);
   M.hint = up || null;
 }
-const unitPrice = (o, extra = 0) => Math.max(1, Math.round(ORES[o].price * S.market.mult[o] * boomK(o) * Math.max(.4, 1 - .02 * ((S.market.sold[o] || 0) + extra))));
+const unitPrice = (o, extra = 0) => Math.max(1, Math.round(ORES[o].price * S.market.mult[o] * boomK(o) * (CROPS_SELL[o] && wxNow() === 'drought' ? 1.4 : 1) * Math.max(.4, 1 - .02 * ((S.market.sold[o] || 0) + extra))));
 function tradeValue(o) { let g = 0; for (let k = 0; k < have(o); k++) g += unitPrice(o, k); return g; }
 // 시장 상인들 (기획 54번): 시세 거래 말고도 음식 상인은 먹을 것, 재료 상인은 재료를 팖
 const FOOD_SHOP = [['tea', 20], ['bread', 35], ['skewer', 80]];
@@ -5240,7 +5272,7 @@ function frame(ms) {
     ctx.setTransform(DPR * cam.s, 0, 0, DPR * cam.s, DPR * (W / 2 - cam.fx * cam.s), DPR * (H / 2 - cam.fy * cam.s));
     drawTown(ctx, dt);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0); if (SKY[phase].tint) R(ctx, 0, 0, W, H, SKY[phase].tint);
-    drawSnow(ctx, dt);
+    drawSnow(ctx, dt); drawWeather(ctx, dt);
     const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(40,50,70,.3)'); R(ctx, 0, 0, W, H, v);
   } else if (scene === 'hunt' && S.hunt) {
     huntTick(dt);
@@ -5249,7 +5281,7 @@ function frame(ms) {
       const sk = (cam.shake || 0) > .2 ? [(Math.random() - .5) * cam.shake, (Math.random() - .5) * cam.shake] : [0, 0]; cam.shake = Math.max(0, (cam.shake || 0) - dt * 30);
       ctx.setTransform(DPR * cam.s, 0, 0, DPR * cam.s, DPR * (W / 2 - cam.fx * cam.s + sk[0]), DPR * (H / 2 - cam.fy * cam.s + sk[1]));
       drawHunt(ctx, dt);
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0); if (SKY[phase].tint) R(ctx, 0, 0, W, H, SKY[phase].tint);
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0); if (SKY[phase].tint) R(ctx, 0, 0, W, H, SKY[phase].tint); drawWeather(ctx, dt);
       const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,20,8,.35)'); R(ctx, 0, 0, W, H, v);
     }
   } else if (scene === 'forest' && S.forest) {
@@ -5260,7 +5292,7 @@ function frame(ms) {
     drawForest(ctx, dt);
     if (S.forest.road) { ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); drawSnow(ctx, dt, TOWNS[S.forest.road].fx); ctx.restore(); }
     forestFog(ctx);
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); if (SKY[phase].tint) R(ctx, 0, 0, W, H, SKY[phase].tint);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); if (SKY[phase].tint) R(ctx, 0, 0, W, H, SKY[phase].tint); drawWeather(ctx, dt);
     const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,20,8,.4)'); R(ctx, 0, 0, W, H, v);
     drawArrows(ctx); drawForestMap(ctx);
     }
@@ -5280,7 +5312,7 @@ function frame(ms) {
       mc.globalCompositeOperation = 'destination-in'; mc.fillStyle = g; mc.fillRect(0, 0, msk.width, msk.height); mc.globalCompositeOperation = 'source-over';
     }
     ctx.drawImage(msk, 0, 0);
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); drawWeather(ctx, dt);
     const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(20,10,0,.3)'); R(ctx, 0, 0, W, H, v);
     drawBubble(ctx);
   }
@@ -5359,7 +5391,7 @@ window.MinerDiary = {
     return { x: W / 2, y: H / 2 };
   },
   speed: k => { hero.speed = 5.2 * k; animK = k; },
-  quietEvents: () => { evQuiet = true; }, autoConfirm: v => { autoOk = v; }, /* 시험용: 확정 창과 판매 수량 창을 건너뜀 */ evAdd: (k, sz) => evAdd(k, sz), events: () => (S.ev ? S.ev.list : []),
+  quietEvents: () => { evQuiet = true; wxFixed = 'clear'; }, setWx: k => { wxFixed = k; S.wx = k; renderHud(); },   /* 시험용: 돌발 이벤트를 끄고 날씨를 맑음으로 고정, setWx로 날씨를 정함 */ autoConfirm: v => { autoOk = v; }, /* 시험용: 확정 창과 판매 수량 창을 건너뜀 */ evAdd: (k, sz) => evAdd(k, sz), events: () => (S.ev ? S.ev.list : []),
   bgm: () => bgm.mood,
   combo: () => combo.n,
   mfloats: () => mfloats.map(f => f.text),
