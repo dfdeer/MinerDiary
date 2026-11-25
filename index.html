@@ -388,7 +388,7 @@ const blocked = (x, y) => {
 /* ===== 게임 규칙 설정 ===== */
 const KEY = 'minerdiary.v1';
 const MAX_ENERGY = 100, DIG_COST = 2, MAX_FLOOR = 10;
-const FAINT_LOSS = 0.3;                                    // 쓰러지면 그날 캔 광석 중 잃는 비율 (1단계 임시값)
+const FAINT_FEE = .1, FAINT_FEE_MAX = 1000;                // 쓰러지면 가방은 그대로, 치료비로 가진 돈의 10% (최대 1000) (기획 85번)
 const START_FRAC = { normal: 1, late: 0.9, faint: 0.7, early: 1.1 };   // early: 저녁 전에 자면 다음 날 기력 덤
 // 광석: 층이 깊을수록 비싼 것이 나옴. 석탄은 제련 연료, 원석(수정, 자수정, 루비)은 나중에 세공소에서 씀
 const ORES = {
@@ -877,13 +877,11 @@ function sleep(camp) {
   if (sum.val) countUp(sum.val);
 }
 function faint() {
-  restoreHomeDeep();   // 다른 마을에서 쓰러지면 집에서 깸
+  restoreHomeDeep();   // 다른 마을에서 쓰러져도 촌장이 집으로 데려옴
   S.loc = 'home';
-  const lost = {};   // 가방에 든 것 일부를 잃고 나머지는 집으로
-  Object.keys(S.carry || {}).forEach(o => { const n = Math.floor(S.carry[o] * FAINT_LOSS); if (n > 0) { S.carry[o] -= n; lost[o] = n; } });
+  const fee = Math.min(FAINT_FEE_MAX, Math.floor(S.gold * FAINT_FEE)); S.gold -= fee;
   const sm = newDay('faint'); save(); renderHud();
-  const ls = ORE_ORDER.filter(o => lost[o]).map(o => `<span><span class="ore ${o}"></span> -${lost[o]}</span>`).join(' ');
-  openSheet(ico('ic_warn') + '쓰러짐', `<p>${S.day}일차 아침 ${PWR}${S.energy}/${S.max}</p>` + (ls ? `<p class="warn">${ls}</p>` : '') + sm);
+  openSheet(ico('ic_warn') + '쓰러짐', `<p>${S.day}일차 아침 ${PWR}${S.energy}/${S.max}</p><p class="dim">촌장</p><p>길에 쓰러져 있길래 집까지 데려왔어요. 가방은 그대로 챙겨 뒀어요.${fee ? ' 약값은 조금 받았어요.' : ''}</p>` + (fee ? `<p class="warn">${GOLD}-${fee}</p>` : '') + sm);
 }
 /* ===== 아이콘 (코드 도형). 24×24 판 위의 SVG 경로. 화면 글에는 ico(), 그림 위에는 emo() ===== */
 function gearPath() {
