@@ -850,7 +850,9 @@ const shot = process.argv[2];
   ok(await page.locator('#sheet [data-a="nsell"]').count() === 0 && (await page.textContent('#sheet')).includes('저녁부터'), '야시장은 아침엔 닫혀 있음');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { S.minE = S.dayStart - S.max * .65; const b = nightToday().buy[0]; S.inv[b.item] = (S.inv[b.item] || 0) + b.n; renderHud(); });
-  await visit('market', '#sheet [data-a="nsell"]');
+  await visit('market', '#sheet [data-a="nTab"]');
+  await page.click('#sheet [data-a="nTab"][data-o="sell"]');
+  ok(await page.locator('#sheet [data-a="nbuy"]').count() === 0 && await page.locator('#sheet .seg .on').textContent().then(t => t.startsWith('판매')), '야시장도 구매와 판매 칸이 나뉨 (기획 89번)');
   const gN = (await st()).gold, nb = (await st()).night.buy[0];
   await page.click('#sheet [data-a="nsell"][data-n="0"]');
   s = await st();
@@ -1226,6 +1228,11 @@ const shot = process.argv[2];
     const d0 = await sp.evaluate(() => S.day);
     await sp.click('#sheet [data-a="sleep"]');
     ok(await sp.locator('#sheet [data-a="cfOk"]').count() === 1 && await sp.evaluate(d0 => S.day === d0, d0), '침대의 자기도 확정 창이 먼저 뜨고 바로 자지 않음');
+    await sp.click('#sheet [data-a="cfBack"]');
+    // 재료나 돈, 기력이 빠지는 다른 단추도 확정을 거침 (기획 89번)
+    ok(await sp.evaluate(() => ['kcookSel', 'kcook', 'board', 'donate', 'travel', 'walk', 'sleep', 'campSleep', 'inn'].every(k => CONFIRM.has(k))), '요리, 의뢰판 납품, 기증, 바로 가기, 길 걷기, 자기도 확정 단추에 들어 있음');
+    await sp.evaluate(() => { S.items.recall = 1; closeSheet(); showBag(); const b = document.createElement('button'); b.dataset.a = 'use'; b.dataset.o = 'recall'; b.innerHTML = '귀환서'; document.querySelector('#sheet').appendChild(b); b.click(); });
+    ok(await sp.locator('#sheet [data-a="cfOk"]').count() === 1 && await sp.evaluate(() => S.items.recall === 1), '귀환서를 쓸 때도 확정 창이 먼저');
     await sp.click('#sheet [data-a="cfBack"]');
     // 처음부터 해도 소리 크기와 화면 밖 무음 설정은 그대로
     await sp.evaluate(() => { closeSheet(); S.vol.bgm = .35; S.vol.master = .7; S.bgOff = false; showMenu(); });

@@ -3826,13 +3826,17 @@ function nightToday() {
   S.night = { day: S.day, sell: pick(NIGHT_SELL, 3, 1).map(([id, kind, gold]) => ({ id, kind, gold, sold: false })), buy: pick(NIGHT_BUY, 2, 2).map(([item, n, gold]) => ({ item, n, gold, done: false })) };
   return S.night;
 }
+let nightTab = 'buy';
 function nightHtml() {
   if (!nightOpen()) return '';
   if (phaseIndex() < 2) return `<p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장 저녁부터</p>`;
   const N = nightToday();
   const sell = N.sell.map((s2, i) => `<div class="rowi"><span class="nm">${accIco(s2.id)}${(ACC[s2.id] || ITEMS[s2.id]).n}</span><button class="btn small" data-a="nbuy" data-n="${i}" ${s2.sold || S.gold < s2.gold ? 'disabled' : ''}>${s2.sold ? '팔림' : GOLD + s2.gold}</button></div>`).join('');
   const buy = N.buy.map((b, i) => `<div class="rowi"><span class="nm"><span class="ore ${b.item}"></span>${ORES[b.item].name} <small>${Math.min(have(b.item), b.n)}/${b.n}</small></span><button class="btn small primary" data-a="nsell" data-n="${i}" ${b.done || have(b.item) < b.n ? 'disabled' : ''}>${b.done ? '끝' : GOLD + b.gold}</button></div>`).join('');
-  return `<p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장 사기</p><div class="rows">${sell}</div><p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장 팔기</p><div class="rows">${buy}</div>`;
+  // 야시장도 떠돌이 상인처럼 구매와 판매 칸으로 나눔 (기획 89번)
+  const nOk = N.buy.filter(b => !b.done && have(b.item) >= b.n).length;
+  const seg = `<div class="seg"><button class="${nightTab === 'buy' ? 'on' : ''}" data-a="nTab" data-o="buy">${ico('ic_moon')}구매</button><button class="${nightTab === 'sell' ? 'on' : ''}" data-a="nTab" data-o="sell">${ico('ic_gold')}판매${nOk ? `<small>${nOk}</small>` : ''}</button></div>`;
+  return `<p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장</p>${seg}<div class="rows">${nightTab === 'buy' ? sell : buy}</div>`;
 }
 function nightBuy(i) {
   const s2 = nightToday().sell[i]; if (!s2 || s2.sold || S.gold < s2.gold || phaseIndex() < 2) return;
@@ -4054,7 +4058,7 @@ function showTownObj(o) {
 function sellValue(w, o, n) { if (w === 't') { let g = 0; for (let k = 0; k < n; k++) g += unitPrice(o, k); return g; } return (w === 'w' ? townPrice(o) : ORES[o].price) * n; }
 function showSellQty(o, w) {
   const hv = have(o); if (!hv) return;
-  openSheet(ico('ic_shop') + '팔기', `<p><span class="ore ${o}"></span>${ORES[o].name} <small>×${hv}</small></p><div class="drop"><input type="range" min="1" max="${hv}" step="1" value="${hv}" data-sell="${w}" data-o="${o}" aria-label="수량"><b>×${hv}</b></div><p class="big">${GOLD}<b id="sellv">${sellValue(w, o, hv)}</b></p>`,
+  openSheet(ico('ic_shop') + '판매', `<p><span class="ore ${o}"></span>${ORES[o].name} <small>×${hv}</small></p><div class="drop"><input type="range" min="1" max="${hv}" step="1" value="${hv}" data-sell="${w}" data-o="${o}" aria-label="수량"><b>×${hv}</b></div><p class="big">${GOLD}<b id="sellv">${sellValue(w, o, hv)}</b></p>`,
     `<button class="btn" data-a="sellBack" data-o="${w}">뒤로</button><button class="btn primary" data-a="sellDo" data-o="${o}" data-n="${'mtw'.indexOf(w)}">확정</button>`);
 }
 function sellBack(w) { if (w === 'm') showMerchant(); else if (w === 't') showMarket(); else showTownObj(TOWN_OBJ[1]); }
@@ -5373,7 +5377,7 @@ function spHammer(id) {
   const sp = SPECIALS.find(v => v.id === id); if (!sp || S.spc[id] === undefined || S.spc[id] >= 2 || S.gold < REHAMMER_GOLD) return;
   openHammer('다시 망치질', PICKS[4].period, PICKS[4].zone, q => {
     S.gold -= REHAMMER_GOLD; S.spc[id] = Math.max(S.spc[id], q); if (S.pk.sp === id) S.pickQ = S.spc[id];
-    SFX.stairs(); save(); renderHud(); openSheet('대장장이', `<p>${['다시 두드려 봤어요.', '솜씨가 좋은데요.', '이건 정말 잘 나왔어요.'][q]}</p><div class="feat"><span>${ico('ic_pick')}${sp.n} ${QUAL[S.spc[id]]}</span></div>`);
+    SFX.stairs(); save(); renderHud(); openSheet('대장장이', `<p>${['다시 두드려 봤어요.', '솜씨가 좋은데요.', '이건 정말 잘 나왔어요.'][q]}</p><div class="feat"><span>${ico('ic_pick')}${sp.n} ${qBadge(S.spc[id])}</span></div>`);
   });
 }
 /* ===== 낚시 (기획 4번 4단계): 다리를 고치면 낚싯대. 강을 누르면 물가로 걸어가서 찌를 던지고, 찌가 잠길 때 당김 =====
@@ -5566,7 +5570,7 @@ function doReq() {
 const CUTS = { crystal: { out: 'crystalGem', period: 2.2, zone: 1 }, amethyst: { out: 'amethystGem', period: 1.9, zone: .85 }, ruby: { out: 'rubyGem', period: 1.6, zone: .7 } }, CUT_GOLD = 30;
 function showJewel() {
   // 세공소 안 그림 (기획 84번): 작업대 위 원석 쟁반을 누르면 그 원석을 깎음
-  const hots = [['crystal', 420], ['amethyst', 500], ['ruby', 580]].map(([o, x]) => ({ a: 'cut', o, box: [x - 38, 170, x + 38, 300], name: `×${have(o)}`, aria: ORES[o].name, dis: have(o) < 1 || S.gold < CUT_GOLD }));
+  const hots = [['crystal', 420], ['amethyst', 500], ['ruby', 580]].map(([o, x], i) => ({ a: 'cut', o, box: [x - 38, 170, x + 38, 300], top: i === 1, name: `×${have(o)}`, aria: ORES[o].name, dis: have(o) < 1 || S.gold < CUT_GOLD }));
   openSheet(ico('ic_shard') + '세공소', roomHtml('jewel', hots) + `<p class="dim">${Object.keys(CUTS).map(o => `<span class="ore ${o}"></span>${ico('ic_arrow')}<span class="ore ${CUTS[o].out}"></span>`).join(' ')} ${GOLD}${CUT_GOLD}</p>`);
 }
 function cutGem(o) {
@@ -5576,7 +5580,7 @@ function cutGem(o) {
     const n = q === 2 ? 2 : q === 1 ? 1 + (Math.random() < .5 ? 1 : 0) : 1;
     give(C.out, n); S.cutN = (S.cutN || 0) + 1;
     SFX.stairs(); questEvent('cut'); save(); renderHud();
-    openSheet('세공사', `<p>${['괜찮게 나왔어요.', '결이 잘 맞았네요.', '이건 정말 잘 깎였어요.'][q]}</p><div class="feat"><span><span class="ore ${C.out}"></span>${ORES[C.out].name} ×${n} ${QUAL[q]}</span></div>`);
+    openSheet('세공사', `<p>${['괜찮게 나왔어요.', '결이 잘 맞았네요.', '이건 정말 잘 깎였어요.'][q]}</p><div class="feat"><span><span class="ore ${C.out}"></span>${ORES[C.out].name} ×${n} ${qBadge(q)}</span></div>`);
   });
 }
 /* ===== 시장 (기획 5번): 매일 바뀌는 시세. 많이 팔면 값이 떨어졌다가 며칠에 걸쳐 회복. 내일 오를 것 하나를 미리 알려 줌 ===== */
@@ -5642,7 +5646,7 @@ document.addEventListener('input', e => { if (e.target.dataset && e.target.datas
 document.addEventListener('change', e => { if (e.target.dataset && (e.target.dataset.vol === 'sfx' || e.target.dataset.vol === 'master')) SFX.coin(); });
 document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled) return; act(b); });
 /* 확정 (기획 66번): 돈이나 물건이 빠지는 단추는 한 번 더 묻고 확정. 확정 창엔 무엇인지와 값만 */
-const CONFIRM = new Set(['sleep', 'campSleep', 'restore', 'home', 'buy', 'mbuy', 'nbuy', 'nsell', 'sharp', 'smelt', 'donate', 'craft', 'combine', 'cut', 'donkey', 'fix', 'rail', 'kreq', 'inn', 'sellAll', 'forgeGo', 'spHammer', 'calmHeart']);
+const CONFIRM = new Set(['sleep', 'campSleep', 'kcookSel', 'kcook', 'board', 'donate', 'travel', 'walk', 'restore', 'home', 'buy', 'mbuy', 'nbuy', 'nsell', 'sharp', 'smelt', 'donate', 'craft', 'combine', 'cut', 'donkey', 'fix', 'rail', 'kreq', 'inn', 'sellAll', 'forgeGo', 'spHammer', 'calmHeart']);
 let autoOk = false, cfPend = null;   // autoOk: 시험용 (확정을 건너뜀)
 function askConfirm(b) {
   cfPend = { html: sheet.innerHTML, closable: sheetClosable, a: b.dataset.a, o: b.dataset.o, n: b.dataset.n };
@@ -5652,7 +5656,8 @@ function askConfirm(b) {
 function act(b) {
   const a = b.dataset.a, n = +b.dataset.n;
   SFX.tap();
-  if (CONFIRM.has(a) && !b.dataset.ok && !autoOk) { askConfirm(b); return; }
+  const cfUse = a === 'use' && ['recall', 'campRecall', 'tent'].includes(b.dataset.o);   // 소모품 가운데 자리를 옮기거나 천막을 치는 것만 확정
+  if ((CONFIRM.has(a) || cfUse) && !b.dataset.ok && !autoOk) { askConfirm(b); return; }
   if (a === 'cfBack' || a === 'cfOk') {
     const p = cfPend; cfPend = null; if (!p) { closeSheet(); return; }
     sheet.innerHTML = p.html; sheetClosable = p.closable;   // 원래 창으로 되돌림 (뒤로) 또는 되돌린 뒤 그 단추를 누른 것으로
@@ -5698,6 +5703,7 @@ function act(b) {
   else if (a === 'smithyBack') { forgeSel = null; showSmithy('pick'); }
   else if (a === 'smTab') showSmithy(b.dataset.o);
   else if (a === 'mTab') showMerchant(b.dataset.o);
+  else if (a === 'nTab') { nightTab = b.dataset.o; showMarket(); }
   else if (a === 'twTab') { twTab = b.dataset.o; showTownObj(TOWN_OBJ[1]); }
   else if (a === 'kTab') showKitchen(b.dataset.o);
   else if (a === 'spEquip') spEquip(b.dataset.o);
