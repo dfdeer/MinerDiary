@@ -408,7 +408,9 @@ const shot = process.argv[2];
 
   // 10-3. 상인에게서 나침반과 귀환서 사기
   await page.evaluate(() => { S.gold = Math.max(S.gold, 300); renderHud(); });
-  await visit('merchant', '#sheet [data-a="buy"]');
+  await visit('merchant', '#sheet [data-a="mTab"]');
+  await page.click('#sheet [data-a="mTab"][data-o="buy"]');
+  ok(await page.locator('#sheet [data-a="sell"]').count() === 0 && await page.locator('#sheet .seg .on').textContent() === '사기', '떠돌이 상인은 팔기와 사기 칸이 나뉨 (기획 83번)');
   const gB = (await st()).gold;
   const shopIx = id => page.evaluate(i => SHOP.findIndex(it => it.id === i), id);
   await page.evaluate(n => document.querySelector(`#sheet [data-a="buy"][data-n="${n}"]`).click(), await shopIx('compass'));
@@ -561,7 +563,8 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="restore"][data-o="field"]');
   ok((await st()).restored.includes('field') && (await quest()).includes('거두기'), '밭을 고치면 퀘스트 「작물 거두기」');
   await page.click('#sheet [data-a="close"]');
-  await visit('merchant', '#sheet [data-a="buy"][data-n="0"]');
+  await visit('merchant', '#sheet [data-a="mTab"]');
+  await page.click('#sheet [data-a="mTab"][data-o="buy"]');
   for (let k = 0; k < 3; k++) await page.evaluate(() => document.querySelector('#sheet [data-a="buy"][data-n="0"]').click());   // 상점 창이 길어 아래쪽 단추는 창 안에서 바로 누름
   ok((await st()).items.radishSeed === 3, '상인에게서 무 씨앗 셋을 삼');
   await page.click('#sheet [data-a="close"]');
@@ -1191,7 +1194,7 @@ const shot = process.argv[2];
     const g0 = await sp.evaluate(() => S.gold);
     await sp.click('#sheet [data-a="sellDo"]');
     ok(await sp.evaluate(g0 => S.carry.copper === 4 && S.gold === g0 + ORES.copper.price * 2, g0), '확정을 누르면 고른 수량(2개)만 팔림');
-    await sp.evaluate(() => { S.gold = 1000; showMerchant(); });
+    await sp.evaluate(() => { S.gold = 1000; showMerchant('buy'); });
     const b0 = await sp.evaluate(() => S.gold);
     await sp.click('#sheet [data-a="buy"]:not([disabled])');
     ok(await sp.locator('#sheet [data-a="cfOk"]').count() === 1 && await sp.evaluate(b0 => S.gold === b0, b0), '사기를 누르면 확정 창이 먼저 뜨고 돈은 아직 그대로');
@@ -1199,6 +1202,17 @@ const shot = process.argv[2];
     ok(await sp.locator('#sheet [data-a="buy"]').count() > 0, '뒤로를 누르면 원래 창');
     await sp.click('#sheet [data-a="buy"]:not([disabled])'); await sp.click('#sheet [data-a="cfOk"]');
     ok(await sp.evaluate(b0 => S.gold < b0, b0), '확정을 누르면 삼');
+    await sp.evaluate(() => showHouse());
+    const d0 = await sp.evaluate(() => S.day);
+    await sp.click('#sheet [data-a="sleep"]');
+    ok(await sp.locator('#sheet [data-a="cfOk"]').count() === 1 && await sp.evaluate(d0 => S.day === d0, d0), '침대의 자기도 확정 창이 먼저 뜨고 바로 자지 않음');
+    await sp.click('#sheet [data-a="cfBack"]');
+    // 처음부터 해도 소리 크기와 화면 밖 무음 설정은 그대로
+    await sp.evaluate(() => { closeSheet(); S.vol.bgm = .35; S.vol.master = .7; S.bgOff = false; showMenu(); });
+    ok(await sp.locator('#sheet [data-a="bgOff"]').count() === 1, '설정에 화면 밖 무음 켜고 끄기');
+    await sp.evaluate(() => { window.MinerDiary.autoConfirm(true); });
+    await sp.evaluate(() => { const b = document.createElement('button'); b.dataset.a = 'reset'; act(b); });
+    ok(await sp.evaluate(() => S.vol.bgm === .35 && S.vol.master === .7 && S.bgOff === false && S.day === 1), '처음부터 해도 음량과 화면 밖 무음 설정은 그대로');
     await sp.close();
   }
 
