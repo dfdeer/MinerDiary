@@ -147,13 +147,13 @@ const shot = process.argv[2];
   await page.waitForTimeout(300);
   ok((await quest()).includes('광석 캐기'), '숲에서 동굴 입구 2×2 칸 가운데 뒤쪽 칸을 눌러도 걸어가서 숲 동굴, 퀘스트 「광석 캐기」');
   ok(await page.evaluate(() => { let holes = 0; for (let y = -18; y <= 18; y++) for (let x = -18; x <= 18; x++) if (mT(x, y) === 'd') holes++; const e0 = S.energy; dig(30, 0); return holes === 0 && mT(30, 0) === 'w' && S.energy === e0; }), '숲 동굴은 작고(바깥 벽은 못 캠) 내려가는 구멍이 없음');
-  for (let k = 0; k < 8 && ((await st()).carry.copper || 0) < 5; k++) {   // 가끔 한 번 누름이 걷기로 끝나 덜 캐지므로 다섯이 될 때까지
+  for (let k = 0; k < 16 && ((await st()).carry.copper || 0) < 5; k++) {   // 가끔 한 번 누름이 걷기로 끝나 덜 캐지므로 다섯이 될 때까지
     const r = await page.evaluate(() => window.MinerDiary.nearRock());
     await page.evaluate(([x, y]) => window.MinerDiary.setCell(x, y, 'r', 'copper'), r);
     await tap(r[0], r[1]);
   }
   await page.waitForFunction(() => (S.carry.copper || 0) >= 5, null, { timeout: 3000 }).catch(() => {});
-  ok((await st()).carry.copper >= 5 && (await quest()).includes('상인'), '동굴에서 광석 다섯을 캐면 「상인에게 광석 팔기」');
+  ok((await st()).carry.copper >= 5 && (await quest()).includes('상인'), `동굴에서 광석 다섯을 캐면 「상인에게 광석 팔기」 (구리 ${(await st()).carry.copper})`);
   ok((await page.evaluate(() => window.MinerDiary.mfloats())).some(t => /^구리 광석 \+[12]$/.test(t)), '캐면 광석 이름과 개수가 떠오름 (구리 광석 +1)');
   ok(!/\d+\/\d+/.test((await quest()).replace(/\d+\/\d+\s*$/, '')) && !(await page.evaluate(() => document.querySelector('.quest em'))), '퀘스트 막대에 몇 번째인지(전체 개수) 숫자가 없음');
   ok(await page.locator('#minebar [data-a="leave"]').count() === 0 && await page.locator('#minebar [data-a="homeFastAsk"]').count() === 1, '아래 막대엔 마을 단추 하나 (걸어서 나가기 단추 없음)');
@@ -819,6 +819,7 @@ const shot = process.argv[2];
   await page.evaluate(() => { closeSheet(); homeFromTown(); });
   // 다른 마을: 항구(박물관 뒤)와 화산 기슭(깊이 12 뒤), 세 마을을 다 가 보면 광차 철길
   await page.evaluate(() => { S.restored.push('museum'); S.deepest = Math.max(S.deepest, 12); S.energy = S.max; showWorld(); });
+  ok(await roomOk(page) === 'no hot', '지도는 양피지 그림 (바다, 산맥, 화산, 강, 숲, 길, 마을, 기획 90번)');
   ok(await page.locator('#sheet [data-a="walk"][data-o="port"]').count() === 1 && await page.locator('#sheet [data-a="walk"][data-o="volcano"]').count() === 1, '박물관을 고치면 항구 마을, 깊이 12면 화산 기슭 마을이 지도에 생김');
   await page.evaluate(() => { S.carry = { crystalGem: 2 }; S.visited.port = 1; showWorld(); });
   await page.click('#sheet [data-a="travel"][data-o="port"]');
