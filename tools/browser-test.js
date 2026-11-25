@@ -38,6 +38,8 @@ const shot = process.argv[2];
   /* ===== 폰 크기 ===== */
   const page = await open(390, 844);
   const { st, tap, visit } = helpers(page);
+  // 대장간은 첫 화면에서 일(용광로, 곡괭이, 날 세우기, 장신구, 합치기, 도구)을 고름 (기획 75번)
+  const smithy = async tab => { await visit('smithy', `#sheet [data-a="smTab"][data-o="${tab}"]`); await page.click(`#sheet [data-a="smTab"][data-o="${tab}"]`); };
   await page.evaluate(() => window.MinerDiary.speed(10));
 
   ok(await page.locator('#loading').isHidden() && await page.evaluate(() => document.fonts.check('16px Jua', '광부')), '둥근 글꼴을 읽은 뒤 로딩 화면이 사라짐');
@@ -390,7 +392,9 @@ const shot = process.argv[2];
   s = await st();
   ok(s.restored.includes('smithy') && s.gold === 500 && (await page.textContent('#sheet h2')).includes('대장장이'), '🪙500으로 대장간을 고치면 대장장이가 옴');
   await page.click('#sheet [data-a="close"]');
-  await visit('smithy', '#sheet [data-a="smelt"]');
+  await visit('smithy', '#sheet .smtile');
+  ok(await page.locator('#sheet .smtile').count() >= 5 && await page.locator('#sheet [data-a="smelt"]').count() === 0, '대장간 첫 화면은 일 고르기 판 (용광로, 곡괭이, 날 세우기, 장신구, 도구)');
+  await page.click('#sheet [data-a="smTab"][data-o="furnace"]');
   if (shot) await page.screenshot({ path: path.join(shot, 'smithy.png') });
   await page.click('#sheet [data-a="smelt"][data-o="copper"]');
   s = await st();
@@ -430,7 +434,7 @@ const shot = process.argv[2];
   // 13. 곡괭이 강화: 망치질 세 번, 품질
   await page.evaluate(() => window.MinerDiary.speed(10));
   const forge = async () => {
-    await visit('smithy', '#sheet [data-a="forge"]');
+    await smithy('pick');
     await page.click('#sheet [data-a="forge"]');
     await page.waitForSelector('#sheet [data-a="forgeGo"]');   // 만들기 창: 자루와 추가 재료를 고름 (기본은 나뭇가지 자루, 추가 재료 없음)
     await page.click('#sheet [data-a="forgeGo"]');
@@ -450,10 +454,11 @@ const shot = process.argv[2];
   ok(s.pickQ >= 1, `가운데를 맞춰 두드리면 품질이 오름 (${['보통', '좋음', '최상'][s.pickQ]})`);
   ok(await page.evaluate(() => window.MinerDiary.maxFloor()) === 7 && (await quest()).includes('다리'), '구리 곡괭이로 깊이 7까지, 다음 퀘스트 「강가 다리 고치기」');
   // 13-0x. 날 세우기: 곡괭이 파워 +4
-  const pw0 = await page.evaluate(() => { S.inv.copperBar = 3; S.gold += 100; showSmithy(); return window.MinerDiary.power(); });
+  const pw0 = await page.evaluate(() => { S.inv.copperBar = 3; S.gold += 100; showSmithy('sharp'); return window.MinerDiary.power(); });
   await page.click('#sheet [data-a="sharp"]');
-  ok(await page.locator('#sheet [data-a="craft"][data-o="sickle"]').count() === 1, '대장간에서 낫을 만들 수 있음');
-  ok((await st()).sharp === 1 && await page.evaluate(() => window.MinerDiary.power()) === pw0 + 4 && (await page.textContent('#sheet .pkcard')).includes(`파워 ${pw0 + 4}`), `대장간 날 세우기로 곡괭이 파워 +4 (${pw0} 다음 ${pw0 + 4})`);
+  ok((await st()).sharp === 1 && await page.evaluate(() => window.MinerDiary.power()) === pw0 + 4 && (await page.textContent('#sheet .pkcard')).includes(`파워 ${pw0 + 4}`) && await page.locator('#sheet .pips i.on').count() === 1, `대장간 날 세우기로 곡괭이 파워 +4 (${pw0} 다음 ${pw0 + 4}), 눈금 한 칸`);
+  await page.evaluate(() => showSmithy('tool'));
+  ok(await page.locator('#sheet [data-a="craft"][data-o="sickle"]').count() === 1 && await page.locator('#sheet [data-a="sharp"]').count() === 0, '도구 화면에서 낫을 만들 수 있고, 날 세우기는 따로');
   await page.click('#sheet [data-a="close"]');
 
   // 13-0c. 강가 다리 고치기, 낚싯대, 낚시 세 번 (찌가 잠길 때 당김). 시장과 밭이 강 건너라 다리가 먼저 (기획 67번)
@@ -622,7 +627,7 @@ const shot = process.argv[2];
   s = await st();
   ok(P(s, 'crystalGem') >= 1 && !P(s, 'crystal') && s.cutN === 1 && (await quest()).includes('낫'), `수정 원석을 깎아 수정 보석 ${P(s, 'crystalGem')}개, 다음 퀘스트 「낫 만들기」`);
   await page.evaluate(() => { const r = CRAFTS.find(q => q.id === 'sickle'); Object.entries(r.need).forEach(([k, n]) => { S.inv[k] = (S.inv[k] || 0) + n; }); S.gold += r.gold; renderHud(); });
-  await visit('smithy', '#sheet [data-a="craft"][data-o="sickle"]');
+  await smithy('tool');
   await page.click('#sheet [data-a="craft"][data-o="sickle"]');
   ok((await st()).sickle === 1 && (await quest()).includes('깊이 10'), '대장간에서 낫을 만들면 다음 퀘스트 「깊이 10 도달」');
   await page.click('#sheet [data-a="close"]');
@@ -743,7 +748,7 @@ const shot = process.argv[2];
   ok(await page.evaluate(() => have('iron') === (S.inv.iron || 0) + (S.carry.iron || 0) && S.stash.mtn.iron === 4), '산마을 여관 창고 것은 처음 마을에서 못 씀');
   // 이동수단: 손수레(대장간)는 길 기력 15와 가방 +10, 당나귀 수레(산마을 시장)는 길 기력 5와 가방 +20
   await page.evaluate(() => { S.inv.wood = (S.inv.wood || 0) + 20; S.inv.ironBar = (S.inv.ironBar || 0) + 3; S.gold += 500; renderHud(); });
-  await visit('smithy', '#sheet [data-a="craft"][data-o="cart"]');
+  await smithy('tool');
   await page.click('#sheet [data-a="craft"][data-o="cart"]');
   const wk = await page.evaluate(() => Math.ceil(roadSteps('mtn') / F_STEP));
   ok((await st()).cart === 1 && await page.evaluate(w => travelCost('mtn') === Math.ceil(w * .6) && travelCost('mtn') < w && bagCap() === 30, wk), `바로 가기 기력은 길을 가장 짧게 걸을 때 기력(${wk}), 손수레면 6할에 가방 30칸`);
@@ -824,9 +829,10 @@ const shot = process.argv[2];
 
   // 13-1. 장신구: 만들기, 합치기, 끼기
   await page.evaluate(() => { S.inv.fiber = 6; S.inv.wood = 4; S.acc.have.plumb = 1; S.gold += 200; renderHud(); });
-  await visit('smithy', '#sheet [data-a="craft"][data-o="tent"]');
+  await smithy('tool');
   await page.click('#sheet [data-a="craft"][data-o="tent"]');
   ok((await st()).items.tent === 1, '대장간에서 풀실과 나뭇가지로 야영 천막을 만듦');
+  await page.evaluate(() => showSmithy('fuse'));
   await page.click('#sheet [data-a="combine"][data-n="0"]');
   s = await st();
   ok(s.acc.have.guide === 1 && !s.acc.have.compass && !s.acc.have.plumb, '나침반과 깊이 추를 합치면 길잡이 나침반');
@@ -878,7 +884,7 @@ const shot = process.argv[2];
   {
     const sp0 = await page.evaluate(() => { closeSheet(); S.pick = 3; S.pickQ = 0; S.pk = { handle: 'wood', adds: [], head: null, sp: null }; const s0 = swingSpd();
       Object.assign(S.inv, { goldBar: 5, oldwood: 2, fiber: 5, coal: 3, rubyGem: 5, bone: 3, ruby: 1, manastone: 1 }); S.gold += 9000; renderHud(); return s0; });
-    await visit('smithy', '#sheet [data-a="forge"]');
+    await smithy('pick');
     await page.click('#sheet [data-a="forge"]');
     ok(await page.locator('#sheet .drawer').count() === 0 && await page.locator('#sheet .bslot[data-o="a1"]').count() === 1 && await page.locator('#sheet canvas[data-pick]').count() === 1 && (await page.textContent('#sheet .stats3')).includes('빠르기'), '곡괭이 공방: 작업대 가운데 곡괭이 그림과 둘레 칸, 세기 막대, 금 곡괭이부터 재료칸 둘 (기획 73번)');
     await page.click('#sheet [data-a="fslot"][data-o="handle"]');
@@ -898,7 +904,7 @@ const shot = process.argv[2];
     await page.waitForSelector('#sheet h2:has-text("대장장이")', { timeout: 3000 });
     const r1 = await page.evaluate(() => ({ pick: S.pick, h: S.pk.handle, a: S.pk.adds.slice().sort().join(), spd: swingSpd(), oldwood: have('oldwood'), fiber: have('fiber') }));
     ok(r1.pick === 4 && r1.h === 'oldwood' && r1.a === 'coal,fiber' && Math.abs(r1.spd - sp0 - .1 - .1 - .08) < 1e-9 && !r1.oldwood && !r1.fiber, `고목 자루와 풀실로 곡괭이질 빠르기가 오름 (${Math.round((1 + r1.spd) * 100)}%, 품질 최상 +10%)`);
-    await visit('smithy', '#sheet [data-a="codex"]');
+    await smithy('pick');
     await page.click('#sheet [data-a="codex"]');
     ok((await page.textContent('#sheet')).includes('0/8') && (await page.locator('#sheet .card.unk').count()) === 8, '금 곡괭이 다음엔 특수 곡괭이 만들기와 그림자 카드 여덟 장의 도감');
     await page.click('#sheet [data-a="smithyBack"]');

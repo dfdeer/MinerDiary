@@ -101,6 +101,17 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .dgrid button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px 6px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);font-size:11px;line-height:1.1;text-align:center}
 .dgrid button.on{border-color:var(--accent);background:rgba(240,182,79,.22)}.dgrid button:disabled{opacity:.4}.dgrid button.clr{color:var(--dim)}
 .dgrid .ore{width:30px;height:30px}.dgrid .ico{margin:0;width:22px;height:22px}.dgrid small{font-size:10px;color:var(--dim)}.dgrid small.ef{color:#a8e89a}.dgrid small.lack,.bslot small.lack{color:var(--bad)}
+.smgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.smtile{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 8px 12px;border-radius:16px;background:linear-gradient(rgba(255,235,200,.08),rgba(0,0,0,.22));border:1px solid rgba(255,235,200,.16);box-shadow:0 3px 0 rgba(0,0,0,.3);text-align:center}
+.smtile:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.3)}
+.smtile .ti{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,rgba(255,180,90,.28),rgba(0,0,0,.25));border:2px solid rgba(255,220,160,.35)}.smtile .ti .ico{margin:0;width:30px;height:30px}
+.smtile b{font-size:16px}.smtile small{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:3px}.smtile small .ore{width:16px;height:16px}
+.smtile .dot{position:absolute;top:8px;right:10px;min-width:20px;height:20px;border-radius:10px;background:var(--accent);color:var(--ink);font-style:normal;font-size:12px;display:grid;place-items:center;padding:0 5px;box-shadow:0 0 8px rgba(240,182,79,.6)}
+.qb{display:inline-block;font-size:11px;line-height:1;padding:3px 8px;border-radius:999px;margin:3px 0 1px;white-space:nowrap}
+.qb.q0{background:rgba(255,255,255,.1);color:var(--dim)}.qb.q1{background:rgba(110,190,255,.18);color:#9fd2ff;border:1px solid rgba(110,190,255,.4)}.qb.q2{background:rgba(240,182,79,.22);color:#ffd27a;border:1px solid rgba(240,182,79,.55)}
+.card .qd .qb{margin:0}
+.sharpbox{margin-top:10px;padding:12px;border-radius:14px;background:rgba(0,0,0,.22);text-align:center}
+.pips{display:flex;gap:6px;justify-content:center;margin-bottom:6px}.pips i{width:26px;height:8px;border-radius:4px;background:rgba(255,255,255,.12)}.pips i.on{background:linear-gradient(90deg,#ffd27a,#f0b64f);box-shadow:0 0 6px rgba(240,182,79,.6)}
 .crafts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .craftc{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 8px 8px;border-radius:14px;background:rgba(0,0,0,.22);border:1px solid rgba(255,235,200,.12);text-align:center}
 .craftc.ok{border-color:rgba(240,182,79,.65);background:linear-gradient(rgba(240,182,79,.14),rgba(0,0,0,.2));box-shadow:0 0 10px rgba(240,182,79,.15)}
@@ -2467,7 +2478,7 @@ function showStats() {
   const q = QUAL_BONUS[S.pickQ || 0], pb = PK().bonus || 0, lk = accEff('luck'), mg = accEff('magnet');
   const parts = [q ? `품질 ${pct(q)}` : '', pb ? `곡괭이 ${pct(pb)}` : '', lk ? `장신구 ${pct(lk)}` : ''].filter(Boolean).join(', ');
   const rows = [
-    row(ico('ic_pick'), pickName(), S.pick ? QUAL[S.pickQ] : ''),
+    row(ico('ic_pick'), pickName(), S.pick ? qBadge(S.pickQ) : ''),
     row(ico('ic_pick'), '곡괭이질 빠르기', `${Math.round((1 + swingSpd()) * 100)}%`, swingSpd() >= SPD_MAX ? '최대' : ''),
     row(ico('ic_pick'), '곡괭이 파워', pickPower(), [`곡괭이 ${PICK_POW[S.pick || 0]}`, S.pickQ ? `품질 ×${QUAL_POW[S.pickQ]}` : '', S.sharp ? `날 +${S.sharp * 4}` : '', accEff('pow') ? `장신구 +${accEff('pow')}` : ''].filter(Boolean).join(', ')),
     row(PWR, '캐기 기력', digCost('r'), canHard() ? `단단한 바위 ${digCost('h')}` : '단단한 바위 못 캠'),
@@ -4435,7 +4446,7 @@ function showCard(o, msg) {
   else if (o.id === 'jewel') showJewel();
   else if (o.id === 'market') showMarket();
   else if (o.id === 'museum') showMuseum();
-  else if (o.id === 'smithy') showSmithy();
+  else if (o.id === 'smithy') showSmithy('home');
   else if (o.id === 'mine') {
     openSheet(ico('ic_pick') + '광산', `<p>최고 깊이 ${S.deepest}</p>`, '<button class="btn primary" data-a="enter">들어가기</button>');
   } else openSheet(`${o.icon ? ico(o.icon) : ''}${o.name}`, '');
@@ -4553,27 +4564,64 @@ function ruinCard(o) {
   const btn = !r ? '' : !ok ? '<span class="tag">준비 중</span>' : `<span class="tag">${needHtml(r.need || {}, 0)}</span><button class="btn primary" data-a="restore" data-o="${o.id}" ${S.gold >= r.gold && hasAll(r.need || {}) ? '' : 'disabled'}>${GOLD}${r.gold}</button>`;
   openSheet(`${ico(o.icon || 'ic_lock')}${o.ruin}`, featHtml(o), btn);
 }
-function showSmithy() {
-  let smelt;
-  if (S.furnace) smelt = `<div class="rowi"><span class="nm"><span class="ore ${S.furnace.bar}"></span>${ORES[S.furnace.bar].name} <small>×${S.furnace.n}</small></span><small>내일 아침</small></div>`;
-  else {
-    const rows = Object.keys(SMELT).filter(o => have(o) >= SMELT_N).map(o => { const n = smeltN(o); return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${Math.max(n, 1) * SMELT_N} <span class="ore coal"></span>${Math.max(n, 1)} ${ico('ic_arrow')} <span class="ore ${SMELT[o]}"></span>${n}</span><button class="btn small" data-a="smelt" data-o="${o}" ${n ? '' : 'disabled'}>넣기</button></div>`; }).join('');
-    smelt = rows || `<p class="dim">광석 ${SMELT_N}, 석탄 1 ${ico('ic_arrow')} 주괴 1</p>`;
+// 대장간 (기획 75번): 첫 화면은 일을 고르는 판, 용광로, 곡괭이, 날 세우기, 장신구, 합치기, 도구는 각자 화면
+let smithyTab = 'home';
+const qBadge = q => `<span class="qb q${q || 0}">품질 ${QUAL[q || 0]}</span>`;   // 망치질 품질은 이름과 떨어진 알약으로
+const craftOk = r => hasAll(r.need) && S.gold >= r.gold;
+const craftList = kinds => CRAFTS.filter(r => kinds.includes(r.kind) && (r.kind !== 'slot' || S.acc.slots < 2) && !(r.kind === 'tool' && (S[r.id] || (r.id === 'cart' && S.donkey))));
+const fuseList = () => RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b));
+function pickCardHtml() {
+  return `<div class="pkcard"><canvas width="152" height="152" data-pick='${JSON.stringify(curCfg())}'></canvas><div style="flex:1;min-width:0"><div class="nm3">${pickName()}</div>${S.pick ? qBadge(S.pickQ) : ''}${effChips(curEffMap())}<div class="st">파워 ${pickPower()}, 공격 ${power()}, 빠르기 ${Math.round((1 + swingSpd()) * 100)}%</div></div></div>`;
+}
+function showSmithy(tab = smithyTab) {
+  smithyTab = tab;
+  const back = `<button class="btn" data-a="smTab" data-o="home">뒤로</button>`;
+  if (tab === 'furnace') {
+    let smelt;
+    if (S.furnace) smelt = `<div class="rowi"><span class="nm"><span class="ore ${S.furnace.bar}"></span>${ORES[S.furnace.bar].name} <small>×${S.furnace.n}</small></span><small>내일 아침</small></div>`;
+    else {
+      const rows = Object.keys(SMELT).filter(o => have(o) >= SMELT_N).map(o => { const n = smeltN(o); return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${Math.max(n, 1) * SMELT_N} <span class="ore coal"></span>${Math.max(n, 1)} ${ico('ic_arrow')} <span class="ore ${SMELT[o]}"></span>${n}</span><button class="btn small" data-a="smelt" data-o="${o}" ${n ? '' : 'disabled'}>넣기</button></div>`; }).join('');
+      smelt = rows || `<p class="dim">광석 ${SMELT_N}, 석탄 1 ${ico('ic_arrow')} 주괴 1</p>`;
+    }
+    openSheet(ico('ic_hearth') + '용광로', `<div class="rows">${smelt}</div>`, back); return;
   }
-  const next = PICKS[S.pick + 1];
-  let pick = `<div class="pkcard"><canvas width="152" height="152" data-pick='${JSON.stringify(curCfg())}'></canvas><div style="flex:1;min-width:0"><div class="nm3">${pickName()}${S.pick ? ` <small>${QUAL[S.pickQ]}</small>` : ''}</div>${effChips(curEffMap())}<div class="st">파워 ${pickPower()} 공격 ${power()} 빠르기 ${Math.round((1 + swingSpd()) * 100)}%</div></div></div>`
-    + `<div class="pkbtns">${next ? `<button class="btn primary" data-a="forge">${ico('ic_hearth')}${next.name}</button>` : `<button class="btn primary" data-a="forgeSp">${ico('ic_hearth')}특수 곡괭이</button><button class="btn" data-a="codex">${ico('ic_note')}도감 ${Object.keys(S.spc).length}/${SPECIALS.length}</button>`}</div>`;
-  const sh = SHARP[S.sharp || 0];
-  pick += sh ? `<div class="rowi"><span class="nm">날 세우기 +${(S.sharp || 0) + 1} <small class="eff">파워 +4</small> ${needHtml(sh.need, sh.gold)}</span><button class="btn small" data-a="sharp" ${hasAll(sh.need) && S.gold >= sh.gold ? '' : 'disabled'}>세우기</button></div>` : `<div class="rowi"><span class="nm">날 세우기 +5</span></div>`;
-  // 만들기와 합치기는 카드로 (기획 72번): 만들 수 있는 것을 앞에, 빛나는 테두리
-  const craftOk = r => hasAll(r.need) && S.gold >= r.gold;
-  const crafts = CRAFTS.filter(r => (r.kind !== 'slot' || S.acc.slots < 2) && !(r.kind === 'tool' && (S[r.id] || (r.id === 'cart' && S.donkey)))).sort((a, b) => craftOk(b) - craftOk(a)).map(r => {
-    const nm = r.kind === 'slot' ? '장신구 고리' : (ACC[r.id] || ITEMS[r.id] || TOOLS[r.id]).n, ef = r.kind === 'acc' ? accDesc(r.id) : r.kind === 'tool' && TOOLS[r.id].d ? TOOLS[r.id].d : r.kind === 'slot' ? '장신구 칸 +1' : '';
-    return `<div class="craftc${craftOk(r) ? ' ok' : ''}"><span class="bigi">${r.kind === 'slot' ? ico('ic_ring') : accIco(r.id)}</span><b>${nm}</b>${ef ? `<span class="eff">${ef}</span>` : ''}<span class="cost">${needHtml(r.need, r.gold)}</span><button class="btn small${craftOk(r) ? ' primary' : ''}" data-a="craft" data-o="${r.id}" ${craftOk(r) ? '' : 'disabled'}>만들기</button></div>`;
-  }).join('');
-  const recs = RECIPES.map((r, i) => [r, i]).filter(([[a, b]]) => owned(a) || owned(b)).map(([[a, b, o], i]) => { const ok = owned(a) && owned(b);
-    return `<div class="fuse"><span class="slotc${owned(a) ? '' : ' miss'}">${accIco(a)}</span><i>+</i><span class="slotc${owned(b) ? '' : ' miss'}">${accIco(b)}</span><i>=</i><span class="slotc out">${ok ? accIco(o) : '?'}</span><span class="nmf">${ok ? ACC[o].n : `${ACC[owned(a) ? b : a].n} 필요`}</span><button class="btn small${ok && S.gold >= COMBINE_GOLD ? ' primary' : ''}" data-a="combine" data-n="${i}" ${ok && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`; }).join('');
-  openSheet(ico('ic_hearth') + '대장간', `<p class="dim">용광로</p><div class="rows">${smelt}</div><p class="dim" style="margin-top:10px">곡괭이</p><div class="rows">${pick}</div><p class="dim" style="margin-top:10px">만들기</p><div class="crafts">${crafts}</div>` + (recs ? `<p class="dim" style="margin-top:10px">합치기</p><div class="rows">${recs}</div>` : ''));
+  if (tab === 'pick') {
+    const next = PICKS[S.pick + 1];
+    const btns = next ? `<button class="btn primary" data-a="forge">${ico('ic_hearth')}${next.name}</button>` : `<button class="btn primary" data-a="forgeSp">${ico('ic_hearth')}특수 곡괭이</button><button class="btn" data-a="codex">${ico('ic_note')}도감 ${Object.keys(S.spc).length}/${SPECIALS.length}</button>`;
+    openSheet(ico('ic_pick') + '곡괭이', `${pickCardHtml()}<div class="pkbtns">${btns}</div>`, back); return;
+  }
+  if (tab === 'sharp') {
+    const sh = SHARP[S.sharp || 0], n = S.sharp || 0;
+    const pips = `<div class="pips">${SHARP.map((_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</div>`;
+    const body = `${pickCardHtml()}<div class="sharpbox">${pips}<p class="pvname">날 +${n}</p>${sh ? `<div class="effs"><span>곡괭이 파워 +4</span></div><div class="costline">${needHtml(sh.need, sh.gold)}</div>` : '<p class="dim">끝까지 세움</p>'}</div>`;
+    openSheet(ico('ic_pick') + '날 세우기', body, back + (sh ? `<button class="btn primary" data-a="sharp" ${hasAll(sh.need) && S.gold >= sh.gold ? '' : 'disabled'}>세우기</button>` : '')); return;
+  }
+  if (tab === 'acc' || tab === 'tool') {
+    const list = craftList(tab === 'acc' ? ['acc', 'slot'] : ['tool', 'item']).sort((a, b) => craftOk(b) - craftOk(a)).map(r => {
+      const nm = r.kind === 'slot' ? '장신구 고리' : (ACC[r.id] || ITEMS[r.id] || TOOLS[r.id]).n, ef = r.kind === 'acc' ? accDesc(r.id) : r.kind === 'tool' && TOOLS[r.id].d ? TOOLS[r.id].d : r.kind === 'slot' ? '장신구 칸 +1' : '';
+      return `<div class="craftc${craftOk(r) ? ' ok' : ''}"><span class="bigi">${r.kind === 'slot' ? ico('ic_ring') : accIco(r.id)}</span><b>${nm}</b>${ef ? `<span class="eff">${ef}</span>` : ''}<span class="cost">${needHtml(r.need, r.gold)}</span><button class="btn small${craftOk(r) ? ' primary' : ''}" data-a="craft" data-o="${r.id}" ${craftOk(r) ? '' : 'disabled'}>만들기</button></div>`;
+    }).join('');
+    openSheet(tab === 'acc' ? ico('ic_ring') + '장신구' : ico('ic_tent') + '도구', list ? `<div class="crafts">${list}</div>` : '<p class="dim">다 만듦</p>', back); return;
+  }
+  if (tab === 'fuse') {
+    const recs = fuseList().map(([[a, b, o], i]) => { const ok = owned(a) && owned(b);
+      return `<div class="fuse"><span class="slotc${owned(a) ? '' : ' miss'}">${accIco(a)}</span><i>+</i><span class="slotc${owned(b) ? '' : ' miss'}">${accIco(b)}</span><i>=</i><span class="slotc out">${ok ? accIco(o) : '?'}</span><span class="nmf">${ok ? ACC[o].n : `${ACC[owned(a) ? b : a].n} 필요`}</span><button class="btn small${ok && S.gold >= COMBINE_GOLD ? ' primary' : ''}" data-a="combine" data-n="${i}" ${ok && S.gold >= COMBINE_GOLD ? '' : 'disabled'}>${GOLD}${COMBINE_GOLD}</button></div>`; }).join('');
+    openSheet(ico('ic_ring') + '합치기', recs ? `<div class="rows">${recs}</div>` : '<p class="dim">합칠 장신구 없음</p>', back); return;
+  }
+  // 첫 화면: 일 고르기 판. 할 수 있는 일이 있으면 작은 알림 점
+  const nOk = kinds => craftList(kinds).filter(craftOk).length, sh = SHARP[S.sharp || 0], nxt = PICKS[S.pick + 1];
+  const fuseOk = fuseList().filter(([[a, b]]) => owned(a) && owned(b)).length;
+  const tile = (key, icon, name, sub, dot) => `<button class="smtile" data-a="smTab" data-o="${key}">${dot ? `<i class="dot">${dot}</i>` : ''}<span class="ti">${icon}</span><b>${name}</b><small>${sub}</small></button>`;
+  const smeltable = Object.keys(SMELT).filter(o => smeltN(o) > 0).length;
+  const tiles = [
+    tile('furnace', ico('ic_hearth'), '용광로', S.furnace ? `<span class="ore ${S.furnace.bar}"></span>×${S.furnace.n} 내일 아침` : '광석을 주괴로', !S.furnace && smeltable ? smeltable : 0),
+    tile('pick', ico('ic_pick'), '곡괭이', pickName(), nxt && hasAll(nxt.need) && S.gold >= nxt.gold ? 1 : 0),
+    tile('sharp', ico('ic_star'), '날 세우기', `날 +${S.sharp || 0}`, sh && hasAll(sh.need) && S.gold >= sh.gold ? 1 : 0),
+    tile('acc', ico('ic_ring'), '장신구', `장착 칸 ${S.acc.slots}`, nOk(['acc', 'slot'])),
+    fuseList().length ? tile('fuse', ico('ic_ring'), '합치기', `${fuseList().length}가지`, fuseOk) : '',
+    tile('tool', ico('ic_tent'), '도구', '천막, 낫, 수레', nOk(['tool', 'item'])),
+  ].join('');
+  openSheet(ico('ic_hearth') + '대장간', `<div class="smgrid">${tiles}</div>`);
 }
 const smeltN = o => Math.min(FURNACE_MAX, Math.floor(have(o) / SMELT_N), have('coal'));   // 주괴 하나에 광석 5개와 석탄 1개
 function smelt(o) {
@@ -4686,7 +4734,7 @@ function showCodex() {
     const q = S.spc[sp.id];
     if (q === undefined) return `<div class="card unk"><canvas width="172" height="172" data-pick='${JSON.stringify({ c: HEADS[sp.head].col, hd: sp.handle, ad: [], dark: 1 })}'></canvas><span class="nm2">???</span><small>${HEADS[sp.head].n} 머리</small></div>`;
     const eq = S.pk.sp === sp.id;
-    return `<button class="card${eq ? ' eq' : ''}" data-a="spCard" data-o="${sp.id}">${eq ? '<span class="rib">들고 있음</span>' : ''}<span class="qd">${QUAL[q]}</span><canvas width="172" height="172" data-pick='${JSON.stringify({ c: HEADS[sp.head].col, hd: sp.handle, ad: sp.adds, sp: 1 })}'></canvas><span class="nm2">${sp.n}</span><small>${effSum([sp.eff])}</small></button>`;
+    return `<button class="card${eq ? ' eq' : ''}" data-a="spCard" data-o="${sp.id}">${eq ? '<span class="rib">들고 있음</span>' : ''}<span class="qd">${qBadge(q)}</span><canvas width="172" height="172" data-pick='${JSON.stringify({ c: HEADS[sp.head].col, hd: sp.handle, ad: sp.adds, sp: 1 })}'></canvas><span class="nm2">${sp.n}</span><small>${effSum([sp.eff])}</small></button>`;
   };
   openSheet(ico('ic_note') + '곡괭이 도감', `<div class="codexhead"><small>${n}/${SPECIALS.length}</small><span class="bar"><i style="width:${n / SPECIALS.length * 100}%"></i></span></div><div class="codex">${SPECIALS.map(card).join('')}</div>`, `<button class="btn" data-a="smithyBack">뒤로</button>`);
 }
@@ -4696,9 +4744,9 @@ const pkBase = () => S.pkBase || { handle: 'wood', adds: [], head: null, sp: nul
 function showRack() {
   const b = pkBase(), cards = [], eqBase = !S.pk.sp;
   const baseName = b.head ? `${HEADS[b.head].n} 곡괭이` : PICKS[S.pick || 0].name;
-  cards.push(`<button class="card${eqBase ? ' eq' : ''}" data-a="rackPick" data-o="base">${eqBase ? '<span class="rib">들고 있음</span>' : ''}<span class="qd">${QUAL[b.q || 0]}</span><canvas width="172" height="172" data-pick='${JSON.stringify({ c: b.head ? HEADS[b.head].col : TIER_COL[S.pick || 0], hd: b.handle, ad: b.adds, sp: 0 })}'></canvas><span class="nm2">${baseName}</span><small>${effSum([HANDLES[b.handle].eff, ...b.adds.map(a => ADDS[a].eff)]) || '덤 없음'}</small></button>`);
+  cards.push(`<button class="card${eqBase ? ' eq' : ''}" data-a="rackPick" data-o="base">${eqBase ? '<span class="rib">들고 있음</span>' : ''}<span class="qd">${qBadge(b.q)}</span><canvas width="172" height="172" data-pick='${JSON.stringify({ c: b.head ? HEADS[b.head].col : TIER_COL[S.pick || 0], hd: b.handle, ad: b.adds, sp: 0 })}'></canvas><span class="nm2">${baseName}</span><small>${effSum([HANDLES[b.handle].eff, ...b.adds.map(a => ADDS[a].eff)]) || '덤 없음'}</small></button>`);
   SPECIALS.filter(sp => S.spc[sp.id] !== undefined).forEach(sp => { const eq = S.pk.sp === sp.id;
-    cards.push(`<button class="card${eq ? ' eq' : ''}" data-a="rackPick" data-o="${sp.id}">${eq ? '<span class="rib">들고 있음</span>' : ''}<span class="qd">${QUAL[S.spc[sp.id]]}</span><canvas width="172" height="172" data-pick='${JSON.stringify({ c: HEADS[sp.head].col, hd: sp.handle, ad: sp.adds, sp: 1 })}'></canvas><span class="nm2">${sp.n}</span><small>${effSum([sp.eff])}</small></button>`); });
+    cards.push(`<button class="card${eq ? ' eq' : ''}" data-a="rackPick" data-o="${sp.id}">${eq ? '<span class="rib">들고 있음</span>' : ''}<span class="qd">${qBadge(S.spc[sp.id])}</span><canvas width="172" height="172" data-pick='${JSON.stringify({ c: HEADS[sp.head].col, hd: sp.handle, ad: sp.adds, sp: 1 })}'></canvas><span class="nm2">${sp.n}</span><small>${effSum([sp.eff])}</small></button>`); });
   openSheet(ico('ic_pick') + '곡괭이 걸이', `<div class="codex">${cards.join('')}</div>`);
 }
 function rackPick(id) {
@@ -4710,7 +4758,7 @@ function rackPick(id) {
 function showSpCard(id) {
   const sp = SPECIALS.find(v => v.id === id), q = S.spc[id]; if (!sp || q === undefined) return;
   const eq = S.pk.sp === id, ic = k => `<span class="ore ${k}"></span>`;
-  const body = `<div class="forgeui"><div class="pv sp"><canvas width="300" height="300" data-pick='${JSON.stringify({ c: HEADS[sp.head].col, hd: sp.handle, ad: sp.adds, sp: 1 })}'></canvas></div><p class="pvname">${sp.n}</p><p class="pvq">${QUAL[q]}${eq ? ', 들고 있음' : ''}</p>`
+  const body = `<div class="forgeui"><div class="pv sp"><canvas width="300" height="300" data-pick='${JSON.stringify({ c: HEADS[sp.head].col, hd: sp.handle, ad: sp.adds, sp: 1 })}'></canvas></div><p class="pvname">${sp.n}</p><p class="pvq">${qBadge(q)}${eq ? ' 들고 있음' : ''}</p>`
     + `<div class="recipe">${ic(HEADS[sp.head].item)}<i>+</i>${ic(HANDLES[sp.handle].item)}<i>+</i>${sp.adds.map(ic).join('')}</div>${effChips(sp.eff)}</div>`;
   openSheet(ico('ic_pick') + sp.n, body, `<button class="btn" data-a="codex">뒤로</button>${eq ? '' : `<button class="btn primary" data-a="spEquip" data-o="${id}">들기</button>`}${q < 2 ? `<button class="btn" data-a="spHammer" data-o="${id}">${ico('ic_hearth')}${GOLD}${REHAMMER_GOLD}</button>` : ''}`);
 }
@@ -4753,7 +4801,7 @@ function finishForge(q) {
   } else { S.pick += 1; S.pickQ = q; S.pk = { handle: F.handle, adds: [...F.adds], head: null, sp: null }; questEvent('pick'); }
   if (!S.pk.sp) S.pkBase = { ...S.pk, adds: [...S.pk.adds], q: S.pickQ };   // 곡괭이 걸이에 남는 보통 곡괭이 (특수가 아닌 마지막 곡괭이)
   SFX.stairs(); save(); renderHud(); renderDock();
-  openSheet('대장장이', `<p>${pickName()} 완성이에요. ${['쓸 만하게 나왔네요.', '솜씨가 좋은데요.', '이건 정말 잘 나왔어요.'][q]}</p><div class="feat"><span>${ico('ic_pick')}${pickName()} ${QUAL[S.pickQ]}</span>${news ? `<span>${ico('ic_star')}${news}</span>` : ''}</div>`);
+  openSheet('대장장이', `<p>${pickName()} 완성이에요. ${['쓸 만하게 나왔네요.', '솜씨가 좋은데요.', '이건 정말 잘 나왔어요.'][q]}</p><div class="feat"><span>${ico('ic_pick')}${pickName()} ${qBadge(S.pickQ)}</span>${news ? `<span>${ico('ic_star')}${news}</span>` : ''}</div>`);
 }
 // 도감의 특수 곡괭이: 바꿔 들기, 돈을 내고 망치질만 다시 해서 품질 올리기 (재료와 효과는 그대로, 품질은 내려가지 않음)
 function spEquip(id) {
@@ -5067,7 +5115,8 @@ function act(b) {
   else if (a === 'rackPick') rackPick(b.dataset.o);
   else if (a === 'spCard') showSpCard(b.dataset.o);
   else if (a === 'forgeGo') startHammer();
-  else if (a === 'smithyBack') { forgeSel = null; showSmithy(); }
+  else if (a === 'smithyBack') { forgeSel = null; showSmithy('pick'); }
+  else if (a === 'smTab') showSmithy(b.dataset.o);
   else if (a === 'spEquip') spEquip(b.dataset.o);
   else if (a === 'spHammer') spHammer(b.dataset.o);
   else if (a === 'strike') strike();
