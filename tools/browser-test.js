@@ -324,9 +324,14 @@ const shot = process.argv[2];
   await page.waitForFunction(() => window.MinerDiary.scene() === 'forest' && !S.forest.grove, null, { timeout: 20000 });
   ok(true, '곁가지 숲 길로 나가면 본 숲으로');
   await page.evaluate(() => { S.rod = 1; enterGrove('lake'); for (let i = 0; i < S.forest.seen.length; i++) S.forest.seen[i] = 1; });
-  const wt = await page.evaluate(() => { const f = S.forest; for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) if (f.t[fI(x, y)] === 'w' && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => f.t[fI(x + dx, y + dy)] === 'g')) return [x, y]; return null; });
-  await ftap(wt[0], wt[1]);
-  await page.waitForSelector('#sheet [data-a="pull"]', { timeout: 10000 });
+  // 땅과 맞닿은 물가 중 광부에게 가까운 곳부터 (나무에 막혀 못 가는 물가가 있어 몇 곳을 차례로 시도)
+  const wts = await page.evaluate(() => { const f = S.forest, out = []; for (let y = 1; y < FH - 1; y++) for (let x = 1; x < FW - 1; x++) if (f.t[fI(x, y)] === 'w' && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => f.t[fI(x + dx, y + dy)] === 'g')) out.push([x, y]); return out.sort((a, b) => Math.hypot(a[0] - hero.x, a[1] - hero.y) - Math.hypot(b[0] - hero.x, b[1] - hero.y)).slice(0, 6); });
+  for (const wt of wts) {
+    await ftap(wt[0], wt[1]);
+    if (await page.waitForSelector('#sheet [data-a="pull"]', { timeout: 4000 }).then(() => true).catch(() => false)) break;
+    await page.evaluate(() => closeSheet());
+  }
+  await page.waitForSelector('#sheet [data-a="pull"]', { timeout: 3000 });
   await page.evaluate(() => { window.MinerDiary.fishBite(); document.querySelector('#sheet [data-a="pull"]').click(); });   // 무는 시간(0.75초) 안에 바로 당김
   ok(await page.evaluate(() => ['perch', 'carp', 'goldfin'].some(k => S.carry[k] > 0)), '호숫가 숲 물가를 누르면 낚시, 호수 물고기(쏘가리, 붕어, 금빛 송사리)');
   await page.click('#sheet [data-a="close"]');
@@ -839,6 +844,7 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => showBag());
   ok(/소모품/.test(await page.textContent('#sheet')) && !/쓸 것/.test(await page.textContent('#sheet')), '가방의 쓰는 물건 칸 이름은 소모품');
+  ok(await page.locator('#sheet [data-a="store"]').count() === 1, '마을 안에선 가방에서 바로 창고를 염 (기획 76번)');
   ok(await page.locator('#sheet .slot').count() === 3 && await page.locator('#sheet .slot.lock').count() === 3 - (await st()).acc.slots, '장신구 칸은 늘 세 칸, 안 열린 칸은 자물쇠');
   await page.click('#sheet .slot.lock');
   ok(/장신구 고리|깊이 10/.test(await page.textContent('#toast')), '잠긴 칸을 누르면 여는 방법');

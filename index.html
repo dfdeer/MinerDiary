@@ -4465,7 +4465,7 @@ function showBag() {
   const canDrop = rows || items;
   openSheet(ico('ic_bag') + `가방 <small>${carryN()}/${bagCap()}</small>`,
     (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">빈 가방</p>') + (items ? `<p class="dim" style="margin-top:10px">소모품</p><div class="rows">${items}</div>` : '') + accSection(),
-    (canDrop ? `<button class="btn" data-a="dropPick">${ico('ic_trash')}버리기</button>` : '') + `<button class="btn" data-a="stats">${ico('ic_stat')}능력치</button>`);
+    (canDrop ? `<button class="btn" data-a="dropPick">${ico('ic_trash')}버리기</button>` : '') + (storeHere() ? `<button class="btn" data-a="store">${ico('ic_box')}창고</button>` : '') + `<button class="btn" data-a="stats">${ico('ic_stat')}능력치</button>`);   // 내 물건 관리는 바로가기 (기획 76번): 마을 안이면 가방에서 바로 창고
 }
 // 장신구 칸: 세 칸을 늘 보여 주고, 아직 안 열린 칸은 자물쇠와 여는 방법. 칸이나 줄을 누르면 상세
 const SLOT_LOCK = ['', '대장간 장신구 고리', '깊이 10 도달'];
