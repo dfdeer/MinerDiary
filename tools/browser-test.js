@@ -819,7 +819,9 @@ const shot = process.argv[2];
   await page.evaluate(() => { closeSheet(); homeFromTown(); });
   // 다른 마을: 항구(박물관 뒤)와 화산 기슭(깊이 12 뒤), 세 마을을 다 가 보면 광차 철길
   await page.evaluate(() => { S.restored.push('museum'); S.deepest = Math.max(S.deepest, 12); S.energy = S.max; showWorld(); });
-  ok(await roomOk(page) === 'no hot', '지도는 양피지 그림 (바다, 산맥, 화산, 강, 숲, 길, 마을, 기획 90번)');
+  ok(await roomOk(page) === 'ok' && await page.locator('#sheet .room [data-a="wsel"]').count() >= 3 && await page.locator('#sheet .dcard').count() >= 2, `지도는 그림 지도에 마을 핀과 갈 곳 카드 (기획 91번) (${await roomOk(page)})`);
+  await page.click('#sheet .room [data-a="wsel"][data-o="port"]');
+  ok(await page.locator('#sheet .dcard.sel[data-k="port"]').count() === 1, '지도에서 마을 핀을 누르면 그 마을 카드가 골라짐');
   ok(await page.locator('#sheet [data-a="walk"][data-o="port"]').count() === 1 && await page.locator('#sheet [data-a="walk"][data-o="volcano"]').count() === 1, '박물관을 고치면 항구 마을, 깊이 12면 화산 기슭 마을이 지도에 생김');
   await page.evaluate(() => { S.carry = { crystalGem: 2 }; S.visited.port = 1; showWorld(); });
   await page.click('#sheet [data-a="travel"][data-o="port"]');
