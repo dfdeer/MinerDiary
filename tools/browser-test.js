@@ -24,6 +24,16 @@ const shot = process.argv[2];
   // 아래 막대의 마을 단추: 집으로 바로 가기 (창에서 기력 단추, 이동 장면 건너뛰기)
   const goHome = async page => { await page.click('#minebar [data-a="homeFastAsk"]'); await page.click('#sheet [data-a="homeFast"]'); await page.click('#skip'); await page.waitForFunction(() => window.MinerDiary.scene() === 'village', null, { timeout: 20000 }); };
   const P = (s, k) => ((s.inv || {})[k] || 0) + ((s.carry || {})[k] || 0);   // 가방과 창고를 합친 수 (마을 안에선 둘 다 씀)
+  // 건물 안 그림 장면 (기획 80번): 그림이 실제로 그려졌고, 누를 곳끼리 겹치지 않고, 이름표가 보임
+  const roomOk = page => page.evaluate(() => {
+    const cv = document.querySelector('#sheet canvas[data-room]'); if (!cv) return 'no room';
+    const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let lit = 0; for (let i = 3; i < d.length; i += 400) if (d[i] > 0) lit++;
+    if (lit < d.length / 400 * .9) return 'blank';
+    const hs = [...document.querySelectorAll('#sheet .room .hot')].map(b => b.getBoundingClientRect()), lb = [...document.querySelectorAll('#sheet .room .hl')].map(b => b.getBoundingClientRect());
+    for (let i = 0; i < hs.length; i++) for (let j = i + 1; j < hs.length; j++) { const a = hs[i], b = hs[j]; if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) return 'overlap ' + i + ' ' + j; }
+    for (let i = 0; i < lb.length; i++) for (let j = i + 1; j < lb.length; j++) { const a = lb[i], b = lb[j]; if (a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom) return 'label overlap ' + i + ' ' + j; }
+    return hs.length ? 'ok' : 'no hot';
+  });
   const helpers = page => ({
     st: () => page.evaluate(() => JSON.parse(JSON.stringify(window.MinerDiary.state()))),
     // 캔버스 위 칸 누르기
@@ -247,6 +257,7 @@ const shot = process.argv[2];
   ok(s.screen === 'village' && carry0.copper >= 5 && Object.entries(carry0).every(([k, n]) => s.carry[k] === n), `깊이 3에서 마을 단추로 집 앞까지, 가방은 그대로 (${s.screen} ${JSON.stringify(s.carry)} ${s.day})`);
   // 집 창고: 가방에서 넣고 꺼냄
   await visit('house', '#sheet [data-a="store"]');
+  ok(await roomOk(page) === 'ok' && await page.locator('#sheet .room [data-a="sleep"]').count() === 1 && await page.locator('#sheet .room [data-a="stats"]').count() === 1, `집 안 그림에서 침대(자기), 책상(능력치), 상자(창고)를 누름 (${await roomOk(page)})`);
   await page.click('#sheet [data-a="store"]');
   await page.click('#sheet [data-a="stAll"]');
   s = await st();
@@ -398,8 +409,8 @@ const shot = process.argv[2];
   s = await st();
   ok(s.restored.includes('smithy') && s.gold === 500 && (await page.textContent('#sheet h2')).includes('대장장이'), '🪙500으로 대장간을 고치면 대장장이가 옴');
   await page.click('#sheet [data-a="close"]');
-  await visit('smithy', '#sheet .smtile');
-  ok(await page.locator('#sheet .smtile').count() >= 5 && await page.locator('#sheet [data-a="smelt"]').count() === 0, '대장간 첫 화면은 일 고르기 판 (용광로, 곡괭이, 날 세우기, 장신구, 도구)');
+  await visit('smithy', '#sheet .room');
+  ok(await page.locator('#sheet .room [data-a="smTab"]').count() >= 5 && await page.locator('#sheet [data-a="smelt"]').count() === 0 && await roomOk(page) === 'ok', `대장간 첫 화면은 안 그림에서 용광로, 모루, 숫돌, 장신구 탁자, 연장 벽을 누름 (${await roomOk(page)})`);
   await page.click('#sheet [data-a="smTab"][data-o="furnace"]');
   if (shot) await page.screenshot({ path: path.join(shot, 'smithy.png') });
   await page.click('#sheet [data-a="smelt"][data-o="copper"]');
@@ -568,8 +579,10 @@ const shot = process.argv[2];
   ok((await st()).restored.includes('kitchen') && (await quest()).includes('요리'), '식당을 고치면 퀘스트 「요리 찾기」');
   await page.click('#sheet [data-a="close"]');
   await visit('kitchen', '#sheet [data-a="kpick"]');
-  await page.click('#sheet [data-a="kpick"][data-o="mush"]');
-  await page.click('#sheet [data-a="kpick"][data-o="herb"]');
+  ok(await roomOk(page) === 'ok', `식당 안 그림 (${await roomOk(page)})`);
+  await page.click('#sheet .chip[data-a="kpick"][data-o="mush"]');
+  ok(await page.locator('#sheet .potslot.ps0 .ore.mush').count() === 1, '고른 재료는 냄비 위 칸에 들어감');
+  await page.click('#sheet .chip[data-a="kpick"][data-o="herb"]');
   await page.click('#sheet [data-a="kcookSel"]');
   s = await st();
   ok(s.items.soup === 1 && s.recipes.length === 1 && !P(s, 'mush') && (await quest()).includes('의뢰'), '버섯과 약초로 버섯 수프를 찾음, 다음 퀘스트 「주민 의뢰 들어주기」');
@@ -581,7 +594,10 @@ const shot = process.argv[2];
   ok(s.energy === 75 && !s.items.soup, '버섯 수프를 먹으면 기력 +25');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => { S.minE = S.dayStart - S.max * .35; const q = todayReq(); S.inv[q.item] = (S.inv[q.item] || 0) + q.n; renderHud(); });   // 시간을 점심으로, 의뢰 물건 준비
-  await visit('kitchen', '#sheet [data-a="kreq"]');
+  await visit('kitchen', '#sheet [data-a="kTab"][data-o="req"]');
+  ok(await page.locator('#sheet .room [data-a="kTab"][data-o="req"] .dot').count() === 1, '의뢰를 들어줄 수 있으면 쪽지판에 알림 점');
+  await page.click('#sheet [data-a="kTab"][data-o="req"]');
+  await page.waitForSelector('#sheet [data-a="kreq"]');
   const gR = (await st()).gold, rq = (await st()).req;
   await page.click('#sheet [data-a="kreq"]');
   s = await st();

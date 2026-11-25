@@ -1,4 +1,4 @@
-// 앱 아이콘 만들기 (기획 77번): 게임 안 곡괭이 그림(drawPickArt)을 그대로 써서 PNG로 구움
+// 앱 아이콘 만들기 (기획 77번, 80번): 게임 속 광부(chibi)가 수정 굴에서 곡괭이를 든 모습을 PNG로 구움
 // 쓰는 법: node tools/build-icons.js  (icons/ 에 icon-512.png, icon-192.png, apple-touch-icon.png, favicon-32.png)
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
@@ -12,16 +12,22 @@ const fs = require('fs'), path = require('path');
   for (const [name, W] of Object.entries(sizes)) {
     const url = await p.evaluate(W => {
       const cv = document.createElement('canvas'); cv.width = cv.height = W; const c = cv.getContext('2d');
-      // 바탕: 깊은 굴 빛 (가장자리까지 꽉 채움, 둥근 모서리는 기기가 깎음)
-      const bg = c.createRadialGradient(W * .5, W * .55, W * .05, W * .5, W * .5, W * .75); bg.addColorStop(0, '#5a3a22'); bg.addColorStop(.55, '#2e1f14'); bg.addColorStop(1, '#160f0a'); c.fillStyle = bg; c.fillRect(0, 0, W, W);
-      // 등불 빛
-      const gl = c.createRadialGradient(W * .5, W * .46, 1, W * .5, W * .46, W * .42); gl.addColorStop(0, 'rgba(255,190,100,.55)'); gl.addColorStop(1, 'rgba(255,190,100,0)'); c.fillStyle = gl; c.fillRect(0, 0, W, W);
-      // 바닥 광석 반짝이
-      if (W >= 64) [[.2, .78, '#6fd2ea'], [.8, .74, '#e0884a'], [.72, .86, '#b9a8ff']].forEach(([x, y, col]) => { const r = W * .035; c.beginPath(); c.moveTo(W * x, W * y - r * 1.4); c.lineTo(W * x + r, W * y); c.lineTo(W * x, W * y + r * 1.4); c.lineTo(W * x - r, W * y); c.closePath(); c.fillStyle = col; c.fill(); c.lineWidth = Math.max(1, W * .008); c.strokeStyle = '#2b1a12'; c.stroke(); });
-      // 곡괭이: 가운데 76% 안(가려지는 둥근 아이콘에서도 잘 보이게)
-      const s = Math.round(W * .76), off = document.createElement('canvas'); off.width = off.height = s;
-      drawPickArt(off.getContext('2d'), s, { c: '#f5cf45', hd: 'oldwood', ad: ['crystal', 'ruby'], sp: 0 });   // 특수 빛은 그림 칸 밖에서 네모로 잘려 빼고, 바탕 등불 빛을 씀
-      c.drawImage(off, (W - s) / 2, (W - s) / 2 - W * .02);
+      c.scale(W / 512, W / 512);   // 512칸 기준으로 그리고 크기만 줄임
+      // 바탕: 굴 안 (위는 짙은 보라 남색, 아래로 갈수록 따뜻한 등불 빛)
+      const bg = c.createLinearGradient(0, 0, 0, W); bg.addColorStop(0, '#2b2350'); bg.addColorStop(.6, '#4a2f5a'); bg.addColorStop(1, '#6b3a3a'); c.fillStyle = bg; c.fillRect(0, 0, 512, 512);
+      // 뒤쪽 수정 무리 (빛남)
+      const crystal = (x, y, h, w, a, col, lt) => { c.save(); c.translate(x, y); c.rotate(a); c.beginPath(); c.moveTo(-w, 0); c.lineTo(-w, -h * .7); c.lineTo(0, -h); c.lineTo(w, -h * .7); c.lineTo(w, 0); c.closePath(); c.fillStyle = col; c.fill(); c.lineWidth = 7; c.strokeStyle = '#2b1a12'; c.lineJoin = 'round'; c.stroke(); c.beginPath(); c.moveTo(-w * .35, -h * .1); c.lineTo(-w * .35, -h * .7); c.lineTo(0, -h * .9); c.lineTo(0, -h * .1); c.closePath(); c.fillStyle = lt; c.fill(); c.restore(); };
+      const glow = (x, y, r, col) => { const g = c.createRadialGradient(x, y, 1, x, y, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, 512, 512); };
+      glow(96, 360, 200, 'rgba(120,220,255,.55)'); glow(430, 330, 190, 'rgba(255,120,200,.45)');
+      crystal(92, 470, 200, 36, -.3, '#6fd2ea', '#c9f4ff'); crystal(150, 490, 140, 28, .12, '#4fb6d6', '#bdefff');
+      crystal(430, 470, 190, 34, .3, '#f07ab0', '#ffd0e6'); crystal(378, 495, 120, 26, -.1, '#b9a8ff', '#e8e0ff');
+      // 등불 빛 (광부 뒤)
+      glow(256, 250, 230, 'rgba(255,214,120,.55)');
+      // 광부: 곡괭이를 들어 올린 순간
+      chibi(c, 268, 618, 11.6, { who: "miner", fx: 1, back: false, swing: .62 });
+      // 앞쪽 반짝임
+      const star = (x, y, r) => { c.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, rr = i % 2 ? r * .32 : r; c.lineTo(x + Math.sin(a) * rr, y - Math.cos(a) * rr); } c.closePath(); c.fillStyle = '#fff6c8'; c.fill(); };
+      star(112, 118, 26); star(418, 100, 20); star(452, 178, 12);
       return cv.toDataURL('image/png');
     }, W);
     fs.writeFileSync(path.join(out, name), Buffer.from(url.split(',')[1], 'base64'));
