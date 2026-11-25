@@ -410,7 +410,7 @@ const shot = process.argv[2];
   await page.evaluate(() => { S.gold = Math.max(S.gold, 300); renderHud(); });
   await visit('merchant', '#sheet [data-a="mTab"]');
   await page.click('#sheet [data-a="mTab"][data-o="buy"]');
-  ok(await page.locator('#sheet [data-a="sell"]').count() === 0 && await page.locator('#sheet .seg .on').textContent() === '사기', '떠돌이 상인은 팔기와 사기 칸이 나뉨 (기획 83번)');
+  ok(await page.locator('#sheet [data-a="sell"]').count() === 0 && await page.locator('#sheet .seg .on').textContent() === '구매', '떠돌이 상인은 구매와 판매 칸이 나뉨 (기획 83번)');
   const gB = (await st()).gold;
   const shopIx = id => page.evaluate(i => SHOP.findIndex(it => it.id === i), id);
   await page.evaluate(n => document.querySelector(`#sheet [data-a="buy"][data-n="${n}"]`).click(), await shopIx('compass'));
