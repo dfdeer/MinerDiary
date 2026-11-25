@@ -887,6 +887,22 @@ const shot = process.argv[2];
   await page.waitForTimeout(800);
   await visit('smithy', '#sheet [data-a="close"]');
 
+  // 13-2b. 날씨 (기획 78번): 날짜로 정해지고 첫 이틀은 맑음, 비는 밭을 적시고, 가뭄은 작물 값을 올림, 위쪽 날짜 단추와 소식 창
+  {
+    const w = await page.evaluate(() => { closeSheet(); window.MinerDiary.setWx(null); const days = []; for (let d = 3; d < 400; d++) days.push(rollWx(d)); return { d12: rollWx(1) + rollWx(2), same: rollWx(9) === rollWx(9), kinds: [...new Set(days)].sort().join() }; });
+    ok(w.d12 === 'clearclear' && w.same && w.kinds === 'clear,drought,fog,rain', `날씨는 날짜로 정해지고 첫 이틀은 맑음, 넷이 다 나옴 (${w.kinds})`);
+    const r = await page.evaluate(() => { const day0 = S.day, e0 = S.energy; S.farm['0,0'] = { crop: 'radish', days: 0, watered: false }; window.MinerDiary.setWx('rain'); newDay('normal'); const wet = S.farm['0,0'].watered; delete S.farm['0,0']; S.day = day0; S.energy = S.minE = S.dayStart = e0; return wet; });
+    ok(r, '비 오는 아침엔 밭이 저절로 젖음');
+    const pr = await page.evaluate(() => { if (!S.market) return null; window.MinerDiary.setWx('clear'); const a = unitPrice('radish'); window.MinerDiary.setWx('drought'); const b = unitPrice('radish'); return b / a; });
+    ok(pr === null || Math.abs(pr - 1.4) < .05, `가뭄엔 작물 시세 1.4배 (${pr && pr.toFixed(2)})`);
+    await page.evaluate(() => { window.MinerDiary.setWx('fog'); closeSheet(); });
+    ok(await page.locator('#hud .day .wxi').count() === 1, '맑지 않은 날엔 위쪽 날짜 단추에 날씨 그림');
+    await page.click('#hud [data-a="news"]');
+    ok(/오늘 안개/.test(await page.textContent('#sheet')) && /내일/.test(await page.textContent('#sheet')), '날짜 단추를 누르면 오늘과 내일 날씨');
+    if (shot) await page.screenshot({ path: path.join(shot, 'weather-fog.png') });
+    await page.evaluate(() => { closeSheet(); window.MinerDiary.setWx('clear'); });
+  }
+
   // 13-3. 곡괭이 조합 (기획 71번): 자루와 추가 재료, 금 곡괭이 다음 특수 곡괭이와 도감, 곡괭이질 빠르기
   {
     const sp0 = await page.evaluate(() => { closeSheet(); S.pick = 3; S.pickQ = 0; S.pk = { handle: 'wood', adds: [], head: null, sp: null }; const s0 = swingSpd();
