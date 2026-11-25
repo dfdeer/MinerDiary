@@ -283,11 +283,13 @@ const inForest = (x, y) => inTown(x, y) && x <= 6 && y < riverY(x);
 // 성벽: 마을 테두리 바로 바깥 한 줄. 성문은 북쪽 큰길 끝
 const isWall = (x, y) => !inTown(x, y) && [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]].some(([a, b]) => inTown(x + a, y + b));
 const GATE = (() => { let y = 0; while (!inTown(PLAZA.cx, y)) y++; return [PLAZA.cx, y - 1]; })();
+// 숲 문 (기획 82번): 서쪽 길 끝의 성벽에 낸 나무 문. 나가면 숲
+const FGATE = (() => { let x = 6; while (inTown(x, PLAZA.cy)) x--; return [x, PLAZA.cy]; })();
 const PAVED = new Set();
 const pave = (x, y) => PAVED.add(x + ',' + y);
 for (let x = PLAZA.x0; x <= PLAZA.x1; x++) for (let y = PLAZA.y0; y <= PLAZA.y1; y++) pave(x, y);
 for (let y = GATE[1] + 1; y < PLAZA.y0; y++) pave(PLAZA.cx, y);            // 북쪽 큰길 (성문까지)
-for (let x = 7; x < PLAZA.x0; x++) pave(x, PLAZA.cy);                      // 서쪽 길 (집, 숲)
+for (let x = FGATE[0] + 1; x < PLAZA.x0; x++) pave(x, PLAZA.cy);           // 서쪽 길 (집, 숲 문까지)
 for (let x = PLAZA.x1 + 1; x <= 33; x++) pave(x, PLAZA.cy);                // 동쪽 길 (대장간, 광산)
 for (let x = PLAZA.cx + 1; x <= 21; x++) pave(x, 9);                       // 성문 길에서 세공소로
 for (let y = PLAZA.y1 + 1; y <= 19; y++) pave(PLAZA.cx, y);                // 남쪽 길: 강 앞에서 왼쪽으로 꺾어 다리로
@@ -305,7 +307,7 @@ const OBJ = [
   { id: 'bridge', gx: 17, gy: riverY(17), w: 1, d: 2, stage: 4, kind: 'bridge', name: '강가 다리', ruin: '무너진 강가 다리', feat: ['강 건너 시장과 밭', '낚시'] },
   { id: 'field', gx: 22, gy: 29, w: 6, d: 3, stage: 5, kind: 'field', name: '밭', ruin: '거친 밭', feat: ['농사'] },
   { id: 'field2', gx: 14, gy: 30, w: 6, d: 3, stage: 8, kind: 'field', name: '넓힌 밭', ruin: '거친 밭', feat: ['농사'] },
-  { id: 'forest', gx: 6, gy: 12, w: 1, d: 1, stage: 0, kind: 'logs', name: '숲', ruin: '막힌 숲길', icon: 'ic_tree', feat: ['숲 탐험', '채집'] },
+  { id: 'forest', gx: FGATE[0], gy: FGATE[1], w: 1, d: 1, stage: 0, kind: 'fgate', name: '숲', ruin: '막힌 숲 문', icon: 'ic_tree', feat: ['숲 탐험', '채집'], door: [FGATE[0] + 1, FGATE[1]] },
   { id: 'kitchen', gx: 12, gy: 23, w: 3, d: 3, stage: 7, kind: 'kitchen', name: '식당', ruin: '닫힌 식당', icon: 'ic_rest', feat: ['요리', '주민 의뢰'], door: [13, 26] },
   { id: 'market', gx: 22, gy: 23, w: 5, d: 4, stage: 4, kind: 'market', name: '시장', ruin: '빈 시장 터', icon: 'ic_shop', feat: ['매일 바뀌는 시세', '음식 상인', '재료 상인'], door: [23, 27] },
   { id: 'gate', gx: GATE[0], gy: GATE[1], w: 1, d: 1, stage: 9, kind: 'gate', name: '성벽 문', ruin: '닫힌 성벽 문', feat: ['성 밖 사냥터'] },
@@ -340,6 +342,7 @@ const DECO_TREES = [];
 for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) {
   if (!inTown(x, y)) continue;
   // 숲 울타리: 숲은 서쪽 길 끝의 막힌 숲길(6,12)을 치워야 들어감
+  if (x <= 7 && Math.abs(y - PLAZA.cy) === 1) continue;   // 숲 문으로 가는 길 바로 옆은 비워 문이 보이게
   if (x === 7 && y < riverY(x) && y !== PLAZA.cy) { DECO_TREES.push([x, y]); continue; }
   if (PAVED.has(x + ',' + y) || isWater(x, y) || nearRiver(x, y) || nearObj(x, y) || propAtXY(x, y) || inField(x, y)) continue;
   if (!inForest(x, y) && [[2, 0], [-2, 0], [0, 2], [0, -2]].every(([a, b]) => inTown(x + a, y + b))) continue;
@@ -358,7 +361,7 @@ for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) {
 }
 const LAMPS = [[18, 10], [23, 10], [18, 14], [23, 14], [20, 5], [10, 12], [30, 12], [20, 17], [11, 27], [27, 27]];
 // 성벽 밖은 끝없이 이어지는 들판과 숲. 성문에서 북쪽으로 길
-const isRoad = (x, y) => x === GATE[0] && y < GATE[1];
+const isRoad = (x, y) => (x === GATE[0] && y < GATE[1]) || (y === FGATE[1] && x < FGATE[0] && x >= FGATE[0] - 8);   // 성 밖 흙길: 북쪽 성문과 서쪽 숲 문에서
 const wildTree = (x, y) => !inTown(x, y) && !isWall(x, y) && !isWater(x, y) && !nearRiver(x, y) && !isRoad(x, y) && H32(x * 7919 + y * 104729 + 7) < .3;
 const wildRock = (x, y) => !inTown(x, y) && !isWall(x, y) && !isWater(x, y) && !nearRiver(x, y) && !isRoad(x, y) && !wildTree(x, y) && H32(x * 3571 + y * 2909) < .03;
 const blocked = (x, y) => {
@@ -370,7 +373,6 @@ const blocked = (x, y) => {
   if (ROCKS.some(([a, b]) => a === x && b === y)) return true;
   if (propAtXY(x, y) || BUSHES.some(([a, b]) => a === x && b === y)) return true;
   const o = objAt(x, y);
-  if (o && o.kind === 'logs') return !o.done;
   return !!o && o.kind !== 'bridge' && o.kind !== 'field';
 };
 
@@ -1457,7 +1459,7 @@ function smoke(c, x, y, z, seed, dark) { for (let k = 0; k < 4; k++) { const ph 
 // 무너진 터 (여러 칸)
 function ruinSite(c, o) {
   const z = hgt(o.gx, o.gy), x0 = o.gx, y0 = o.gy, x1 = o.gx + o.w, y1 = o.gy + o.d, u = TW / 100, ink = Math.max(1.4, TW * .02);
-  if (o.kind === 'bridge' || o.kind === 'field' || o.kind === 'logs' || o.kind === 'gate') return;
+  if (o.kind === 'bridge' || o.kind === 'field' || o.kind === 'fgate' || o.kind === 'gate') return;
   const sd = o.gx * 31 + o.gy * 17, r = k => H32(sd + k * 101);
   // 흙바닥과 주춧돌 (둘레의 낮은 돌담, 앞쪽은 군데군데 빠짐)
   const p0 = INK; INK = 0;
@@ -1739,9 +1741,24 @@ function drawObj(c, o, night) {
       { const a = iso(o.gx + o.w, o.gy, .3), b = iso(o.gx, o.gy, .3), d = iso(o.gx, o.gy + o.d, .3); L(c, a[0], a[1], b[0], b[1], '#9c7a50', TW * .03); L(c, b[0], b[1], d[0], d[1], '#9c7a50', TW * .03); }
       break;
     }
-    case 'logs': {
-      if (o.grow > .05) { for (let k = 0; k < 4; k++) { const p = iso(x + .2 + k * .2, y + .5 + (k % 2) * .2, z0); Cc(c, p[0], p[1] - 3, TW * .05, ['#f6e7a8', '#f08aa0'][k % 2]); } }
-      else { for (let k = 0; k < 3; k++) { const a = iso(x + .1, y + .3 + k * .2, z0 + .15 + k * .1), b = iso(x + .9, y + .3 + k * .2, z0 + .15 + k * .1); L(c, a[0], a[1], b[0], b[1], '#7a5530', TW * .14); Cc(c, a[0], a[1], TW * .07, '#a8803e'); } }
+    case 'fgate': {
+      // 숲 문: 성벽 기둥 둘 사이 나무 문틀과 작은 지붕, 덩굴. 고치기 전엔 문이 닫히고 앞에 통나무가 쌓임
+      const st = ['#b5aea4', '#9a948a', '#7d776e'], g = o.done ? 1 : Math.max(o.grow, 0);
+      prism(c, x + .3, y - .02, .45, .3, z0, 2.5, ...st);
+      prism(c, x + .3, y + .72, .45, .3, z0, 2.5, ...st);
+      if (!o.done && o.grow < .05) {
+        const a = iso(x + .55, y + .28, z0), b = iso(x + .55, y + .72, z0);
+        P(c, [a, b, [b[0], b[1] - ZU * 1.45], [a[0], a[1] - ZU * 1.45]], '#6b4428');
+        L(c, (a[0] + b[0]) / 2, a[1] - ZU * .1, (a[0] + b[0]) / 2, b[1] - ZU * 1.45, '#3a2614', TW * .03);
+        for (let k = 0; k < 3; k++) { const a2 = iso(x + .95, y + .2 + k * .03, z0 + .15 + k * .14), b2 = iso(x + .95, y + .8 - k * .03, z0 + .15 + k * .14); L(c, a2[0], a2[1], b2[0], b2[1], '#7a5530', TW * .13); Cc(c, b2[0], b2[1], TW * .065, '#a8803e'); }
+        break;
+      }
+      prism(c, x + .25, y - .04, .55, 1.04, z0 + 1.9 * g, .22, '#8a5a30', '#6e4626', '#56361c');
+      const r1 = iso(x + .15, y - .12, z0 + 2.12 * g), r2 = iso(x + .15, y + 1.12, z0 + 2.12 * g), r3 = iso(x + .9, y + 1.12, z0 + 2.12 * g), r4 = iso(x + .9, y - .12, z0 + 2.12 * g), rt = iso(x + .52, y - .12, z0 + 2.65 * g), rb = iso(x + .52, y + 1.12, z0 + 2.65 * g);
+      P(c, [r1, r2, rb, rt], '#5f8f3e'); P(c, [rt, rb, r3, r4], '#4a7a30');
+      for (let k = 0; k < 5; k++) { const q = iso(x + .78, y + .08 + k * .2, z0 + 1.85 - (k % 2) * .5); Cc(c, q[0], q[1], TW * .06, ['#6fae54', '#5a9a44'][k % 2]); }
+      // 문 위 둥근 간판: 나무 그림
+      { const q = iso(x + .82, y + .5, z0 + 2.0 * g); Cc(c, q[0], q[1], TW * .2, '#2b1a12'); Cc(c, q[0], q[1], TW * .17, '#f3e2bd'); emo(c, 'ic_tree', q[0], q[1], TW * .26); }
       break;
     }
     case 'gate': {
@@ -1777,7 +1794,7 @@ function propAt(c, x, y, kind, night) {
 }
 // 땅 한 칸: 풀, 길, 광장, 밭, 강을 저마다 다른 무늬로
 function edgeLine(c, x0, y0, x1, y1, z, col, w) { const a = iso(x0, y0, z), b = iso(x1, y1, z); L(c, a[0], a[1], b[0], b[1], col, w); }
-const pavedAt = (x, y) => (inTown(x, y) && PAVED.has(x + ',' + y)) || isRoad(x, y) || (x === GATE[0] && y === GATE[1]);
+const pavedAt = (x, y) => (inTown(x, y) && PAVED.has(x + ',' + y)) || isRoad(x, y) || (x === GATE[0] && y === GATE[1]) || (x === FGATE[0] && y === FGATE[1]);
 function groundTile(c, x, y, z, town) {
   const n = H32(x * 92821 + y * 68917), n2 = H32(x * 7 + y * 53);
   if (isWater(x, y)) { tileTop(c, x, y, z, ['#86ba5f', '#7fb35a'][n * 2 | 0]); return; }   // 강은 drawRiver가 매끄럽게 덮음
@@ -1872,7 +1889,7 @@ function drawIsland(c) {
     groundTile(c, x, y, z, town);
     if (fog > 0) { c.globalAlpha = fog; tileTop(c, x, y, isWater(x, y) ? -.15 : z, `rgb(${fogc})`); c.globalAlpha = 1; }
     const one = { x0: x, y0: y, x1: x + 1, y1: y + 1 };
-    if (isWall(x, y) && !(x === GATE[0] && y === GATE[1])) {
+    if (isWall(x, y) && !(x === GATE[0] && y === GATE[1]) && !(x === FGATE[0] && y === FGATE[1])) {
       const tower = wallTower(x, y) && !isWater(x, y);
       add(one, tower ? [.62, 3.0] : [.5, 1.9], () => wallAt(c, x, y));
     }
@@ -1906,7 +1923,7 @@ function drawIsland(c) {
   } else if (selected) { const pts = diamond(selected.gx, selected.gy, 1); c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.fillStyle = 'rgba(233,176,79,.2)'; c.fill(); c.strokeStyle = 'rgba(233,176,79,.8)'; c.lineWidth = TW * .04; c.stroke(); }
   // 바닥에 붙은 것(다리, 밭)은 먼저
   OBJ.filter(o => o.kind === 'bridge' || o.kind === 'field').forEach(o => { if (visObj(o)) drawObj(c, o, night); });
-  const SH = { house: [1.15, 3.6], smithy: [1.6, 4.4], kitchen: [1.6, 3.8], jewel: [1.15, 4.0], market: [1.9, 2.6], museum: [2.1, 4.2], mine: [1.6, 4.6], npc: [.16, 1.6], wagon: [.38, 2.2], bigtree: [1.0, 5], gate: [.5, 2.3], logs: null };
+  const SH = { house: [1.15, 3.6], smithy: [1.6, 4.4], kitchen: [1.6, 3.8], jewel: [1.15, 4.0], market: [1.9, 2.6], museum: [2.1, 4.2], mine: [1.6, 4.6], npc: [.16, 1.6], wagon: [.38, 2.2], bigtree: [1.0, 5], gate: [.5, 2.3], fgate: [.5, 2.3] };
   OBJ.forEach(o => { if (o.kind !== 'bridge' && o.kind !== 'field' && visObj(o)) add({ x0: o.gx, y0: o.gy, x1: o.gx + o.w, y1: o.gy + o.d }, o.done || o.grow > .3 ? SH[o.kind] : [Math.max(o.w, o.d) * .55, 1.6], () => drawObj(c, o, night)); });
   DECO_TREES.forEach(([x, y]) => { if (vis(x, y)) add({ x0: x, y0: y, x1: x + 1, y1: y + 1 }, [.32, 2.2], () => treeAt(c, x, y)); });
   ROCKS.forEach(([x, y]) => { if (vis(x, y)) add({ x0: x, y0: y, x1: x + 1, y1: y + 1 }, null, () => rockAt(c, x, y)); });
@@ -2045,17 +2062,29 @@ function heroZ() {
 /* ===== 걷기 ===== */
 function bfs(sx, sy, goal) {
   const mine = scene === 'mine', forest = scene === 'forest', hunt = scene === 'hunt', town = scene === 'town';
-  const key = (x, y) => x + ',' + y, prev = new Map([[key(sx, sy), null]]), q = [[sx, sy]];
+  const key = (x, y) => x + ',' + y, dist = new Map([[key(sx, sy), 0]]), q = [[sx, sy]];
+  const step = (x, y, nx, ny) => !(mine ? mBlocked(nx, ny) : forest ? fBlocked(nx, ny) : hunt ? hBlocked(nx, ny) : town ? townBlocked(nx, ny) : blocked(nx, ny) || Math.abs(hgt(nx, ny) - hgt(x, y)) > 1);
   // 땅속 길은 본 바닥으로만 찾으니(본 곳은 끝이 있음) 거리로 묶지 않음. 아주 오래 놀아 본 곳이 많아져도 멈추지 않게 칸 수만 넉넉히 묶음
-  const lim = mine ? 200000 : 1e9, far = 1e9;
-  for (let qi = 0; qi < q.length && prev.size < lim; qi++) {
+  const lim = mine ? 200000 : 1e9;
+  for (let qi = 0; qi < q.length && dist.size < lim; qi++) {
     const [x, y] = q[qi];
-    if (goal(x, y)) { const out = []; let k = key(x, y); while (k) { const [a, b] = k.split(',').map(Number); out.unshift([a, b]); k = prev.get(k); } return out.slice(1); }
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    if (goal(x, y)) {
+      // 가장 짧은 길 가운데 화면에서 위로 갈 땐 오른쪽 위, 아래로 갈 땐 왼쪽 아래(y 방향)를 먼저 걷는 길 (11/25 사용자 결정).
+      // 도착점에서 거꾸로 되짚으며 x 방향 칸을 먼저 고르면, 출발 쪽에선 y 방향을 먼저 걷게 됨. 걸음 수는 그대로
+      let cx = x, cy = y, d = dist.get(key(x, y)); if (!d) return [];
+      const out = [[x, y]];
+      while (d > 0) {
+        const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [cx + dx, cy + dy]).find(([px, py]) => dist.get(key(px, py)) === d - 1 && step(px, py, cx, cy));
+        if (!nb) return null;
+        [cx, cy] = nb; d--; if (d > 0) out.unshift([cx, cy]);
+      }
+      return out;
+    }
+    const d = dist.get(key(x, y));
+    for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
       const nx = x + dx, ny = y + dy, k = key(nx, ny);
-      if (prev.has(k) || Math.abs(nx - sx) > far || Math.abs(ny - sy) > far) continue;
-      if (mine ? mBlocked(nx, ny) : forest ? fBlocked(nx, ny) : hunt ? hBlocked(nx, ny) : town ? townBlocked(nx, ny) : blocked(nx, ny) || Math.abs(hgt(nx, ny) - hgt(x, y)) > 1) continue;
-      prev.set(k, key(x, y)); q.push([nx, ny]);
+      if (dist.has(k) || !step(x, y, nx, ny)) continue;
+      dist.set(k, d + 1); q.push([nx, ny]);
     }
   }
   return null;
@@ -2096,6 +2125,11 @@ function arrive(o) {
 }
 
 /* ===== 누르기 ===== */
+// 큰 덩어리로 누르는 곳 (기획 82번): 숲 문 둘레의 나무숲 전체와 성벽, 성벽 문 양옆 성벽도 그 문으로 감. [x, y, 높이]
+const HIT_MORE = {
+  forest: [...DECO_TREES.filter(([a, b]) => a <= 7 && b < riverY(a)).map(([a, b]) => [a, b, 2.4]), ...[-2, -1, 1, 2].map(d => [FGATE[0], FGATE[1] + d, 2]).filter(([a, b]) => isWall(a, b))],
+  gate: [-2, -1, 1, 2].map(d => [GATE[0] + d, GATE[1], 2]).filter(([a, b]) => isWall(a, b)),
+};
 function inPoly(px, py, pts) { let r = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) r = !r; } return r; }
 function screenToWorld(px, py) { return [(px - W / 2) / cam.s + cam.fx, (py - H / 2) / cam.s + cam.fy]; }
 function tap(px, py) {
@@ -2109,7 +2143,8 @@ function tap(px, py) {
   const [x, y] = screenToWorld(px, py);
   // 물건: 앞쪽부터, 건물 높이까지 포함한 상자
   const hits = OBJ.filter(o => o.kind !== 'bigtree').filter(o => {   // 큰 나무는 풍경이라 안 눌림
-    const z = hgt(o.gx, o.gy), tall = { house: 3.4, smithy: 4, kitchen: 3.6, jewel: 3.6, market: 1.3, museum: 4, mine: 4.2, gate: 2.4, npc: 2.2, wagon: 2.2 }[o.kind] || 1.2;
+    if ((HIT_MORE[o.id] || []).some(([cx, cy, h]) => { const z2 = hgt(cx, cy), a = iso(cx, cy, z2), b = iso(cx + 1, cy, z2), cc = iso(cx + 1, cy + 1, z2), d = iso(cx, cy + 1, z2); return inPoly(x, y, [[d[0], d[1]], [cc[0], cc[1]], [b[0], b[1]], [b[0], b[1] - ZU * h], [a[0], a[1] - ZU * h], [d[0], d[1] - ZU * h], [d[0], d[1]]]) || inPoly(x, y, [a, b, cc, d]); })) return true;
+    const z = hgt(o.gx, o.gy), tall = { house: 3.4, smithy: 4, kitchen: 3.6, jewel: 3.6, market: 1.3, museum: 4, mine: 4.2, gate: 2.4, fgate: 2.4, npc: 2.2, wagon: 2.2 }[o.kind] || 1.2;
     const up = ZU * (o.done || o.grow > .3 ? tall : 1.4);
     const a = iso(o.gx, o.gy, z), b = iso(o.gx + o.w, o.gy, z), cc = iso(o.gx + o.w, o.gy + o.d, z), d = iso(o.gx, o.gy + o.d, z);
     return inPoly(x, y, [[d[0], d[1]], [cc[0], cc[1]], [b[0], b[1]], [b[0], b[1] - up], [a[0], a[1] - up], [d[0], d[1] - up]]) && (o.w < 2 || o.d < 2 || o.kind === 'field' || drawnAt(o, x, y));   // 2×2 이상 건물만 그려진 곳으로 따짐 (작은 것은 누르기 쉽게 상자 그대로)
@@ -3260,8 +3295,9 @@ function forestStep() {
   if (!accEff('forestFree') && ++f.steps % F_STEP === 0 && !spend(1)) return;
   renderHud();
   if (hero.path.length && hero.path.some(([a, b]) => fBlocked(a, b))) {
-    const br = hero.breakAt, p = br ? bfs(f.hx, f.hy, (a, b) => Math.abs(a - br[0]) + Math.abs(b - br[1]) === 1) : hero.goal && bfs(f.hx, f.hy, (a, b) => a === hero.goal[0] && b === hero.goal[1]);
-    hero.path = p || []; if (!p) { hero.goal = null; hero.breakAt = null; }
+    // 걷다가 새로 보인 나무에 길이 막히면 같은 목표(큰 바위 옆, 가시덤불 옆, 누른 칸)로 다시 찾음
+    const br = hero.breakAt, ac = hero.actAt, p = br ? bfs(f.hx, f.hy, (a, b) => Math.abs(a - br[0]) + Math.abs(b - br[1]) === 1) : ac ? bfs(f.hx, f.hy, (a, b) => Math.abs(a - ac[0]) + Math.abs(b - ac[1]) === 1 && !fBlocked(a, b)) : hero.goal && bfs(f.hx, f.hy, (a, b) => a === hero.goal[0] && b === hero.goal[1]);
+    hero.path = p || []; if (!p) { hero.goal = null; hero.breakAt = null; hero.actAt = null; }
   }
 }
 // 밟은 칸의 것을 주움 (가방이 가득이면 못 주움)

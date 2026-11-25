@@ -48,6 +48,11 @@ const shot = process.argv[2];
   /* ===== 폰 크기 ===== */
   const page = await open(390, 844);
   const { st, tap, visit } = helpers(page);
+  // 걷는 길 (11/25 사용자 결정): 가장 짧은 길 가운데 위로 갈 땐 오른쪽 위(y-1), 아래로 갈 땐 왼쪽 아래(y+1)를 먼저. 걸음 수는 가장 짧은 그대로
+  {
+    const r = await page.evaluate(() => { const up = bfs(26, 15, (x, y) => x === 23 && y === 12), dn = bfs(26, 15, (x, y) => x === 29 && y === 18); return { up, dn }; });
+    ok(r.up.length === 6 && r.up[0][0] === 26 && r.up[0][1] === 14 && r.up[2][1] === 12 && r.dn.length === 6 && r.dn[0][0] === 26 && r.dn[0][1] === 16 && r.dn[2][1] === 18, `위로 갈 땐 오른쪽 위, 아래로 갈 땐 왼쪽 아래를 먼저 걷고 걸음 수는 같음 (${JSON.stringify(r)})`);
+  }
   // 대장간은 첫 화면에서 일(용광로, 곡괭이, 날 세우기, 장신구, 합치기, 도구)을 고름 (기획 75번)
   const smithy = async tab => { await visit('smithy', `#sheet [data-a="smTab"][data-o="${tab}"]`); await page.click(`#sheet [data-a="smTab"][data-o="${tab}"]`); };
   await page.evaluate(() => window.MinerDiary.speed(10));
@@ -91,7 +96,7 @@ const shot = process.argv[2];
   // 2. 상호작용하는 것끼리 화면에서 겹치지 않음 (누르는 모양 기준)
   const overlaps = await page.evaluate(() => {
     const OBJ = window.MinerDiary.objects();
-    const TALL = { house: 3.4, smithy: 4, kitchen: 3.6, jewel: 3.6, market: 1.3, museum: 4, mine: 4.2, gate: 2.4, npc: 2.2, wagon: 2.2 };
+    const TALL = { house: 3.4, smithy: 4, kitchen: 3.6, jewel: 3.6, market: 1.3, museum: 4, mine: 4.2, gate: 2.4, fgate: 2.4, npc: 2.2, wagon: 2.2 };
     const poly = o => { const z = hgt(o.gx, o.gy), up = ZU * (TALL[o.kind] || 1.2); const a = iso(o.gx, o.gy, z), b = iso(o.gx + o.w, o.gy, z), c = iso(o.gx + o.w, o.gy + o.d, z), d = iso(o.gx, o.gy + o.d, z); return [d, c, b, [b[0], b[1] - up], [a[0], a[1] - up], [d[0], d[1] - up]]; };
     const both = (A, B) => { const xs = A.map(q => q[0]), ys = A.map(q => q[1]); for (let x = Math.min(...xs); x <= Math.max(...xs); x += 3) for (let y = Math.min(...ys); y <= Math.max(...ys); y += 3) if (inPoly(x, y, A) && inPoly(x, y, B)) return true; return false; };
     const act = OBJ.filter(o => !['bigtree', 'bridge', 'field'].includes(o.kind)), out = [];
@@ -289,6 +294,19 @@ const shot = process.argv[2];
   ok(s.day === day + 1 && s.energy === expE && s.minE === s.energy, `자고 나서 ${s.day}일차 기력 ${s.energy} (저녁 전에 자면 덤 110, 새벽이면 90)`);
   ok((await quest()).includes('숲에서 채집'), '자고 나면 이미 간 깊이 3은 바로 끝나고 「숲에서 채집」');
 
+  // 10-1z. 숲 문 (기획 82번): 서쪽 성벽의 숲 문, 숲 나무 덩어리 어디를 눌러도 숲 문으로, 성벽 문 옆 성벽을 눌러도 성벽 문으로
+  {
+    const fg = await page.evaluate(() => { const o = OBJ.find(v => v.id === 'forest'); return { x: o.gx, y: o.gy, wall: isWall(o.gx, o.gy), door: o.door, tree: HIT_MORE.forest.find(([a, b]) => DECO_TREES.some(([u, v]) => u === a && v === b) && Math.abs(b - o.gy) > 2), gw: HIT_MORE.gate[0] }; });
+    ok(fg.wall && fg.door[0] === fg.x + 1 && fg.tree && fg.gw, `숲 문은 서쪽 성벽에 있고 문 앞 칸은 성 안 (${JSON.stringify(fg)})`);
+    await page.evaluate(() => closeSheet());   // 열린 창이 있으면 누르기가 창만 닫으니 먼저 닫음
+    { const p = await page.evaluate(([x, y]) => window.MinerDiary.tileSpot(x, y), fg.tree); await page.mouse.click(p.x, p.y); }
+    await page.waitForSelector('#sheet [data-a="forest"]', { timeout: 20000 });
+    ok(await page.evaluate(([x, y]) => Math.round(hero.x) === x && Math.round(hero.y) === y, fg.door), '숲 나무 덩어리를 누르면 숲 문 앞까지 걸어가 숲 창');
+    await page.click('#sheet [data-a="close"]');
+    { const p = await page.evaluate(([x, y]) => window.MinerDiary.tileSpot(x, y), fg.gw); await page.mouse.click(p.x, p.y); }
+    ok(await page.evaluate(() => selected && selected.id === 'gate'), '성벽 문 옆 성벽을 눌러도 성벽 문으로');
+    await page.evaluate(() => { hero.path = []; hero.target = null; selected = null; closeSheet(); });
+  }
   // 10-2. 숲 채집: 안개 속에서 주울 것을 찾아 밟으면 가방에
   await visit('forest', '#sheet [data-a="forest"]');
   await page.click('#sheet [data-a="forest"]');
