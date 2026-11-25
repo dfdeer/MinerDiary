@@ -127,11 +127,12 @@ const shot = process.argv[2];
   await page.waitForTimeout(300);
   ok((await quest()).includes('광석 캐기'), '숲에서 동굴 입구 2×2 칸 가운데 뒤쪽 칸을 눌러도 걸어가서 숲 동굴, 퀘스트 「광석 캐기」');
   ok(await page.evaluate(() => { let holes = 0; for (let y = -18; y <= 18; y++) for (let x = -18; x <= 18; x++) if (mT(x, y) === 'd') holes++; const e0 = S.energy; dig(30, 0); return holes === 0 && mT(30, 0) === 'w' && S.energy === e0; }), '숲 동굴은 작고(바깥 벽은 못 캠) 내려가는 구멍이 없음');
-  for (let k = 0; k < 5; k++) {
+  for (let k = 0; k < 8 && ((await st()).carry.copper || 0) < 5; k++) {   // 가끔 한 번 누름이 걷기로 끝나 덜 캐지므로 다섯이 될 때까지
     const r = await page.evaluate(() => window.MinerDiary.nearRock());
     await page.evaluate(([x, y]) => window.MinerDiary.setCell(x, y, 'r', 'copper'), r);
     await tap(r[0], r[1]);
   }
+  await page.waitForFunction(() => (S.carry.copper || 0) >= 5, null, { timeout: 3000 }).catch(() => {});
   ok((await st()).carry.copper >= 5 && (await quest()).includes('상인'), '동굴에서 광석 다섯을 캐면 「상인에게 광석 팔기」');
   ok((await page.evaluate(() => window.MinerDiary.mfloats())).some(t => /^구리 광석 \+[12]$/.test(t)), '캐면 광석 이름과 개수가 떠오름 (구리 광석 +1)');
   ok(!/\d+\/\d+/.test((await quest()).replace(/\d+\/\d+\s*$/, '')) && !(await page.evaluate(() => document.querySelector('.quest em'))), '퀘스트 막대에 몇 번째인지(전체 개수) 숫자가 없음');
@@ -1164,6 +1165,28 @@ const shot = process.argv[2];
   ok(dug.every(Boolean), '컴퓨터 화면에서도 누른 칸이 정확히 캐짐');
   if (shot) await desk.screenshot({ path: path.join(shot, 'desktop.png') });
   await desk.close();
+
+  // 15. 폰 설치와 오프라인 (기획 77번): 아이콘과 설치 정보, 한 번 열면 인터넷이 끊겨도 열림
+  {
+    const fs = require('fs'), http = require('http'), root = path.join(__dirname, '..');
+    const pngSize = f => { const b = fs.readFileSync(path.join(root, f)); return b.readUInt32BE(16) + 'x' + b.readUInt32BE(20); };
+    const mf = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
+    ok(mf.name === '광부일기' && mf.display === 'standalone' && mf.icons.every(ic => pngSize(ic.src) === ic.sizes) && pngSize('icons/apple-touch-icon.png') === '180x180', '앱 아이콘(192, 512, 180)과 설치 정보');
+    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
+    const srv = http.createServer((q, r) => { const f = path.join(root, decodeURIComponent(q.url.split('?')[0]) === '/' ? 'index.html' : decodeURIComponent(q.url.split('?')[0])); if (!f.startsWith(root) || !fs.existsSync(f)) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream' }); r.end(fs.readFileSync(f)); });
+    await new Promise(r => srv.listen(0, r));
+    const ctx = await browser.newContext(), pg = await ctx.newPage();
+    pg.on('pageerror', e => errors.push('오프라인: ' + e.message));
+    await pg.goto(`http://localhost:${srv.address().port}/`);
+    await pg.waitForFunction(() => window.MinerDiary && window.MinerDiary.ready, null, { timeout: 15000 });
+    const sw = await pg.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+    await pg.waitForTimeout(500);
+    await ctx.setOffline(true);
+    await pg.reload();
+    const off = await pg.waitForFunction(() => window.MinerDiary && window.MinerDiary.ready, null, { timeout: 15000 }).then(() => true).catch(() => false);
+    ok(sw && off && await pg.evaluate(() => !!document.querySelector('link[rel="manifest"]')), '한 번 열면 인터넷이 끊겨도 게임이 열림');
+    await ctx.close(); srv.close();
+  }
 
   await browser.close();
   if (errors.length) { console.error('페이지 오류:\n' + errors.join('\n')); process.exit(1); }
