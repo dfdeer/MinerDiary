@@ -571,7 +571,9 @@ const QUESTS = [
   { id: 'heart', text: '산의 심장 찾기', need: 1, target: 'mine', reward: 3000, prog: () => (S.heartSeen ? 1 : 0) },   // 큰 이야기 (기획 79번)
   { id: 'calm', text: '산의 심장 달래기', target: 'mine', reward: 10000 },
 ];
-const questNow = () => QUESTS[S.quest];
+// 엔딩 뒤 (기획 86번): 퀘스트가 다 끝나고 심장을 달랬으면 깊이 10마다 깊이 N 기록 퀘스트가 끝없이 이어짐 (보상 깊이×100)
+const deepQuest = () => { const n = (S.endDeep || 30) + 10; return { id: 'deep' + n, text: `깊이 ${n} 기록`, need: n, target: 'mine', reward: n * 100, endless: 1 }; };
+const questNow = () => QUESTS[S.quest] || (S.heartCalm ? deepQuest() : null);
 const questProg = q => (q.prog ? q.prog() : q.id === 'ore' ? S.qn : q.id.startsWith('deep') ? S.deepest : q.id === 'gold' ? S.gold : q.id.startsWith('pick') ? S.pick : q.id === 'lore' ? S.loreN || 0 : q.id === 'gather' ? S.gatherN || 0 : q.id === 'home' ? S.home || 0 : q.id === 'fish' ? S.fishN || 0 : q.id === 'harvest' ? S.harvestN || 0 : q.id === 'cook' ? (S.recipes || []).length : q.id === 'request' ? S.reqN || 0 : q.id === 'cut' ? S.cutN || 0 : q.id === 'hunt' ? S.killN || 0 : q.id === 'chest' ? S.chestN || 0 : q.id === 'board' ? S.boardN || 0 : TOWNS[q.id] ? ((S.visited || {})[q.id] ? 1 : 0) : q.id === 'rail' ? S.rail || 0 : q.id === 'donate' ? (S.museum || []).length : 0);
 // 일이 일어날 때마다 부름. 지금 퀘스트가 끝났으면 보상을 주고 다음으로
 function questEvent(type, n) {
@@ -580,7 +582,8 @@ function questEvent(type, n) {
   if (type && q.id === type) { if (q.id === 'ore') S.qn += n || 0; else if (!q.need) flag = true; }
   while ((q = questNow())) {
     if (!(q.need ? questProg(q) >= q.need : flag)) break;
-    S.quest++; S.qn = 0; flag = false;
+    if (q.endless) S.endDeep = q.need; else S.quest++;
+    S.qn = 0; flag = false;
     if (q.reward) S.gold += q.reward;
     toast(`${ico('ic_check')}${q.text}` + (q.reward ? ` ${GOLD}+${q.reward}` : '')); SFX.stairs();
   }
@@ -2264,8 +2267,10 @@ function dOre(L, x, y) {
   if (L === 0) return dBase(0, x, y) === 'w' || hh(x, y, s + 11) > .16 ? '' : hh(x, y, s + 19) < .6 ? 'copper' : 'coal';   // 숲 동굴: 구리와 석탄만
   if (phase === 3 && hh(x, y, s + 17) < .004 * (1 + accEff('moonx'))) return 'moon';   // 새벽에만 보이는 월광석
   // 광맥 줄기: 굵은 무늬를 따라 같은 광석이 줄줄이 박힘 (하나를 찾으면 이어서 캘 수 있게). 가끔 외톨이 광석
-  const vein = vnoise(x / 2.3, y / 2.3, s + 31) > .8;
-  if (!vein && hh(x, y, s + 11) > .02) return '';
+  // 깊이 5 아래로는 구역이 더 바뀌지 않으니, 깊을수록 광맥과 외톨이 광석이 조금씩 촘촘해짐 (기획 86번, 깊이 25에서 약 두 배로 끝)
+  const rich = Math.min(1, Math.max(0, L - 5) / 20);
+  const vein = vnoise(x / 2.3, y / 2.3, s + 31) > .8 - rich * .07;
+  if (!vein && hh(x, y, s + 11) > .02 * (1 + rich)) return '';
   return pickFrom(S.deep.town ? TOWNS[S.deep.town].ores[zoneAt(L, x, y)] : ZONES[zoneAt(L, x, y)].ores, vein ? hh(Math.floor(x / 4), Math.floor(y / 4), s + 19) : hh(x, y, s + 19));
 }
 const dKey = (L, x, y) => L + ',' + x + ',' + y;
@@ -4026,12 +4031,12 @@ function showTownObj(o) {
     openSheet(ico('ic_village') + '여관', roomHtml('inn', hots) + `<p>${T.greet}</p>` + (late ? '<p class="warn">새벽 취침</p>' : ''));
   } else if (o.id === 'tmarket') {
     const rows = ORE_ORDER.filter(k => have(k)).map(k => { const m = T.price[k] || 1, cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${k}"></span>${ORES[k].name} <small>×${have(k)}</small> <small class="${cls}">${GOLD}${townPrice(k)}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="tsell" data-o="${k}">${GOLD}${townPrice(k) * have(k)}</button></div>`; }).join('');
-    const buy = S.donkey || S.loc !== 'mtn' ? '' : `<p class="dim" style="margin-top:10px">사기</p><div class="rows"><div class="rowi"><span class="nm">${ico('ic_donkey')}당나귀 수레 <small class="eff">길 기력 2할, 가방 +20칸</small></span><button class="btn small" data-a="donkey" ${S.gold >= DONKEY_GOLD ? '' : 'disabled'}>${GOLD}${DONKEY_GOLD}</button></div></div>`;
+    const buy = S.donkey || S.loc !== 'mtn' ? '' : `<p class="dim" style="margin-top:10px">구매</p><div class="rows"><div class="rowi"><span class="nm">${ico('ic_donkey')}당나귀 수레 <small class="eff">길 기력 2할, 가방 +20칸</small></span><button class="btn small" data-a="donkey" ${S.gold >= DONKEY_GOLD ? '' : 'disabled'}>${GOLD}${DONKEY_GOLD}</button></div></div>`;
     const want = Object.entries(T.price).filter(([, m]) => m > 1.05).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => `<span class="ore ${k}"></span>`).join('');
-    openSheet(ico('ic_shop') + `${T.short} 시장`, `<p class="dim">비싸게 삼 ${want}</p>` + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + buy);
+    openSheet(ico('ic_shop') + `${T.short} 시장`, roomHtml('tmarket', []) + `<p class="dim">비싸게 삼 ${want}</p>` + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + buy);
   } else if (o.id === 'tmine') {
     const kinds = [...new Set(T.ores.flat().map(([k]) => k))].slice(0, 6).map(k => `<span class="ore ${k}"></span>`).join('');
-    openSheet(ico('ic_pick') + `${T.mine} 광산`, `<p>${kinds}</p>`, '<button class="btn primary" data-a="townmine">들어가기</button>');
+    openSheet(ico('ic_pick') + `${T.mine} 광산`, roomHtml('mine', [{ a: 'townmine', box: [236, 120, 404, 300], name: '들어가기' }]) + `<p>${kinds}</p>`);
   }
 }
 // 팔기 (기획 66번): 막대로 수량을 고르고 확정. w: m 떠돌이 상인, t 시장 시세, w 다른 마을 시장
@@ -4619,7 +4624,7 @@ function showCard(o, msg) {
     else if (S.gold >= GOAL.cost) line = '대장간 고칠 돈은 다 모였네요. 대장간에 가 봐요.';
     else if (S.chiefDay !== S.day) { line = CHIEF_TIPS[(S.day - 1) % CHIEF_TIPS.length]; S.chiefDay = S.day; save(); }
     else line = `다음은 대장간이에요. ${GOLD}${GOAL.cost - S.gold}만 더 모으면 돼요.`;
-    openSheet('촌장', `<p>${line}</p>` + boardHtml());
+    openSheet('촌장', roomHtml('chief', []) + `<p>${line}</p>` + boardHtml());   // 촌장 그림 (기획 87번)
   } else if (o.id === 'merchant') showMerchant(ORE_ORDER.some(k => have(k)) ? 'sell' : 'buy');
   else if (o.id === 'kitchen') showKitchen('home');
   else if (o.id === 'jewel') showJewel();
@@ -4627,7 +4632,7 @@ function showCard(o, msg) {
   else if (o.id === 'museum') showMuseum();
   else if (o.id === 'smithy') showSmithy('home');
   else if (o.id === 'mine') {
-    openSheet(ico('ic_pick') + '광산', `<p>최고 깊이 ${S.deepest}</p>`, '<button class="btn primary" data-a="enter">들어가기</button>');
+    openSheet(ico('ic_pick') + '광산', roomHtml('mine', [{ a: 'enter', box: [236, 120, 404, 300], name: '들어가기' }]) + `<p>최고 깊이 ${S.deepest}</p>`);   // 광산 입구 그림 (기획 87번)
   } else openSheet(`${o.icon ? ico(o.icon) : ''}${o.name}`, '');
 }
 // 떠돌이 상인 (기획 83번): 구매와 판매를 칸으로 나눔. 처음 열 땐 팔 것이 있으면 판매, 없으면 구매
@@ -4638,11 +4643,11 @@ function showMerchant(tab = merchTab) {
   const seg = `<div class="seg"><button class="${tab === 'buy' ? 'on' : ''}" data-a="mTab" data-o="buy">${ico('ic_shop')}구매</button><button class="${tab === 'sell' ? 'on' : ''}" data-a="mTab" data-o="sell">${ico('ic_gold')}판매${nSell ? `<small>${nSell}</small>` : ''}</button></div>`;
   if (tab === 'sell') {
     const rows = ORE_ORDER.filter(o => have(o)).map(o => { const n = have(o), p = ORES[o].price; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${n}</small></span><button class="btn small" data-a="sell" data-o="${o}">${GOLD}${p * n}</button></div>`; }).join('');
-    openSheet(ico('ic_shop') + '떠돌이 상인', seg + (rows ? `<div class="rows">${rows}</div>` : '<p>광석이라면 뭐든 사 갈게요.</p>'), total ? `<button class="btn primary" data-a="sellAll">전부 ${GOLD}${total}</button>` : '');
+    openSheet(ico('ic_shop') + '떠돌이 상인', roomHtml('merchant', []) + seg + (rows ? `<div class="rows">${rows}</div>` : '<p>광석이라면 뭐든 사 갈게요.</p>'), total ? `<button class="btn primary" data-a="sellAll">전부 ${GOLD}${total}</button>` : '');
     return;
   }
   const shop = SHOP.map((it, i) => [it, i]).filter(([it]) => !it.farm || S.restored.includes('field')).map(([it, i]) => `<div class="rowi"><span class="nm">${accIco(it.id)}${(ACC[it.id] || ITEMS[it.id]).n}${it.kind === 'acc' ? ` <small class="eff">${accDesc(it.id)}</small>` : ''}${it.kind === 'acc' && owned(it.id) ? ' <small>있음</small>' : ''}</span><button class="btn small" data-a="buy" data-n="${i}" ${S.gold >= it.gold ? '' : 'disabled'}>${GOLD}${it.gold}</button></div>`).join('');
-  openSheet(ico('ic_shop') + '떠돌이 상인', seg + `<div class="rows">${shop}</div>`);
+  openSheet(ico('ic_shop') + '떠돌이 상인', roomHtml('merchant', []) + seg + `<div class="rows">${shop}</div>`);
 }
 function showBag() {
   const out = scene !== 'village', src = S.carry;
@@ -4742,7 +4747,7 @@ function upgradeHome() {
 }
 /* ===== 건물 안 그림 장면 (기획 80번): 창 맨 위에 방 안을 그리고, 물건을 누르면 그 일을 함 ===== */
 // 그림은 640×400 기준. 누를 곳(hot)은 같은 기준의 [x0, y0, x1, y1]을 %로 바꿔 HTML 단추로 겹침
-const RW = 640, RH = 400, ROOM_H = { market: 300, museum: 320 };   // 장면마다 높이가 다를 수 있음
+const RW = 640, RH = 400, ROOM_H = { market: 300, museum: 320, chief: 260, merchant: 260, mine: 300, tmarket: 260 };   // 장면마다 높이가 다를 수 있음
 let roomT = 0;
 const rmPath = (c, draw, fill, lw = 4) => { c.beginPath(); draw(); if (fill !== 'none') { c.fillStyle = fill; c.fill(); } if (lw) { c.lineWidth = lw; c.strokeStyle = OUT; c.lineJoin = 'round'; c.lineCap = 'round'; c.stroke(); } };
 const rmRect = (c, x, y, w, h, f, r = 6, lw = 4) => rmPath(c, () => c.roundRect(x, y, w, h, r), f, lw);
@@ -4770,7 +4775,7 @@ function rmBricks(c, h, a, b, line) {
 function drawRoom(c, kind, t) {
   const RH = ROOM_H[kind] || 400;
   c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
-  ({ smithy: roomSmithy, house: roomHouse, kitchen: roomKitchen, jewel: roomJewel, market: roomMarket, museum: roomMuseum, inn: roomInn }[kind] || (() => {}))(c, t);
+  ({ smithy: roomSmithy, house: roomHouse, kitchen: roomKitchen, jewel: roomJewel, market: roomMarket, museum: roomMuseum, inn: roomInn, chief: roomChief, merchant: roomMerchant, mine: roomMine, tmarket: roomTmarket }[kind] || (() => {}))(c, t);
   // 둘레 어둡게 (방 안 느낌)
   const v = c.createRadialGradient(RW / 2, RH * .55, RH * .35, RW / 2, RH * .55, RW * .62); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(20,10,5,.45)'); c.fillStyle = v; c.fillRect(0, 0, RW, RH);
   c.restore();
@@ -5011,6 +5016,68 @@ function roomInn(c, t) {
   rmRect(c, 456, 238, 150, 88, '#a8743f', 10); rmRect(c, 452, 224, 158, 30, '#b8844a', 10);
   [478, 584].forEach(x => rmRect(c, x - 8, 224, 16, 102, '#5a6270', 3, 3)); rmRect(c, 518, 244, 26, 24, '#f2c230', 5, 3); Cc(c, 531, 255, 3.5, OUT);
   if (Object.values(storeHere() || {}).some(v => v > 0)) rmStar(c, 600, 214, 7 + Math.sin(t * 4) * 2);
+}
+// 사람과 광산 입구 장면 (기획 87번): 촌장, 떠돌이 상인, 광산 입구(마을과 다른 마을), 다른 마을 시장
+function rmSky(c, H, a = '#9fd8f2', b = '#e8f6ff') { const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, a); g.addColorStop(1, b); c.fillStyle = g; c.fillRect(0, 0, RW, H); }
+function rmClouds(c, t, y0 = 40) { [[90, y0], [330, y0 - 18], [560, y0 + 10]].forEach(([x, y], i) => { const dx = ((t * 5 + i * 220) % 820) - 90; E(c, dx, y, 42, 13, 'rgba(255,255,255,.85)'); E(c, dx + 26, y - 8, 26, 11, 'rgba(255,255,255,.85)'); }); }
+function rmGrass(c, y, H, col = '#8fc465') { R(c, 0, y, RW, H - y, col); for (let k = 0; k < 40; k++) { const x = (k * 97) % RW, yy = y + 10 + ((k * 53) % (H - y - 14)); c.strokeStyle = 'rgba(40,90,30,.35)'; c.lineWidth = 2; c.beginPath(); c.moveTo(x, yy); c.lineTo(x - 2, yy - 7); c.moveTo(x + 4, yy); c.lineTo(x + 6, yy - 6); c.stroke(); } }
+function roomChief(c, t) {
+  const H = 260; rmSky(c, 170); rmClouds(c, t);
+  // 광장 큰 나무와 집들
+  rmRect(c, 470, 70, 120, 100, '#e0c9a0', 4); rmPath(c, () => { c.moveTo(456, 76); c.lineTo(530, 24); c.lineTo(604, 76); c.closePath(); }, '#c85a4a'); rmRect(c, 500, 112, 30, 58, '#7a4a2a', 3, 3);
+  rmGrass(c, 160, H); R(c, 0, 196, RW, H - 196, '#cfc7b6');
+  rmRect(c, 70, 100, 22, 100, '#7a4a2a', 4); [[50, 90, 46], [100, 84, 50], [76, 54, 52]].forEach(([x, y, r]) => { Cc(c, x, y, r + 4, OUT); }); [[50, 90, 46], [100, 84, 50], [76, 54, 52]].forEach(([x, y, r]) => Cc(c, x, y, r, '#6fae54')); [[64, 60], [104, 76]].forEach(([x, y]) => Cc(c, x, y, 5, '#f6c0d0'));
+  // 의뢰판
+  if (boardOpen()) { rmRect(c, 392, 130, 12, 90, '#7a4a2a', 3, 3); rmRect(c, 360, 96, 120, 74, '#a8743f', 6); const n = todayBoard().list.filter(b => !b.done).length; for (let k = 0; k < 3; k++) { c.save(); c.translate(380 + k * 34, 112); c.rotate((k - 1) * .08); rmRect(c, 0, 0, 28, 36, k < n ? '#fff6c8' : '#e8dcc4', 2, 2.5); Cc(c, 14, 3, 3.5, '#e0405a'); c.restore(); } }
+  chibi(c, 230, 330, 7.2, { who: 'chief', fx: 1, back: false });
+}
+function roomMerchant(c, t) {
+  const H = 260; rmSky(c, 170, '#f6c68a', '#fbe8c8'); rmClouds(c, t, 50);
+  rmGrass(c, 160, H, '#9cc46a'); R(c, 0, 200, RW, 20, '#d8c198');
+  // 수레: 바퀴 둘, 천 덮개, 짐
+  const bx = 330; rmRect(c, bx, 150, 230, 54, '#a8743f', 6);
+  rmPath(c, () => { c.moveTo(bx + 6, 150); c.quadraticCurveTo(bx + 115, 40, bx + 224, 150); c.closePath(); }, '#f3e2bd');
+  c.strokeStyle = 'rgba(160,120,70,.5)'; c.lineWidth = 3; for (let k = 1; k < 4; k++) { c.beginPath(); c.moveTo(bx + k * 56, 150); c.quadraticCurveTo(bx + k * 56, 90 + Math.abs(k - 2) * 14, bx + 115, 76); c.stroke(); }
+  [bx + 50, bx + 180].forEach(x => { Cc(c, x, 210, 30, OUT); Cc(c, x, 210, 26, '#8a5a30'); Cc(c, x, 210, 8, '#5a3a22'); for (let k = 0; k < 6; k++) { const a = t * 0 + k * Math.PI / 3; c.strokeStyle = '#5a3a22'; c.lineWidth = 3; c.beginPath(); c.moveTo(x, 210); c.lineTo(x + Math.cos(a) * 24, 210 + Math.sin(a) * 24); c.stroke(); } });
+  emo(c, 'ic_o_copper', bx + 60, 140, 34); emo(c, 'ic_o_crystal', bx + 104, 134, 34); emo(c, 'ic_d_bread', bx + 150, 140, 34); emo(c, 'ic_o_herb', bx + 190, 140, 30);
+  rmStar(c, bx + 120, 110, 6 + Math.sin(t * 4) * 2);
+  chibi(c, 190, 330, 7.2, { who: 'merchant', fx: 1, back: false });
+}
+function roomMine(c, t) {
+  const H = 300, T = scene === 'town' ? townHere() : null, loc = T ? S.loc : 'home';
+  rmSky(c, 260, loc === 'volcano' ? '#5a3a4a' : '#9fd8f2', loc === 'volcano' ? '#e0905a' : '#e8f6ff');
+  // 바위 언덕
+  const rock = loc === 'mtn' ? ['#9aa4b0', '#7c8694'] : loc === 'volcano' ? ['#6a4a44', '#4e3632'] : loc === 'port' ? ['#a89a84', '#857864'] : ['#a8907a', '#86705e'];
+  rmPath(c, () => { c.moveTo(60, H); c.quadraticCurveTo(70, 60, 320, 40); c.quadraticCurveTo(580, 60, 600, H); c.closePath(); }, rock[0]);
+  [[150, 120, 40], [470, 110, 46], [250, 70, 30], [420, 180, 34]].forEach(([x, y, r]) => E(c, x, y, r, r * .6, rock[1]));
+  if (loc === 'mtn') rmPath(c, () => { c.moveTo(150, 80); c.quadraticCurveTo(320, 20, 490, 80); c.quadraticCurveTo(320, 60, 150, 80); }, '#f4f8fb', 0);
+  rmGrass(c, 250, H, loc === 'mtn' ? '#eef3f8' : loc === 'volcano' ? '#8a7a6a' : '#8fc465');
+  // 입구: 나무 문틀과 어둠, 안쪽 등불
+  rmPath(c, () => { c.moveTo(250, H); c.lineTo(250, 150); c.quadraticCurveTo(320, 100, 390, 150); c.lineTo(390, H); c.closePath(); }, '#1a120c');
+  rmGlow(c, 320, 210, 60, `rgba(255,190,100,${.35 + .1 * Math.sin(t * 3)})`); Cc(c, 320, 200, 5, '#ffd27a');
+  rmRect(c, 236, 140, 18, H - 140, '#8a5a30', 3); rmRect(c, 386, 140, 18, H - 140, '#8a5a30', 3); rmRect(c, 226, 126, 188, 20, '#a8743f', 4);
+  // 철길과 광차
+  c.strokeStyle = '#5a5f68'; c.lineWidth = 4; [[296, 230], [344, 230]].forEach(([x], i) => { c.beginPath(); c.moveTo(x, 230); c.lineTo(i ? 420 : 220, H); c.stroke(); }); for (let k = 0; k < 4; k++) { const y = 240 + k * 16, w = 50 + k * 30; R(c, 320 - w / 2, y, w, 5, '#7a5530'); }
+  rmPath(c, () => { c.moveTo(430, 232); c.lineTo(530, 232); c.lineTo(518, 270); c.lineTo(442, 270); c.closePath(); }, '#7a6a5a'); emo(c, 'ic_o_' + (T ? 'silver' : 'iron'), 470, 226, 30); emo(c, 'ic_o_copper', 498, 228, 28);
+  [452, 508].forEach(x => { Cc(c, x, 274, 9, OUT); Cc(c, x, 274, 6, '#4a4f5a'); });
+  // 깊이 팻말
+  rmRect(c, 120, 196, 10, 70, '#7a4a2a', 3, 3); rmRect(c, 82, 170, 86, 44, '#c08850', 6);
+  c.font = `26px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#3a2408'; c.fillText(T ? '' : String(S.deepest), 125, 193); if (T) emo(c, 'ic_pick', 125, 192, 28);
+}
+function roomTmarket(c, t) {
+  const H = 260, T = townHere(), loc = S.loc;
+  rmSky(c, 180, loc === 'volcano' ? '#6a4a5a' : loc === 'port' ? '#7cc4ec' : '#c8d4de', loc === 'volcano' ? '#e89a6a' : '#eef6ff');
+  if (loc === 'port') { R(c, 0, 120, RW, 60, '#3d8ad0'); for (let k = 0; k < 6; k++) { const dx = (t * 18 + k * 110) % 680 - 20; c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 2; c.beginPath(); c.moveTo(dx, 140 + (k % 3) * 12); c.lineTo(dx + 22, 140 + (k % 3) * 12); c.stroke(); } }
+  else if (loc === 'mtn') { rmPath(c, () => { c.moveTo(0, 180); c.lineTo(120, 70); c.lineTo(220, 150); c.lineTo(340, 50); c.lineTo(480, 160); c.lineTo(640, 80); c.lineTo(640, 180); c.closePath(); }, '#e8eef6', 0); }
+  else { rmPath(c, () => { c.moveTo(380, 180); c.lineTo(500, 50); c.lineTo(620, 180); c.closePath(); }, '#5a4444', 0); E(c, 500, 52, 14, 5, '#ff8a3a'); }
+  R(c, 0, 176, RW, H - 176, (T && T.path) ? T.path[0] : '#cfc4b0');
+  // 노점
+  [24, 296].forEach(x => rmRect(c, x, 70, 14, 150, '#8a5a30', 3, 3)); rmRect(c, 16, 196, 300, 56, '#a8743f', 6);
+  for (let i = 0; i < 7; i++) rmPath(c, () => { c.moveTo(10 + i * 44, 60); c.lineTo(54 + i * 44, 60); c.quadraticCurveTo(32 + i * 44, 100, 10 + i * 44, 92); c.closePath(); }, i % 2 ? '#f6f0e4' : loc === 'port' ? '#4a9ab8' : loc === 'volcano' ? '#c8604a' : '#8a6ad8', 3);
+  const want = Object.entries(T.price).filter(([, m]) => m > 1.05).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k]) => k);
+  want.forEach((k, i) => emo(c, 'ic_o_' + k, 50 + i * 56, 182, 38));
+  // 당나귀 수레 (산마을에서 팔 때)
+  if (!S.donkey && loc === 'mtn') { rmRect(c, 430, 160, 120, 40, '#a8743f', 6); [452, 528].forEach(x => { Cc(c, x, 206, 18, OUT); Cc(c, x, 206, 14, '#8a5a30'); }); [360, 396].forEach(x => rmRect(c, x, 180, 9, 34, '#6a5a4a', 2, 2.5)); [[338, 124], [354, 124]].forEach(([x, y]) => rmPath(c, () => c.ellipse(x, y, 6, 14, 0, 0, 7), '#8a7a6a', 3)); rmPath(c, () => c.ellipse(380, 170, 40, 22, 0, 0, 7), '#8a7a6a', 3.5); rmPath(c, () => c.arc(346, 146, 18, 0, 7), '#8a7a6a', 3.5); Cc(c, 340, 142, 3, OUT); E(c, 334, 154, 7, 5, '#a89a8a'); }
 }
 function paintRooms(t) {
   sheet.querySelectorAll('canvas[data-room]').forEach(cv => { const c = cv.getContext('2d'); c.setTransform(cv.width / RW, 0, 0, cv.height / (ROOM_H[cv.dataset.room] || RH), 0, 0); try { drawRoom(c, cv.dataset.room, t); } catch (e) { /* 그림만 건너뜀 */ } });
