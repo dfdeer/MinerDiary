@@ -444,6 +444,8 @@ const shot = process.argv[2];
   await page.click('#sheet [data-a="enter"]');
   await page.waitForFunction(() => window.MinerDiary.scene() === 'mine', null, { timeout: 5000 });
   const dayBefore = (await st()).day;
+  await page.evaluate(() => { S.gold = 3000; renderHud(); });
+  const carryF = JSON.stringify((await st()).carry);
   let guarded = false;
   for (let k = 0; k < 200; k++) {
     s = await st();
@@ -458,6 +460,7 @@ const shot = process.argv[2];
   ok(guarded, '마지막 기력에서는 쓰러지기 전에 한 번 물어봄');
   s = await st();
   ok(s.day === dayBefore + 1 && s.energy === 70 && s.screen === 'village', '쓰러지면 다음 날 집에서 기력 70');
+  ok(JSON.stringify(s.carry) === carryF && s.gold === 2700 && (await page.textContent('#sheet')).includes('촌장'), `쓰러져도 가방은 그대로, 치료비로 돈의 10% (🪙3000에서 🪙300, 기획 85번) (${s.gold})`);
   ok(await page.evaluate(() => window.MinerDiary.phaseIndex()) === 0, '쓰러진 다음 날도 아침에 시작');
   ok((await page.textContent('#sheet')).includes('쓰러짐'), '쓰러짐 안내');
   ok(s.inv.copperBar === 5 && !s.furnace && (await page.textContent('#sheet')).includes('구리 주괴'), '자고 일어나면(쓰러져도) 용광로에서 구리 주괴 5개');
