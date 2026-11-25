@@ -826,9 +826,9 @@ const shot = process.argv[2];
   ok((await cell(lr[0] - 1, lr[1])).t === 'J' && (await cell(lr[0] + 1, lr[1])).t === 'T', '깊이 5에 처음 가면 옛 갱도 방(일지와 상자)이 생김');
   const gL = (await st()).gold;
   await tap(lr[0] - 1, lr[1]);
-  await page.waitForSelector('#sheet h2:has-text("일지 1/3")', { timeout: 5000 });
+  await page.waitForSelector('#sheet h2:has-text("일지 1/5")', { timeout: 5000 });
   s = await st();
-  ok(s.loreN === 1 && s.gold === gL + 300 && s.acc.have.firefly >= 1 && (await cell(lr[0] - 1, lr[1])).t === 'f', '일지를 읽으면 이야기 1/3과 🪙300, 반딧불 병');
+  ok(s.loreN === 1 && s.gold === gL + 300 && s.acc.have.firefly >= 1 && (await cell(lr[0] - 1, lr[1])).t === 'f', '일지를 읽으면 이야기 1/5와 🪙300, 반딧불 병');
   await page.click('#sheet [data-a="close"]');
   await page.evaluate(() => toVillage('home'));
   await visit('smithy', '#sheet [data-a="close"]');
@@ -901,6 +901,26 @@ const shot = process.argv[2];
     ok(/오늘 안개/.test(await page.textContent('#sheet')) && /내일/.test(await page.textContent('#sheet')), '날짜 단추를 누르면 오늘과 내일 날씨');
     if (shot) await page.screenshot({ path: path.join(shot, 'weather-fog.png') });
     await page.evaluate(() => { closeSheet(); window.MinerDiary.setWx('clear'); });
+  }
+
+  // 13-2c. 큰 이야기 (기획 79번): 일지 다섯, 깊이 30의 산의 심장, 바치면 엔딩과 광장 축제 등불
+  {
+    ok(await page.evaluate(() => LORE_N === 5 && !!LORE[18] && !!LORE[24]), '옛 광부 일지는 다섯 (깊이 5, 8, 12, 18, 24)');
+    const hz = await page.evaluate(() => { closeSheet(); S.energy = S.max; S.minE = S.dayStart = S.max; startDeep(30, 0, 1); const h = S.deep.heart; startDeep(30, h[0], h[1] + 1); for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) seenSet(h[0] + dx, h[1] + dy); return h; });
+    ok((await cell(hz[0], hz[1])).t === 'Q', '깊이 30에 처음 가면 가까이에 산의 심장 방이 생김');
+    await tap(hz[0], hz[1]);
+    await page.waitForSelector('#sheet h2:has-text("산의 심장")', { timeout: 5000 });
+    ok(await page.locator('#sheet [data-a="calmHeart"]').isDisabled() && (await st()).heartSeen === 1, '심장에 가면 바칠 것(월광 주괴, 루비 보석, 수정 보석)이 보이고, 모자라면 못 바침');
+    await page.evaluate(() => { Object.assign(S.carry, { moonBar: 3, rubyGem: 2, crystalGem: 3 }); showHeart(); });
+    await page.click('#sheet [data-a="calmHeart"]');
+    ok((await st()).heartCalm > 0 && (await page.textContent('#sheet h2')).includes('산의 심장') && await page.locator('#sheet [data-a="close"]').count() === 0, '바치면 심장이 잠들고 엔딩 이야기가 시작됨 (도중엔 닫기 없음)');
+    for (let k = 0; k < 6; k++) await page.click('#sheet [data-a="ending"]:not(:has-text("이전"))');
+    ok((await page.textContent('#sheet')).includes('마을이 다시 숨을 쉼') && (await page.textContent('#sheet')).includes('지난 날'), '엔딩 끝엔 기록 카드');
+    await page.click('#sheet [data-a="endingDone"]');
+    if (shot) await page.screenshot({ path: path.join(shot, 'heart.png') });
+    await page.evaluate(() => toVillage('home'));
+    await page.waitForTimeout(300);
+    ok(await page.evaluate(() => S.heartCalm > 0 && window.MinerDiary.scene() === 'village'), '엔딩 뒤에도 계속 놀 수 있고 광장에 축제 등불');
   }
 
   // 13-3. 곡괭이 조합 (기획 71번): 자루와 추가 재료, 금 곡괭이 다음 특수 곡괭이와 도감, 곡괭이질 빠르기
