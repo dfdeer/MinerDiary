@@ -283,11 +283,15 @@ const shot = process.argv[2];
   ok(s.forest.seen.filter(Boolean).length < s.forest.t.length / 10 && Object.keys(s.forest.it).length > 20, '숲은 안개에 덮여 있고 주울 것이 흩어져 있음');
   if (shot) await page.screenshot({ path: path.join(shot, 'forest.png') });
   const eF = s.energy;
-  for (let k = 0; k < 20 && (await st()).gatherN < 5; k++) {
-    const it = await page.evaluate(() => { const f = S.forest; return Object.keys(f.it).filter(k2 => f.it[k2] !== 'chest').map(k2 => k2.split(',').map(Number)).sort((a, b) => Math.hypot(a[0] - hero.x, a[1] - hero.y) - Math.hypot(b[0] - hero.x, b[1] - hero.y))[0]; });
+  const triedF = [];   // 한 번 눌러도 못 주운 자리(길이 막힌 곳)는 다시 고르지 않음
+  for (let k = 0; k < 30 && (await st()).gatherN < 5; k++) {
+    const it = await page.evaluate(tried => { const f = S.forest; return Object.keys(f.it).filter(k2 => f.it[k2] !== 'chest' && !tried.includes(k2)).map(k2 => k2.split(',').map(Number)).sort((a, b) => Math.hypot(a[0] - hero.x, a[1] - hero.y) - Math.hypot(b[0] - hero.x, b[1] - hero.y))[0]; }, triedF);
+    if (!it) break;
+    const n0 = (await st()).gatherN;
     const p = await page.evaluate(([x, y]) => window.MinerDiary.forestSpot(x, y), it);
     await page.mouse.click(p.x, p.y); await page.waitForTimeout(60);
     await page.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 15000 });
+    if ((await st()).gatherN === n0) triedF.push(it.join(','));
   }
   s = await st();
   ok(s.gatherN >= 5 && (await quest()).includes('보물') && Object.keys(s.carry).length > 0, '숲에서 다섯 번 주우면 퀘스트 끝, 주운 것은 가방에');
@@ -658,14 +662,14 @@ const shot = process.argv[2];
   ok(await page.evaluate(() => window.MinerDiary.scene() === 'hunt' && S.hunt.stage === 1 && S.hunt.mons.some(m => m.kind === 'wolf')), '다음 단계 단추로 2단계 (늑대가 섞임)');
   // 돌진과 빛 구슬, 왕 멧돼지의 부름
   const beh = await page.evaluate(async () => {
-    hero.atk = null; hero.path = [];   // 쫓던 몬스터가 있으면 멈칫할 때 쳐서 돌진이 끊기니 비움
+    hero.atk = null; hero.path = []; S.energy = S.max;   // 쫓던 몬스터가 있으면 멈칫할 때 쳐서 돌진이 끊기니 비움, 돌진에 맞아 쓰러지지 않게 기력을 채움
     const H = S.hunt, b = H.mons.find(m => m.kind === 'boar'); H.mons.forEach(m => { if (m !== b) m.hp = 0; }); b.hp = 99; b.x = hero.x + 3; b.y = hero.y; b.cd2 = 0; b.st = 'walk';
     const seen = new Set(); for (let i = 0; i < 120; i++) { huntTick(.02); seen.add(b.st); } b.hp = 0;
-    H.won = true; H.mons.push(newMon(H.nid++, 'spirit', hero.x + 4, hero.y)); const sp = H.mons[H.mons.length - 1]; sp.cd2 = 0; huntTick(.02); const shot = H.shots.length > 0; sp.hp = 0; H.shots = [];
-    const k = newMon(H.nid++, 'king', hero.x + 5, hero.y - 2); k.sum = 0; k.cd2 = 9; H.mons.push(k); const n0 = H.mons.length; huntTick(.02); const called = H.mons.length > n0; H.mons.forEach(m => { m.hp = 0; });
+    H.won = true; H.mons.push(newMon(H.nid++, 'spirit', hero.x + 4, hero.y)); const sp = H.mons[H.mons.length - 1]; sp.cd2 = 0; huntTick(.02); const shot = H.shots.length > 0 || sp.cd2 > 1;   // 막힌 곳에 쏘면 구슬이 바로 사라질 수 있어 쏜 뒤 기다림으로도 봄 sp.hp = 0; H.shots = [];
+    const k = newMon(H.nid++, 'king', hero.x + 5, hero.y - 2); k.sum = 0; k.cd2 = 9; H.mons.push(k); const n0 = H.mons.length; let called = false; for (let i = 0; i < 6 && !called; i++) { k.sum = 0; huntTick(.02); called = H.mons.length > n0; }   // 부른 멧돼지 자리는 무작위라 몇 번 기회를 줌 H.mons.forEach(m => { m.hp = 0; });
     return { wind: seen.has('wind'), dash: seen.has('dash'), shot, called };
   });
-  ok(beh.wind && beh.dash && beh.shot && beh.called, '멧돼지는 멈칫했다가 돌진, 정령은 빛 구슬을 쏨, 왕 멧돼지는 멧돼지를 부름');
+  ok(beh.wind && beh.dash && beh.shot && beh.called, '멧돼지는 멈칫했다가 돌진, 정령은 빛 구슬을 쏨, 왕 멧돼지는 멧돼지를 부름 ' + (beh.wind && beh.dash && beh.shot && beh.called ? '' : JSON.stringify(beh)));
   await goHome(page);
   s = await st();
   ok(s.carry.meat >= 1, '마을 단추로 돌아오면 잡은 것은 가방에 그대로');
@@ -880,6 +884,7 @@ const shot = process.argv[2];
     await page.click('#sheet [data-a="fslot"][data-o="handle"]');
     const hl = await page.evaluate(() => { const ids = [...document.querySelectorAll('#sheet .drawer [data-k="handle"]')].map(b => b.dataset.o); return { t: ids.join(), ok: ids.includes('oldwood') && ids.includes('bone') && ids.every(id => !HANDLES[id].k || have(HANDLES[id].item) > 0) && Object.keys(HANDLES).every(id => ids.includes(id) || have(HANDLES[id].item) === 0) }; });
     ok(hl.ok, `자루칸을 누르면 아래에서 가진 자루만 목록으로 (${hl.t})`);
+    ok(await page.evaluate(() => { sheet.scrollTop = 9999; const h = document.querySelector('#sheet > header').getBoundingClientRect(), sh = sheet.getBoundingClientRect(); return h.top >= sh.top - 1 && h.top < sh.top + 30; }), '목록이 올라와 창 안이 스크롤돼도 제목 줄과 닫기 단추는 맨 위에 그대로');
     await page.click('#sheet [data-a="fsel"][data-k="handle"][data-o="oldwood"]');
     ok(await page.locator('#sheet .drawer').count() === 0, '고르면 목록이 닫히고 칸에 들어감');
     await page.click('#sheet [data-a="fslot"][data-o="a0"]');
