@@ -157,6 +157,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:5;max-width:620px;margin:0 auto;border-radius:20px 20px 0 0;border-bottom:0;padding:14px var(--sr) var(--sb) var(--sl);max-height:62vh;overflow:auto;touch-action:pan-y;overscroll-behavior:contain;animation:up .18s ease-out}
 @keyframes up{from{transform:translateY(24px);opacity:0}}
 .sheet header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+/* 창 제목 줄은 안을 스크롤해도 맨 위에 붙어 있음 (11/25) */
+.sheet>header{position:sticky;top:-14px;z-index:4;margin:-14px calc(-1 * var(--sr)) 8px calc(-1 * var(--sl));padding:14px var(--sr) 8px var(--sl);background:var(--wood);box-shadow:0 6px 10px -8px rgba(0,0,0,.6)}
 .sheet h2{margin:0;font-size:18px;flex:1}
 .sheet .x{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.08);font-size:15px}
 .daysum{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(233,176,79,.12)}.daysum .got{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0}.daysum .got>span{display:inline-flex;align-items:center;gap:3px}.daysum .big{font-size:22px;margin:4px 0 0}.daysum .rec{margin-left:8px;font-size:14px;color:#ffd27a;animation:pop .5s ease-out}
