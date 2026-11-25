@@ -110,6 +110,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .room canvas{display:block;width:100%;height:100%}
 .room .hot{position:absolute;padding:0;margin:0;border:0;background:transparent;border-radius:14px;box-shadow:none;display:flex;align-items:flex-end;justify-content:center;transition:background .12s}
 .room .hot.top{align-items:flex-start}.room .hot.top .hl{margin:6px 0 0}
+.room .hot.on{box-shadow:inset 0 0 0 3px rgba(242,194,48,.9);background:rgba(255,230,150,.1)}.room .hot:disabled{opacity:1}.room .hot:disabled .hl{opacity:.55}
 .room .hot:active{background:rgba(255,230,160,.22)}
 .room .hot.has{animation:hotp 1.8s ease-in-out infinite}
 @keyframes hotp{50%{background:rgba(255,220,130,.13)}}
@@ -124,6 +125,10 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .seg button{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;height:38px;border-radius:10px;background:transparent;border:0;box-shadow:none;color:var(--dim);font-size:15px}
 .seg button .ico{width:18px;height:18px;margin:0}.seg button small{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--ink);font-size:11px;display:grid;place-items:center}
 .seg button.on{background:linear-gradient(#f2c35a,#d99a32);color:#3a2408;box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.cases{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px}
+.case{position:relative;aspect-ratio:1;border-radius:10px;display:grid;place-items:center;padding:0;background:linear-gradient(rgba(200,235,255,.16),rgba(200,235,255,.05));border:2px solid rgba(255,235,200,.22);box-shadow:inset 0 -6px 0 rgba(0,0,0,.25);color:var(--dim);font-size:18px}
+.case .ore{width:70%;height:70%;margin:0}.case.on{border-color:#e9b04f;background:radial-gradient(circle at 50% 40%,rgba(255,220,130,.3),rgba(0,0,0,.1))}
+.case.off{opacity:.45}.case.can{border-color:#a8e89a;animation:hotp 1.8s ease-in-out infinite}.case.can .ore{opacity:.65}.case.can i{position:absolute;right:3px;top:1px;font-style:normal;color:#a8e89a;font-size:15px}
 .shelf{padding:8px 8px 4px;border-radius:12px;background:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.25));border-bottom:6px solid #6b4428}
 .smgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .smtile{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 8px 12px;border-radius:16px;background:linear-gradient(rgba(255,235,200,.08),rgba(0,0,0,.22));border:1px solid rgba(255,235,200,.16);box-shadow:0 3px 0 rgba(0,0,0,.3);text-align:center}
@@ -3834,10 +3839,11 @@ function nightSell(i) {
 /* ===== 박물관 (기획 36번): 모은 것을 종류마다 하나씩 기증. 모은 수에 따라 보상 ===== */
 const MUSEUM_GOALS = [[10, 500], [20, 1500], [30, 3000]];
 function showMuseum() {
+  // 박물관 (기획 84번): 위는 홀 그림(받침대에 최근 기증품, 목표 별), 아래는 진열장. 가진 것이 있는 진열장을 누르면 기증
   const got = S.museum || [], all = ORE_ORDER.length;
   const goals = MUSEUM_GOALS.map(([n, g]) => `<span class="nd ${got.length >= n ? '' : 'lack'}">${n} ${GOLD}${g}</span>`).join(' ');
-  const cells = ORE_ORDER.map(o => got.includes(o) ? `<span class="chip on"><span class="ore ${o}"></span>${ORES[o].name}</span>` : have(o) ? `<button class="chip" data-a="donate" data-o="${o}"><span class="ore ${o}"></span>${ORES[o].name}</button>` : '<span class="chip off">?</span>').join('');
-  openSheet(ico('ic_treasure') + '박물관', `<p>${got.length}/${all} ${goals}</p><div class="chips">${cells}</div>`);
+  const cells = ORE_ORDER.map(o => got.includes(o) ? `<span class="case on"><span class="ore ${o}"></span></span>` : have(o) ? `<button class="case can" data-a="donate" data-o="${o}" aria-label="${ORES[o].name}"><span class="ore ${o}"></span><i>+</i></button>` : '<span class="case off">?</span>').join('');
+  openSheet(ico('ic_treasure') + '박물관', roomHtml('museum', []) + `<p>${got.length}/${all} ${goals}</p><div class="cases">${cells}</div>`);
 }
 function donate(o) {
   S.museum = S.museum || [];
@@ -4017,7 +4023,9 @@ function showTownObj(o) {
   const T = townHere();
   if (o.id === 'inn') {
     const late = phaseIndex() === 3;
-    openSheet(ico('ic_village') + '여관', `<p>${T.greet}</p>` + (late ? '<p class="warn">새벽 취침</p>' : ''), `<button class="btn" data-a="store">${ico('ic_box')}창고</button><button class="btn primary" data-a="inn" ${S.gold >= 50 ? '' : 'disabled'}>${GOLD}50</button>`);
+    // 여관 안 그림 (기획 84번): 침대(자기), 상자(창고). 창밖은 마을마다 다름
+    const hots = [{ a: 'inn', box: [18, 160, 256, 332], name: '자기', sub: `${GOLD}50`, dis: S.gold < 50 }, { a: 'store', box: [446, 200, 618, 332], name: '창고' }];
+    openSheet(ico('ic_village') + '여관', roomHtml('inn', hots) + `<p>${T.greet}</p>` + (late ? '<p class="warn">새벽 취침</p>' : ''));
   } else if (o.id === 'tmarket') {
     const rows = ORE_ORDER.filter(k => have(k)).map(k => { const m = T.price[k] || 1, cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${k}"></span>${ORES[k].name} <small>×${have(k)}</small> <small class="${cls}">${GOLD}${townPrice(k)}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="tsell" data-o="${k}">${GOLD}${townPrice(k) * have(k)}</button></div>`; }).join('');
     const buy = S.donkey || S.loc !== 'mtn' ? '' : `<p class="dim" style="margin-top:10px">사기</p><div class="rows"><div class="rowi"><span class="nm">${ico('ic_donkey')}당나귀 수레 <small class="eff">길 기력 2할, 가방 +20칸</small></span><button class="btn small" data-a="donkey" ${S.gold >= DONKEY_GOLD ? '' : 'disabled'}>${GOLD}${DONKEY_GOLD}</button></div></div>`;
@@ -4736,7 +4744,7 @@ function upgradeHome() {
 }
 /* ===== 건물 안 그림 장면 (기획 80번): 창 맨 위에 방 안을 그리고, 물건을 누르면 그 일을 함 ===== */
 // 그림은 640×400 기준. 누를 곳(hot)은 같은 기준의 [x0, y0, x1, y1]을 %로 바꿔 HTML 단추로 겹침
-const RW = 640, RH = 400;
+const RW = 640, RH = 400, ROOM_H = { market: 300, museum: 320 };   // 장면마다 높이가 다를 수 있음
 let roomT = 0;
 const rmPath = (c, draw, fill, lw = 4) => { c.beginPath(); draw(); if (fill !== 'none') { c.fillStyle = fill; c.fill(); } if (lw) { c.lineWidth = lw; c.strokeStyle = OUT; c.lineJoin = 'round'; c.lineCap = 'round'; c.stroke(); } };
 const rmRect = (c, x, y, w, h, f, r = 6, lw = 4) => rmPath(c, () => c.roundRect(x, y, w, h, r), f, lw);
@@ -4762,10 +4770,9 @@ function rmBricks(c, h, a, b, line) {
 }
 // 장면 그리기: kind는 smithy, house, kitchen
 function drawRoom(c, kind, t) {
+  const RH = ROOM_H[kind] || 400;
   c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
-  if (kind === 'smithy') roomSmithy(c, t);
-  else if (kind === 'house') roomHouse(c, t);
-  else if (kind === 'kitchen') roomKitchen(c, t);
+  ({ smithy: roomSmithy, house: roomHouse, kitchen: roomKitchen, jewel: roomJewel, market: roomMarket, museum: roomMuseum, inn: roomInn }[kind] || (() => {}))(c, t);
   // 둘레 어둡게 (방 안 느낌)
   const v = c.createRadialGradient(RW / 2, RH * .55, RH * .35, RW / 2, RH * .55, RW * .62); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(20,10,5,.45)'); c.fillStyle = v; c.fillRect(0, 0, RW, RH);
   c.restore();
@@ -4780,8 +4787,11 @@ function roomSmithy(c, t) {
   // 연장 벽 (도구): 걸이판에 천막 꾸러미, 낫, 톱, 바퀴
   rmRect(c, 292, 44, 196, 112, '#9a6a3e', 8);
   for (let x = 306; x < 480; x += 22) for (let y = 58; y < 150; y += 22) Cc(c, x, y, 2.5, 'rgba(0,0,0,.35)');
-  rmPath(c, () => { c.moveTo(312, 76); c.lineTo(352, 76); c.lineTo(346, 128); c.lineTo(318, 128); c.closePath(); }, '#d8b46a', 3.5);   // 천막 꾸러미
-  rmPath(c, () => { c.moveTo(312, 96); c.lineTo(352, 96); }, '#d8b46a', 3); Cc(c, 332, 70, 5, '#7a4a2a');
+  // 천막: 말아 둔 천 뭉치를 끈 둘로 묶어 고리에 걺 (끝은 둥글게 말린 단면)
+  c.strokeStyle = OUT; c.lineWidth = 3; c.beginPath(); c.moveTo(332, 58); c.lineTo(318, 84); c.moveTo(332, 58); c.lineTo(346, 84); c.stroke(); Cc(c, 332, 58, 4, '#7a4a2a');
+  rmRect(c, 306, 84, 52, 40, '#d8b46a', 18, 3.5);
+  rmRect(c, 318, 82, 8, 44, '#8a5a30', 2, 2.5); rmRect(c, 338, 82, 8, 44, '#8a5a30', 2, 2.5);
+  Cc(c, 358, 104, 17, OUT); Cc(c, 358, 104, 14, '#e8cc88'); c.strokeStyle = '#a8843e'; c.lineWidth = 2.5; c.beginPath(); for (let k = 0; k < 18; k++) { const an = k * .7, r = 2 + k * .62; c.lineTo(358 + Math.cos(an) * r, 104 + Math.sin(an) * r); } c.stroke();
   c.strokeStyle = '#8a5a30'; c.lineWidth = 7; c.beginPath(); c.moveTo(378, 92); c.lineTo(378, 142); c.stroke(); c.strokeStyle = OUT; c.lineWidth = 3; c.strokeRect(374, 92, 8, 50);
   rmPath(c, () => { c.arc(392, 86, 18, Math.PI * .95, Math.PI * 2.05); c.arc(392, 90, 12, Math.PI * 2.05, Math.PI * .95, true); c.closePath(); }, '#c9d2dc', 3);   // 낫
   Cc(c, 450, 104, 30, OUT); Cc(c, 450, 104, 26, '#8a5a30'); Cc(c, 450, 104, 18, '#9a6a3e'); for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; c.strokeStyle = OUT; c.lineWidth = 4; c.beginPath(); c.moveTo(450, 104); c.lineTo(450 + Math.cos(a) * 24, 104 + Math.sin(a) * 24); c.stroke(); } Cc(c, 450, 104, 6, '#5a5f68');
@@ -4815,7 +4825,9 @@ function roomSmithy(c, t) {
   for (let k = 0; k < (S.sharp || 0); k++) rmStar(c, 430 + k * 10, 188 - (k % 2) * 6, 5);
   // 장신구 작업대: 작은 탁자, 등, 반지 상자
   rmRect(c, 520, 250, 112, 18, '#a8743f', 4); [530, 612].forEach(x => rmRect(c, x, 266, 12, 62, '#8a5a30', 3, 3.5));
-  rmPath(c, () => { c.moveTo(600, 250); c.lineTo(604, 182); c.lineTo(580, 168); }, 'none', 4); c.strokeStyle = '#5a6270'; c.lineWidth = 3; c.stroke();
+  rmRect(c, 588, 242, 26, 10, '#5a6270', 3, 3);   // 등 받침
+  c.strokeStyle = OUT; c.lineWidth = 8; c.beginPath(); c.moveTo(601, 244); c.lineTo(606, 186); c.lineTo(582, 170); c.stroke();
+  c.strokeStyle = '#7a8390'; c.lineWidth = 4; c.beginPath(); c.moveTo(601, 244); c.lineTo(606, 186); c.lineTo(582, 170); c.stroke(); Cc(c, 606, 186, 5, '#5a6270');
   rmPath(c, () => { c.moveTo(560, 172); c.lineTo(596, 158); c.lineTo(600, 178); c.closePath(); }, '#e0c060'); rmGlow(c, 566, 200, 50, 'rgba(255,230,150,.45)');
   rmRect(c, 534, 226, 44, 26, '#b8405a', 6); rmRect(c, 534, 220, 44, 10, '#d4566e', 5, 3);
   Cc(c, 556, 224, 9, '#f2c230'); c.strokeStyle = OUT; c.lineWidth = 3; c.beginPath(); c.arc(556, 224, 9, 0, 7); c.stroke(); Cc(c, 556, 215, 4, '#6fd2ea');
@@ -4903,11 +4915,107 @@ function roomKitchen(c, t) {
 }
 // 장면 HTML: hots = [{ a, o, box: [x0, y0, x1, y1], name, sub, dot }]
 function roomHtml(kind, hots, extra = '') {
-  const pc = (v, m) => (v / m * 100).toFixed(2) + '%';
-  return `<div class="room"><canvas data-room="${kind}" width="960" height="600"></canvas>${hots.filter(Boolean).map(h => `<button class="hot${h.dot ? ' has' : ''}${h.top ? ' top' : ''}" data-a="${h.a}"${h.o !== undefined ? ` data-o="${h.o}"` : ''} style="left:${pc(h.box[0], RW)};top:${pc(h.box[1], RH)};width:${pc(h.box[2] - h.box[0], RW)};height:${pc(h.box[3] - h.box[1], RH)}" aria-label="${h.name}"><span class="hl">${h.dot ? `<i class="dot">${h.dot}</i>` : ''}${h.name}${h.sub ? `<small>${h.sub}</small>` : ''}</span></button>`).join('')}${extra}</div>`;
+  const RH = ROOM_H[kind] || 400, pc = (v, m) => (v / m * 100).toFixed(2) + '%';
+  return `<div class="room" style="aspect-ratio:${RW}/${RH}"><canvas data-room="${kind}" width="960" height="${RH * 1.5}"></canvas>${hots.filter(Boolean).map(h => `<button class="hot${h.dot ? ' has' : ''}${h.top ? ' top' : ''}${h.on ? ' on' : ''}" data-a="${h.a}"${h.o !== undefined ? ` data-o="${h.o}"` : ''}${h.dis ? ' disabled' : ''} style="left:${pc(h.box[0], RW)};top:${pc(h.box[1], RH)};width:${pc(h.box[2] - h.box[0], RW)};height:${pc(h.box[3] - h.box[1], RH)}" aria-label="${h.aria || String(h.name).replace(/<[^>]*>/g, '')}"><span class="hl">${h.dot ? `<i class="dot">${h.dot}</i>` : ''}${h.name}${h.sub ? `<small>${h.sub}</small>` : ''}</span></button>`).join('')}${extra}</div>`;
+}
+// 세공소: 벨벳 벽, 왼쪽 보석 진열장(깎은 보석), 가운데 연마 바퀴와 돋보기 등, 오른쪽 원석 쟁반 셋 (기획 84번)
+function roomJewel(c, t) {
+  R(c, 0, 0, RW, 300, '#3e2a4e'); for (let x = 0; x < RW; x += 36) R(c, x, 0, 16, 300, 'rgba(255,255,255,.04)');
+  R(c, 0, 220, RW, 80, '#6b4428'); R(c, 0, 216, RW, 8, '#8a5a30');
+  rmFloor(c, 300, '#7a5434', 'rgba(0,0,0,.22)');
+  // 진열장
+  rmRect(c, 20, 40, 170, 290, '#8a5a30', 10); R(c, 32, 52, 146, 266, 'rgba(180,220,255,.18)');
+  [118, 200, 282].forEach(y => rmRect(c, 30, y, 150, 8, '#a8743f', 2, 3));
+  [['crystalGem', 92], ['amethystGem', 174], ['rubyGem', 256]].forEach(([g, y]) => { const n = Math.min(4, have(g)); for (let k = 0; k < Math.max(n, 1); k++) { if (!n) { E(c, 105, y + 14, 14, 4, 'rgba(0,0,0,.2)'); continue; } emo(c, 'ic_o_' + g, 54 + k * 34, y, 30); } if (n) rmStar(c, 160, y - 16, 5 + Math.sin(t * 4 + y) * 2); });
+  c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 4; c.beginPath(); c.moveTo(44, 70); c.lineTo(70, 56); c.moveTo(44, 90); c.lineTo(96, 60); c.stroke();
+  // 작업대
+  rmRect(c, 200, 236, 430, 22, '#a8743f', 5); [214, 600].forEach(x => rmRect(c, x, 256, 16, 74, '#8a5a30', 3, 3.5));
+  // 연마 바퀴 (돌아감)
+  rmRect(c, 236, 196, 70, 42, '#5a6270', 6); const a = t * 5; Cc(c, 271, 176, 34, OUT); Cc(c, 271, 176, 30, '#c9c4bc');
+  for (let k = 0; k < 3; k++) { const q = a + k * 2.1; c.strokeStyle = 'rgba(0,0,0,.2)'; c.lineWidth = 3; c.beginPath(); c.moveTo(271 + Math.cos(q) * 8, 176 + Math.sin(q) * 8); c.lineTo(271 + Math.cos(q) * 27, 176 + Math.sin(q) * 27); c.stroke(); }
+  Cc(c, 271, 176, 7, '#6b4428'); for (let k = 0; k < 4; k++) { const p = (t * 1.3 + k / 4) % 1; Cc(c, 300 + p * 30, 160 - p * 26 + k * 3, 2.4 * (1 - p), `rgba(255,240,180,${1 - p})`); }
+  // 돋보기 등
+  c.strokeStyle = OUT; c.lineWidth = 7; c.beginPath(); c.moveTo(330, 236); c.lineTo(338, 120); c.lineTo(392, 96); c.stroke();
+  c.strokeStyle = '#5a6270'; c.lineWidth = 4; c.beginPath(); c.moveTo(330, 236); c.lineTo(338, 120); c.lineTo(392, 96); c.stroke();
+  Cc(c, 404, 104, 24, OUT); Cc(c, 404, 104, 20, 'rgba(190,230,255,.55)'); rmGlow(c, 410, 200, 120, 'rgba(255,240,190,.28)');
+  // 원석 쟁반 셋
+  [['crystal', 420], ['amethyst', 500], ['ruby', 580]].forEach(([o, x]) => {
+    E(c, x, 232, 36, 10, '#5a3a22'); c.strokeStyle = OUT; c.lineWidth = 3; c.beginPath(); c.ellipse(x, 232, 36, 10, 0, 0, 7); c.stroke();
+    const n = Math.min(3, have(o)); for (let k = 0; k < n; k++) emo(c, 'ic_o_' + o, x - 16 + k * 16, 220 - (k % 2) * 6, 30);
+  });
+}
+// 시장: 노점 셋 (시세판, 음식, 재료). 고른 노점은 차양이 밝음
+function roomMarket(c, t) {
+  const H = 300, g = c.createLinearGradient(0, 0, 0, 200); g.addColorStop(0, '#9fd8f2'); g.addColorStop(1, '#e0f4ff'); c.fillStyle = g; c.fillRect(0, 0, RW, 200);
+  [[90, 60], [300, 40], [520, 70]].forEach(([x, y], i) => { const dx = (t * 6 + i * 90) % 760 - 60; E(c, x + dx - 300, y, 40, 14, 'rgba(255,255,255,.85)'); });
+  R(c, 0, 196, RW, H - 196, '#cfc7b6'); c.strokeStyle = 'rgba(80,70,55,.18)'; c.lineWidth = 2; for (let x = 0; x < RW; x += 40) { c.beginPath(); c.moveTo(x, 196); c.lineTo(x - 30, H); c.stroke(); }
+  const stall = (x0, col, k) => {
+    const on = marketTab === k;
+    [x0 + 12, x0 + 176].forEach(x => rmRect(c, x, 90, 12, 170, '#8a5a30', 3, 3));
+    rmRect(c, x0, 196, 200, 64, '#a8743f', 6);
+    for (let i = 0; i < 5; i++) rmPath(c, () => { c.moveTo(x0 - 6 + i * 42, 70); c.lineTo(x0 + 36 + i * 42, 70); c.quadraticCurveTo(x0 + 15 + i * 42, 112, x0 - 6 + i * 42, 104); c.closePath(); }, i % 2 ? '#f6f0e4' : col, 3);
+    rmRect(c, x0 - 8, 58, 216, 16, on ? '#f2c230' : '#8a5a30', 4, 3);
+    if (!on) R(c, x0 - 8, 58, 216, 60, 'rgba(40,30,20,.18)');
+  };
+  stall(16, '#e0405a', 'trade'); stall(222, '#e08a3a', 'food'); stall(428, '#5a8ad8', 'mat');
+  // 시세판: 칠판과 오르내림 화살표
+  rmRect(c, 46, 120, 140, 70, '#2f4a3a', 6); c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = 3; c.beginPath(); c.moveTo(60, 172); c.lineTo(90, 150); c.lineTo(115, 160); c.lineTo(150, 132); c.stroke(); rmPath(c, () => { c.moveTo(150, 132); c.lineTo(138, 134); c.lineTo(148, 144); c.closePath(); }, '#a8e89a', 0);
+  emo(c, 'ic_o_copper', 64, 214, 30); emo(c, 'ic_o_iron', 110, 216, 30); emo(c, 'ic_o_gold', 156, 214, 30);
+  // 음식: 빵과 꼬치, 김
+  emo(c, 'ic_d_bread', 270, 214, 40); emo(c, 'ic_d_bread', 320, 208, 40); emo(c, 'ic_d_skewer', 372, 212, 40);
+  for (let k = 0; k < 3; k++) { const p = (t * .5 + k / 3) % 1; c.strokeStyle = `rgba(255,255,255,${.7 * (1 - p)})`; c.lineWidth = 5; c.beginPath(); const x = 280 + k * 40; c.moveTo(x, 190 - p * 60); c.quadraticCurveTo(x + 8 * Math.sin(t * 2 + k), 170 - p * 60, x, 150 - p * 60); c.stroke(); }
+  // 재료: 나무 상자들
+  [[452, 150], [520, 150], [486, 112]].forEach(([x, y]) => { rmRect(c, x, y, 62, 46, '#c08850', 4, 3); c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 3; c.beginPath(); c.moveTo(x, y + 23); c.lineTo(x + 62, y + 23); c.stroke(); });
+  emo(c, 'ic_o_wood', 470, 216, 32); emo(c, 'ic_o_coal', 516, 216, 30); emo(c, 'ic_o_fiber', 562, 216, 30);
+}
+// 박물관: 기둥과 둥근 창, 가운데 받침대에 가장 최근 기증품, 오른쪽 목표 별 셋
+function roomMuseum(c, t) {
+  const H = 320; R(c, 0, 0, RW, 250, '#e8dcc4'); for (let x = 30; x < RW; x += 150) { rmRect(c, x, 30, 34, 220, '#f3ead8', 4, 3); rmRect(c, x - 8, 24, 50, 14, '#d8c8a8', 3, 3); }
+  R(c, 0, 0, RW, 24, '#b8a07a'); rmPath(c, () => { c.arc(RW / 2, 110, 70, Math.PI, 0); c.lineTo(RW / 2 + 70, 140); c.lineTo(RW / 2 - 70, 140); c.closePath(); }, '#bfe6fa');
+  c.strokeStyle = '#8a6a44'; c.lineWidth = 5; c.beginPath(); c.moveTo(RW / 2, 40); c.lineTo(RW / 2, 140); c.moveTo(RW / 2 - 70, 110); c.lineTo(RW / 2 + 70, 110); c.stroke();
+  R(c, 0, 250, RW, H - 250, '#a8803e'); for (let x = 0; x < RW; x += 64) for (let y = 250; y < H; y += 32) { c.strokeStyle = 'rgba(0,0,0,.15)'; c.lineWidth = 2; c.strokeRect(x + ((y / 32) % 2) * 32, y, 64, 32); }
+  E(c, RW / 2, 296, 200, 18, '#9a3a3a');
+  const got = S.museum || [], last = got[got.length - 1];
+  rmRect(c, RW / 2 - 50, 196, 100, 90, '#f3ead8', 6); rmRect(c, RW / 2 - 60, 188, 120, 16, '#d8c8a8', 4, 3);
+  rmRect(c, RW / 2 - 44, 116, 88, 74, 'rgba(200,235,255,.35)', 8, 3);
+  if (last) { emo(c, 'ic_o_' + last, RW / 2, 152, 56); rmGlow(c, RW / 2, 150, 70, 'rgba(255,240,180,.3)'); rmStar(c, RW / 2 + 34, 126, 6 + Math.sin(t * 4) * 2); }
+  // 목표 별 판
+  rmRect(c, 450, 60, 160, 110, '#8a5a30', 8); R(c, 460, 70, 140, 90, '#f6f0e4');
+  MUSEUM_GOALS.forEach(([n], i) => { const x = 486 + i * 44, ok = got.length >= n; rmStar(c, x, 102, 18, ok ? '#f2c230' : 'rgba(120,100,70,.25)'); c.font = `20px ${FONT}`; c.textAlign = 'center'; c.fillStyle = ok ? '#8a5a1e' : 'rgba(120,100,70,.6)'; c.fillText(n, x, 146); });
+  // 왼쪽 학자의 책상
+  rmRect(c, 40, 196, 150, 18, '#8a5a30', 4); [52, 172].forEach(x => rmRect(c, x, 212, 12, 64, '#6b4428', 3, 3));
+  rmPath(c, () => { c.moveTo(70, 194); c.lineTo(116, 186); c.lineTo(162, 194); c.lineTo(162, 172); c.lineTo(116, 164); c.lineTo(70, 172); c.closePath(); }, '#f6f0e4', 3);
+  c.strokeStyle = 'rgba(120,90,60,.5)'; c.lineWidth = 2; for (let k = 0; k < 2; k++) { c.beginPath(); c.moveTo(80, 178 + k * 7); c.lineTo(108, 173 + k * 7); c.moveTo(124, 173 + k * 7); c.lineTo(152, 178 + k * 7); c.stroke(); }
+}
+// 여관: 마을마다 다른 창밖 (눈 산, 화산, 바다), 침대(자기), 상자(창고), 카운터의 종
+function roomInn(c, t) {
+  const loc = S.loc;
+  R(c, 0, 0, RW, 300, '#b88a5a'); for (let x = 0; x < RW; x += 46) { c.strokeStyle = 'rgba(0,0,0,.14)'; c.lineWidth = 3; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, 300); c.stroke(); }
+  rmFloor(c, 300, '#7a5434', 'rgba(0,0,0,.2)');
+  rmRect(c, 254, 40, 132, 112, '#6b4428', 8, 4);
+  const sky = loc === 'volcano' ? ['#5a3a4a', '#e0804a'] : loc === 'port' ? ['#7cc4ec', '#cfeeff'] : ['#a8c8e8', '#eef6ff'];
+  const g = c.createLinearGradient(0, 50, 0, 142); g.addColorStop(0, sky[0]); g.addColorStop(1, sky[1]); c.fillStyle = g; c.fillRect(264, 50, 112, 92);
+  if (loc === 'volcano') { rmPath(c, () => { c.moveTo(270, 142); c.lineTo(320, 82); c.lineTo(370, 142); c.closePath(); }, '#4a3a3a', 0); E(c, 320, 82, 10, 4, '#ff8a3a'); for (let k = 0; k < 3; k++) { const p = (t * .4 + k / 3) % 1; Cc(c, 320 + Math.sin(k * 2 + t) * 6, 76 - p * 26, 6 + p * 6, `rgba(90,80,80,${.6 * (1 - p)})`); } }
+  else if (loc === 'port') { R(c, 264, 110, 112, 32, '#3d8ad0'); for (let k = 0; k < 3; k++) { c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 2; c.beginPath(); const y = 118 + k * 8, dx = (t * 20 + k * 30) % 112; c.moveTo(264 + dx, y); c.lineTo(280 + dx, y); c.stroke(); } rmPath(c, () => { c.moveTo(300, 108); c.lineTo(340, 108); c.lineTo(334, 116); c.lineTo(306, 116); c.closePath(); }, '#8a5a30', 2); }
+  else { rmPath(c, () => { c.moveTo(264, 142); c.lineTo(300, 84); c.lineTo(330, 118); c.lineTo(352, 92); c.lineTo(376, 142); c.closePath(); }, '#e8eef6', 0); for (let k = 0; k < 10; k++) Cc(c, 264 + ((k * 37 + t * 10) % 112), 50 + ((k * 23 + t * 30) % 92), 2, '#fff'); }
+  c.strokeStyle = '#6b4428'; c.lineWidth = 6; c.beginPath(); c.moveTo(320, 50); c.lineTo(320, 142); c.moveTo(264, 96); c.lineTo(376, 96); c.stroke(); c.strokeStyle = OUT; c.lineWidth = 4; c.strokeRect(264, 50, 112, 92);
+  // 걸린 등
+  c.strokeStyle = OUT; c.lineWidth = 3; c.beginPath(); c.moveTo(200, 0); c.lineTo(200, 40); c.stroke(); rmRect(c, 186, 40, 28, 34, '#f2c230', 6, 3); rmGlow(c, 200, 60, 90, 'rgba(255,210,120,.35)');
+  // 침대 (자기)
+  rmRect(c, 22, 176, 26, 150, '#6b4428', 6); rmRect(c, 40, 248, 204, 54, '#6b4428', 8); rmRect(c, 234, 230, 18, 96, '#6b4428', 6);
+  rmRect(c, 54, 220, 70, 36, '#f6f0e4', 16);
+  rmPath(c, () => { c.moveTo(110, 226); c.quadraticCurveTo(180, 214, 238, 230); c.lineTo(238, 290); c.lineTo(104, 290); c.closePath(); }, loc === 'volcano' ? '#c8604a' : loc === 'port' ? '#4a9ab8' : '#8a6ad8');
+  c.strokeStyle = 'rgba(255,255,255,.3)'; c.lineWidth = 4; for (let y = 240; y < 290; y += 16) { c.beginPath(); c.moveTo(112, y); c.lineTo(236, y); c.stroke(); }
+  // 카운터와 종
+  rmRect(c, 300, 230, 120, 98, '#a8743f', 6); rmRect(c, 294, 222, 132, 14, '#c08850', 4, 3);
+  rmPath(c, () => { c.moveTo(346, 222); c.quadraticCurveTo(346, 198, 360, 198); c.quadraticCurveTo(374, 198, 374, 222); c.closePath(); }, '#f2c230', 3); Cc(c, 360, 194, 4, '#f2c230');
+  // 상자 (창고)
+  rmRect(c, 456, 238, 150, 88, '#a8743f', 10); rmRect(c, 452, 224, 158, 30, '#b8844a', 10);
+  [478, 584].forEach(x => rmRect(c, x - 8, 224, 16, 102, '#5a6270', 3, 3)); rmRect(c, 518, 244, 26, 24, '#f2c230', 5, 3); Cc(c, 531, 255, 3.5, OUT);
+  if (Object.values(storeHere() || {}).some(v => v > 0)) rmStar(c, 600, 214, 7 + Math.sin(t * 4) * 2);
 }
 function paintRooms(t) {
-  sheet.querySelectorAll('canvas[data-room]').forEach(cv => { const c = cv.getContext('2d'); c.setTransform(cv.width / RW, 0, 0, cv.height / RH, 0, 0); try { drawRoom(c, cv.dataset.room, t); } catch (e) { /* 그림만 건너뜀 */ } });
+  sheet.querySelectorAll('canvas[data-room]').forEach(cv => { const c = cv.getContext('2d'); c.setTransform(cv.width / RW, 0, 0, cv.height / (ROOM_H[cv.dataset.room] || RH), 0, 0); try { drawRoom(c, cv.dataset.room, t); } catch (e) { /* 그림만 건너뜀 */ } });
 }
 function showHouse() {
   const ph = phaseIndex(), late = ph === 3, early = ph <= 1, next = HOMES[(S.home || 0) + 1];
@@ -5366,8 +5474,9 @@ function doReq() {
    보통 1개, 좋음 1개(반은 2개), 최상 2개. 귀한 원석일수록 바늘이 빠르고 칸이 좁음 */
 const CUTS = { crystal: { out: 'crystalGem', period: 2.2, zone: 1 }, amethyst: { out: 'amethystGem', period: 1.9, zone: .85 }, ruby: { out: 'rubyGem', period: 1.6, zone: .7 } }, CUT_GOLD = 30;
 function showJewel() {
-  const rows = Object.keys(CUTS).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${have(o)}</small> ${ico('ic_arrow')} <span class="ore ${CUTS[o].out}"></span>${ORES[CUTS[o].out].name}</span><button class="btn small" data-a="cut" data-o="${o}" ${have(o) >= 1 && S.gold >= CUT_GOLD ? '' : 'disabled'}>${GOLD}${CUT_GOLD}</button></div>`).join('');
-  openSheet(ico('ic_shard') + '세공소', `<div class="rows">${rows}</div>`);
+  // 세공소 안 그림 (기획 84번): 작업대 위 원석 쟁반을 누르면 그 원석을 깎음
+  const hots = [['crystal', 420], ['amethyst', 500], ['ruby', 580]].map(([o, x]) => ({ a: 'cut', o, box: [x - 38, 170, x + 38, 300], name: `×${have(o)}`, aria: ORES[o].name, dis: have(o) < 1 || S.gold < CUT_GOLD }));
+  openSheet(ico('ic_shard') + '세공소', roomHtml('jewel', hots) + `<p class="dim">${Object.keys(CUTS).map(o => `<span class="ore ${o}"></span>${ico('ic_arrow')}<span class="ore ${CUTS[o].out}"></span>`).join(' ')} ${GOLD}${CUT_GOLD}</p>`);
 }
 function cutGem(o) {
   const C = CUTS[o]; if (!C || have(o) < 1 || S.gold < CUT_GOLD) return;
@@ -5408,7 +5517,8 @@ function marketBuy(kind, i) {
 function showMarket() {
   if (!S.market) rollMarket(true);
   const M = S.market;
-  const tabs = `<div class="chips mtabs">${[['trade', ico('ic_shop') + '시세'], ['food', ico('ic_d_bread') + '음식'], ['mat', ico('ic_cart') + '재료']].map(([k, n]) => `<button class="chip ${marketTab === k ? 'on' : ''}" data-a="mtab" data-o="${k}">${n}</button>`).join('')}</div>`;
+  // 시장 안 그림 (기획 84번): 노점 셋(시세판, 음식, 재료)을 누르면 그 노점 물건이 아래에
+  const tabs = roomHtml('market', [['trade', '시세', 16], ['food', '음식', 222], ['mat', '재료', 428]].map(([k, n, x]) => ({ a: 'mtab', o: k, box: [x - 2, 56, x + 202, 262], name: n, on: marketTab === k })));
   if (marketTab === 'food') {
     const rows = FOOD_SHOP.map(([id, g], i) => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small class="eff">${PWR}+${ITEMS[id].eat}</small>${S.items[id] ? ` <small>×${S.items[id]}</small>` : ''}</span><button class="btn small" data-a="mbuy" data-o="food" data-n="${i}" ${S.gold >= g ? '' : 'disabled'}>${GOLD}${g}</button></div>`).join('');
     openSheet(ico('ic_shop') + '시장', tabs + `<p>갓 구운 빵이랑 따뜻한 꼬치 있어요. 일하다 출출할 때 하나씩 먹어요.</p><div class="rows">${rows}</div>`); return;
