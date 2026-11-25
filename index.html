@@ -4624,12 +4624,12 @@ function showCard(o, msg) {
     openSheet(ico('ic_pick') + '광산', `<p>최고 깊이 ${S.deepest}</p>`, '<button class="btn primary" data-a="enter">들어가기</button>');
   } else openSheet(`${o.icon ? ico(o.icon) : ''}${o.name}`, '');
 }
-// 떠돌이 상인 (기획 83번): 팔기와 사기를 칸으로 나눔. 처음 열 땐 팔 것이 있으면 팔기, 없으면 사기
+// 떠돌이 상인 (기획 83번): 구매와 판매를 칸으로 나눔. 처음 열 땐 팔 것이 있으면 판매, 없으면 구매
 let merchTab = 'sell';
 function showMerchant(tab = merchTab) {
   merchTab = tab;
   const total = ORE_ORDER.reduce((a, o) => a + have(o) * ORES[o].price, 0), nSell = ORE_ORDER.filter(o => have(o)).length;
-  const seg = `<div class="seg"><button class="${tab === 'sell' ? 'on' : ''}" data-a="mTab" data-o="sell">${ico('ic_gold')}팔기${nSell ? `<small>${nSell}</small>` : ''}</button><button class="${tab === 'buy' ? 'on' : ''}" data-a="mTab" data-o="buy">${ico('ic_shop')}사기</button></div>`;
+  const seg = `<div class="seg"><button class="${tab === 'buy' ? 'on' : ''}" data-a="mTab" data-o="buy">${ico('ic_shop')}구매</button><button class="${tab === 'sell' ? 'on' : ''}" data-a="mTab" data-o="sell">${ico('ic_gold')}판매${nSell ? `<small>${nSell}</small>` : ''}</button></div>`;
   if (tab === 'sell') {
     const rows = ORE_ORDER.filter(o => have(o)).map(o => { const n = have(o), p = ORES[o].price; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${n}</small></span><button class="btn small" data-a="sell" data-o="${o}">${GOLD}${p * n}</button></div>`; }).join('');
     openSheet(ico('ic_shop') + '떠돌이 상인', seg + (rows ? `<div class="rows">${rows}</div>` : '<p>광석이라면 뭐든 사 갈게요.</p>'), total ? `<button class="btn primary" data-a="sellAll">전부 ${GOLD}${total}</button>` : '');
