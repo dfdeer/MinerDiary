@@ -110,7 +110,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .room canvas{display:block;width:100%;height:100%}
 .room .hot{position:absolute;padding:0;margin:0;border:0;background:transparent;border-radius:14px;box-shadow:none;display:flex;align-items:flex-end;justify-content:center;transition:background .12s}
 .room .hot.top{align-items:flex-start}.room .hot.top .hl{margin:6px 0 0}
-.room .hot.on{box-shadow:inset 0 0 0 3px rgba(242,194,48,.9);background:rgba(255,230,150,.1)}.room .hot:disabled{opacity:1}.room .hot:disabled .hl{opacity:.55}
+.room .hot.on{box-shadow:inset 0 0 0 3px rgba(242,194,48,.9);background:rgba(255,230,150,.1)}.room .hot.on .hl{background:#e9b04f;color:#3a2408;border-color:#fff3c4}.room .hot:disabled{opacity:1}.room .hot:disabled .hl{opacity:.55}
 .room .hot:active{background:rgba(255,230,160,.22)}
 .room .hot.has{animation:hotp 1.8s ease-in-out infinite}
 @keyframes hotp{50%{background:rgba(255,220,130,.13)}}
@@ -129,6 +129,13 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .case{position:relative;aspect-ratio:1;border-radius:10px;display:grid;place-items:center;padding:0;background:linear-gradient(rgba(200,235,255,.16),rgba(200,235,255,.05));border:2px solid rgba(255,235,200,.22);box-shadow:inset 0 -6px 0 rgba(0,0,0,.25);color:var(--dim);font-size:18px}
 .case .ore{width:70%;height:70%;margin:0}.case.on{border-color:#e9b04f;background:radial-gradient(circle at 50% 40%,rgba(255,220,130,.3),rgba(0,0,0,.1))}
 .case.off{opacity:.45}.case.can{border-color:#a8e89a;animation:hotp 1.8s ease-in-out infinite}.case.can .ore{opacity:.65}.case.can i{position:absolute;right:3px;top:1px;font-style:normal;color:#a8e89a;font-size:15px}
+.sheet.full{max-height:96vh}
+.wbag{position:absolute;left:10px;top:10px;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;background:rgba(43,26,18,.78);color:#fff3dc;font-size:13px;border:1.5px solid rgba(255,220,160,.4)}.wbag .ico{width:15px;height:15px;margin:0}
+.dcards{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;scroll-snap-type:x mandatory}
+.dcard{flex:1 0 150px;scroll-snap-align:center;display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:16px;background:linear-gradient(rgba(255,235,200,.08),rgba(0,0,0,.2));border:2px solid rgba(255,235,200,.14);box-shadow:0 3px 0 rgba(0,0,0,.3)}
+.dcard.sel{border-color:var(--tc);background:linear-gradient(rgba(255,235,200,.14),rgba(0,0,0,.15))}
+.dcard b{display:flex;align-items:center;gap:6px;font-size:16px;font-weight:400}.dcard b i{width:12px;height:12px;border-radius:50%;background:var(--tc);border:2px solid #2b1a12;flex:none}
+.dcard small{color:var(--dim);font-size:12px}.dcard .dbtns{display:flex;gap:6px;margin-top:4px}.dcard .dbtns .btn{height:38px;padding:0 12px;white-space:nowrap}.dcard .dbtns .btn.primary{flex:1}
 .shelf{padding:8px 8px 4px;border-radius:12px;background:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.25));border-bottom:6px solid #6b4428}
 .smgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .smtile{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 8px 12px;border-radius:16px;background:linear-gradient(rgba(255,235,200,.08),rgba(0,0,0,.22));border:1px solid rgba(255,235,200,.16);box-shadow:0 3px 0 rgba(0,0,0,.3);text-align:center}
@@ -3964,16 +3971,22 @@ function buildRail() {
 // 세계 지도: 갈 수 있는 곳과 짐 꾸리기
 function showWorld() {
   const here = townHere() ? S.loc : 'home', vis = S.visited || {}, ok = Object.keys(TOWNS).filter(k => TOWNS[k].open());
-  const room = bagCap() - carryN();
-  const bag = ORE_ORDER.filter(o => (S.carry || {})[o]).map(o => `<span class="chip on"><span class="ore ${o}"></span>${ORES[o].name} <small>×${S.carry[o]}</small></span>`).join('');
-  const dests = (here === 'home' ? ok : ['home']).map(k => {
-    if (k !== 'home' && !vis[k]) return `<button class="btn primary" data-a="walk" data-o="${k}">${ico('ic_boot')}${TOWNS[k].short}</button>`;   // 처음은 걸어서
-    const c2 = travelCost(k);
-    return `<button class="btn primary" data-a="travel" data-o="${k}" ${S.energy > c2 ? '' : 'disabled'}>${k === 'home' ? '마을' : TOWNS[k].short} ${PWR}${c2}</button>` + (k !== 'home' ? `<button class="btn" data-a="walk" data-o="${k}" aria-label="걸어가기">${ico('ic_boot')}</button>` : '');
-  }).join('');
-  const railRow = !S.rail && here === 'home' && Object.keys(TOWNS).every(k => vis[k]) ? `<p class="dim" style="margin-top:8px">${ico('ic_rail')}광차 철길 <small class="eff">길 기력 0</small></p><div class="rows"><div class="rowi"><span class="nm">${needHtml(RAIL.need, RAIL.gold)}</span><button class="btn small" data-a="rail" ${hasAll(RAIL.need) && S.gold >= RAIL.gold ? '' : 'disabled'}>놓기</button></div></div>` : '';
-  openSheet(ico('ic_map') + '지도', roomHtml('world', [])   // 지도 그림 (기획 90번)
-    + `<p class="dim" style="margin-top:8px">${ico('ic_bag')}가방 ${carryN()}/${bagCap()}</p><div class="chips">${bag}</div>` + railRow, dests);
+  const dlist = here === 'home' ? ok : ['home'];
+  if (!dlist.includes(wmSel)) wmSel = dlist[0] || null;
+  const COL = { home: '#d0503e', mtn: '#6a86c8', volcano: '#a8482e', port: '#2f8ad0' };
+  // 지도 위 마을 핀: 누르면 아래 카드가 그 마을을 가리킴 (기획 91번)
+  const hots = ['home', ...ok].map(k => { const [x, y] = WM[k]; return { a: 'wsel', o: k, box: [x - 62, y - 76, x + 62, y + 40], name: k === 'home' ? '마을' : TOWNS[k].short, on: wmSel === k }; });
+  const card = k => {
+    const first = k !== 'home' && !vis[k], c2 = first ? 0 : travelCost(k), name = k === 'home' ? '우리 마을' : TOWNS[k].n;
+    const main = first ? `<button class="btn primary" data-a="walk" data-o="${k}">${ico('ic_boot')}걸어가기</button>`
+      : `<button class="btn primary" data-a="travel" data-o="${k}" ${S.energy > c2 ? '' : 'disabled'}>${PWR}${c2}</button>` + (k !== 'home' ? `<button class="btn" data-a="walk" data-o="${k}" aria-label="걸어가기">${ico('ic_boot')}</button>` : '');
+    return `<div class="dcard${wmSel === k ? ' sel' : ''}" style="--tc:${COL[k]}" data-k="${k}"><b><i></i>${name}</b><small>${first ? '처음 가는 길' : S.rail ? '광차 철길' : S.donkey ? '당나귀 수레' : S.cart ? '손수레' : '바로 가기'}</small><div class="dbtns">${main}</div></div>`;
+  };
+  const railRow = !S.rail && here === 'home' && Object.keys(TOWNS).every(k => vis[k]) ? `<div class="rows" style="margin-top:8px"><div class="rowi"><span class="nm">${ico('ic_rail')}광차 철길 <small class="eff">길 기력 0</small> ${needHtml(RAIL.need, RAIL.gold)}</span><button class="btn small" data-a="rail" ${hasAll(RAIL.need) && S.gold >= RAIL.gold ? '' : 'disabled'}>놓기</button></div></div>` : '';
+  openSheet(ico('ic_map') + '지도', roomHtml('world', hots, `<span class="wbag">${ico('ic_bag')}${carryN()}/${bagCap()}</span>`)
+    + (dlist.length ? `<div class="dcards">${dlist.map(card).join('')}</div>` : '') + railRow);
+  sheet.classList.add('full');
+  const sel = sheet.querySelector('.dcard.sel'); if (sel) sel.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
 function travel(dest) {
   if (dest !== 'home' && !(S.visited || {})[dest]) { enterRoad(dest); return; }
@@ -4612,7 +4625,7 @@ function openSheet(title, body, btns, closable = true) {
   sheet.innerHTML = `<header><h2>${title}</h2>${closable ? `<button class="x" data-a="close" aria-label="닫기">${ico('ic_close')}</button>` : ''}</header>${body}${btns ? `<div class="btns">${btns}</div>` : ''}`;
   sheet.querySelectorAll('p').forEach(lineBreaks);
   document.getElementById('veil').hidden = false;
-  const fresh = sheet.hidden;
+  const fresh = sheet.hidden; sheet.classList.remove('full');
   document.querySelectorAll('.sheet-ghost,.veil-ghost').forEach(g => g.remove());   // 닫히던 창이 아직 내려가는 중이면 치움
   sheet.hidden = false; sheet.classList.remove('in', 'swap'); void sheet.offsetWidth; sheet.classList.add(fresh ? 'in' : 'swap');
   const vl = document.getElementById('veil'); if (fresh) { vl.classList.remove('in'); void vl.offsetWidth; vl.classList.add('in'); }
@@ -4798,7 +4811,7 @@ function upgradeHome() {
 }
 /* ===== 건물 안 그림 장면 (기획 80번): 창 맨 위에 방 안을 그리고, 물건을 누르면 그 일을 함 ===== */
 // 그림은 640×400 기준. 누를 곳(hot)은 같은 기준의 [x0, y0, x1, y1]을 %로 바꿔 HTML 단추로 겹침
-const RW = 640, RH = 400, ROOM_H = { market: 300, museum: 320, chief: 260, merchant: 260, mine: 300, tmarket: 260, world: 300 };   // 장면마다 높이가 다를 수 있음
+const RW = 640, RH = 400, ROOM_H = { market: 300, museum: 320, chief: 260, merchant: 260, mine: 300, tmarket: 260, world: 820 };   // 장면마다 높이가 다를 수 있음
 let roomT = 0;
 const rmPath = (c, draw, fill, lw = 4) => { c.beginPath(); draw(); if (fill !== 'none') { c.fillStyle = fill; c.fill(); } if (lw) { c.lineWidth = lw; c.strokeStyle = OUT; c.lineJoin = 'round'; c.lineCap = 'round'; c.stroke(); } };
 const rmRect = (c, x, y, w, h, f, r = 6, lw = 4) => rmPath(c, () => c.roundRect(x, y, w, h, r), f, lw);
@@ -5130,70 +5143,68 @@ function roomTmarket(c, t) {
   // 당나귀 수레 (산마을에서 팔 때)
   if (!S.donkey && loc === 'mtn') { rmRect(c, 430, 160, 120, 40, '#a8743f', 6); [452, 528].forEach(x => { Cc(c, x, 206, 18, OUT); Cc(c, x, 206, 14, '#8a5a30'); }); [360, 396].forEach(x => rmRect(c, x, 180, 9, 34, '#6a5a4a', 2, 2.5)); [[338, 124], [354, 124]].forEach(([x, y]) => rmPath(c, () => c.ellipse(x, y, 6, 14, 0, 0, 7), '#8a7a6a', 3)); rmPath(c, () => c.ellipse(380, 170, 40, 22, 0, 0, 7), '#8a7a6a', 3.5); rmPath(c, () => c.arc(346, 146, 18, 0, 7), '#8a7a6a', 3.5); Cc(c, 340, 142, 3, OUT); E(c, 334, 154, 7, 5, '#a89a8a'); }
 }
-// 세계 지도 (기획 90번): 양피지에 바다와 해안선, 눈 산맥, 화산, 숲, 강, 언덕, 길(철길), 마을 그림과 이름, 나침반
-const WM = { home: [128, 222], mtn: [523, 95], volcano: [559, 250], port: [320, 62] };
+// 세계 지도 (기획 91번): 화면 가득, 게임 그림체(굵은 외곽선, 밝은 색). 북쪽 바다와 모래 해안, 북동쪽 눈 산맥, 남동쪽 화산, 숲과 강과 흙길.
+// 아직 못 가는 곳은 구름이 덮음. 마을 핀을 누르면 아래 카드가 그 마을을 가리킴
+const WM = { home: [168, 646], port: [330, 222], mtn: [478, 418], volcano: [452, 702] };
+let wmSel = null;
+function wmCoast(x) { return 150 + Math.sin(x * .018 + 1) * 16 + Math.sin(x * .047) * 8 + Math.max(0, 1 - Math.abs(x - 330) / 110) * 26; }
 function roomWorld(c, t) {
-  const H = 300, here = townHere() ? S.loc : 'home', ok = Object.keys(TOWNS).filter(k => TOWNS[k].open());
-  const wob = (x, y, s) => (Math.sin(x * .05 + s) + Math.sin(x * .13 + y * .07 + s * 2)) * .5;
-  // 양피지
-  const g = c.createRadialGradient(RW / 2, H / 2, 60, RW / 2, H / 2, 380); g.addColorStop(0, '#f3e6c4'); g.addColorStop(.7, '#e8d4a8'); g.addColorStop(1, '#c9ab78'); c.fillStyle = g; c.fillRect(0, 0, RW, H);
-  for (let k = 0; k < 140; k++) Cc(c, H32(k * 17 + 3) * RW, H32(k * 29 + 7) * H, 1 + H32(k) * 2, `rgba(140,100,50,${.05 + H32(k * 5) * .07})`);
-  // 바다 (북쪽), 해안선은 구불구불, 물결 줄
-  const coast = x => 44 + wob(x, 0, 1) * 16 + Math.max(0, 1 - Math.abs(x - 320) / 90) * 18 - Math.max(0, 1 - Math.abs(x - 470) / 120) * 20;
-  c.beginPath(); c.moveTo(0, 0); for (let x = 0; x <= RW; x += 8) c.lineTo(x, coast(x)); c.lineTo(RW, 0); c.closePath();
-  const sg = c.createLinearGradient(0, 0, 0, 80); sg.addColorStop(0, '#7fb6cc'); sg.addColorStop(1, '#a9d2dc'); c.fillStyle = sg; c.fill();
-  for (let k = 1; k <= 3; k++) { c.beginPath(); for (let x = 0; x <= RW; x += 8) { const y = coast(x) - k * 7; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.strokeStyle = `rgba(255,255,255,${.5 - k * .12})`; c.lineWidth = 1.6; c.stroke(); }
-  c.beginPath(); for (let x = 0; x <= RW; x += 8) { const y = coast(x); x ? c.lineTo(x, y) : c.moveTo(x, y); } c.strokeStyle = '#6a5034'; c.lineWidth = 2.4; c.stroke();
-  for (let k = 0; k < 7; k++) { const x = 30 + k * 90 + (H32(k * 7) - .5) * 30, y = 14 + H32(k * 3) * 14; c.strokeStyle = 'rgba(70,110,130,.5)'; c.lineWidth = 1.5; c.beginPath(); c.arc(x, y, 5, Math.PI * 1.1, Math.PI * 1.9); c.arc(x + 10, y, 5, Math.PI * 1.1, Math.PI * 1.9); c.stroke(); }
-  // 언덕
-  [[230, 180], [300, 150], [380, 200], [260, 250], [420, 160], [180, 120]].forEach(([x, y]) => { c.strokeStyle = 'rgba(110,80,40,.45)'; c.lineWidth = 2; c.beginPath(); c.arc(x, y + 8, 14, Math.PI * 1.15, Math.PI * 1.85); c.stroke(); c.beginPath(); c.arc(x + 16, y + 12, 10, Math.PI * 1.15, Math.PI * 1.85); c.stroke(); });
-  // 강: 산맥에서 내려와 마을 옆을 지나 남서쪽으로
-  c.beginPath(); c.moveTo(500, 128); c.bezierCurveTo(420, 150, 350, 120, 280, 175); c.bezierCurveTo(220, 215, 170, 200, 140, 248); c.bezierCurveTo(120, 275, 80, 280, 40, H + 4);
-  c.strokeStyle = '#6a5034'; c.lineWidth = 8; c.lineCap = 'round'; c.stroke(); c.strokeStyle = '#8cc4dc'; c.lineWidth = 5; c.stroke();
-  // 숲: 둥근 나무 무리 (마을 둘레와 가운데)
-  const tree = (x, y, s) => { R(c, x - 1.5 * s, y, 3 * s, 7 * s, '#6a4a2a'); Cc(c, x, y - 2 * s, 7.5 * s, '#5a3a1e'); Cc(c, x, y - 2 * s, 6 * s, '#6f9e4e'); Cc(c, x - 2 * s, y - 4 * s, 2.2 * s, '#8fbf66'); };
-  [[40, 170], [62, 150], [88, 160], [30, 205], [58, 268], [205, 240], [220, 270], [190, 285], [350, 250], [372, 268], [330, 275], [250, 105], [270, 120], [150, 110], [400, 110], [430, 250]].forEach(([x, y], i) => tree(x, y, .9 + (i % 3) * .15));
-  // 산맥 (북동쪽): 그늘진 오른쪽 면과 눈 모자
-  const peak = (x, y, w, h, snow) => {
-    rmPath(c, () => { c.moveTo(x - w, y); c.lineTo(x, y - h); c.lineTo(x + w, y); c.closePath(); }, '#b8a080', 2.4);
-    rmPath(c, () => { c.moveTo(x, y - h); c.lineTo(x + w, y); c.lineTo(x + w * .15, y); c.closePath(); }, 'rgba(110,80,50,.35)', 0);
-    if (snow) rmPath(c, () => { c.moveTo(x - w * .32, y - h * .68); c.lineTo(x, y - h); c.lineTo(x + w * .32, y - h * .68); c.lineTo(x + w * .12, y - h * .6); c.lineTo(x - w * .05, y - h * .7); c.lineTo(x - w * .18, y - h * .6); c.closePath(); }, '#fbfdff', 2);
-  };
-  [[455, 120, 26, 46, 1], [505, 96, 32, 62, 1], [560, 104, 30, 56, 1], [605, 118, 24, 40, 1], [480, 140, 22, 30, 0], [585, 145, 20, 28, 0]].forEach(p => peak(...p));
-  // 화산 (남동쪽): 잿빛 땅, 붉은 입구, 연기
-  rmPath(c, () => { c.ellipse(560, 262, 70, 26, 0, 0, 7); }, 'rgba(110,100,95,.25)', 0);
-  rmPath(c, () => { c.moveTo(560, 250); c.lineTo(600, 196); c.lineTo(616, 196); c.lineTo(640, 250); c.closePath(); }, '#8a6a5a', 2.4);
-  E(c, 608, 197, 9, 3.5, '#ff7a3a'); c.strokeStyle = '#e0502a'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(604, 198); c.quadraticCurveTo(600, 214, 596, 224); c.stroke();
-  for (let k = 0; k < 4; k++) { const p = (t * .25 + k / 4) % 1; Cc(c, 608 + Math.sin(k * 2 + t) * 5 - p * 14, 190 - p * 50, 5 + p * 9, `rgba(110,100,100,${.45 * (1 - p)})`); }
-  // 길 (철길이면 침목 있는 두 줄)
-  const route = k => { const [hx, hy] = WM.home, [x, y] = WM[k]; return [hx, hy, (hx + x) / 2 + (k === 'port' ? -40 : 10), (hy + y) / 2 + (k === 'volcano' ? 40 : -30), x, y]; };
+  const H = 820, ok = Object.keys(TOWNS).filter(k => TOWNS[k].open()), here = townHere() ? S.loc : 'home';
+  const outl = (draw, fill, lw = 4) => rmPath(c, draw, fill, lw);
+  // 땅: 밝은 풀밭에 부드러운 얼룩
+  const lg = c.createLinearGradient(0, 160, 0, H); lg.addColorStop(0, '#a9d77f'); lg.addColorStop(1, '#8cc565'); c.fillStyle = lg; c.fillRect(0, 0, RW, H);
+  for (let k = 0; k < 26; k++) E(c, H32(k * 13 + 1) * RW, 200 + H32(k * 31 + 5) * (H - 200), 40 + H32(k * 7) * 70, 20 + H32(k * 11) * 34, k % 2 ? 'rgba(255,255,220,.12)' : 'rgba(40,90,30,.08)');
+  // 눈 땅 (산맥 둘레)과 잿빛 땅 (화산 둘레)
+  outl(() => c.ellipse(500, 330, 190, 130, -.2, 0, 7), '#eef3f6', 0); outl(() => c.ellipse(520, 650, 150, 110, .1, 0, 7), '#b9ab9c', 0);
+  // 바다와 모래 해안
+  const coast = () => { c.moveTo(0, 0); for (let x = 0; x <= RW; x += 10) c.lineTo(x, wmCoast(x)); c.lineTo(RW, 0); c.closePath(); };
+  c.save(); c.beginPath(); for (let x = 0; x <= RW; x += 10) { const y = wmCoast(x) + 14; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.lineWidth = 30; c.strokeStyle = '#f2dfa6'; c.lineJoin = 'round'; c.stroke(); c.restore();
+  const sg = c.createLinearGradient(0, 0, 0, 200); sg.addColorStop(0, '#3f8fc4'); sg.addColorStop(1, '#69c0e2'); outl(coast, sg, 4);
+  c.beginPath(); for (let x = 0; x <= RW; x += 10) { const y = wmCoast(x) - 8 + Math.sin(t * 2 + x * .05) * 1.5; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = 3; c.stroke();
+  for (let k = 0; k < 9; k++) { const x = 40 + k * 70 + (H32(k) - .5) * 30, y = 40 + H32(k * 9) * 70 + Math.sin(t * 1.5 + k) * 2; c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 2.5; c.beginPath(); c.arc(x, y, 7, Math.PI * 1.15, Math.PI * 1.85); c.arc(x + 13, y, 7, Math.PI * 1.15, Math.PI * 1.85); c.stroke(); }
+  outl(() => c.ellipse(560, 70, 34, 16, 0, 0, 7), '#f2dfa6', 3); outl(() => c.ellipse(560, 64, 22, 10, 0, 0, 7), '#8fc565', 0); { const x = 568, y = 54; R(c, x - 1.5, y, 3, 10, '#6a4a2a'); Cc(c, x, y, 7, '#5fae4a'); }
+  // 강: 산에서 내려와 마을 곁을 지나 남서쪽으로
+  const river = () => { c.moveTo(430, 460); c.bezierCurveTo(360, 500, 330, 470, 290, 540); c.bezierCurveTo(250, 610, 230, 600, 210, 680); c.bezierCurveTo(195, 740, 120, 760, 60, H + 10); };
+  c.lineCap = 'round'; c.beginPath(); river(); c.strokeStyle = OUT; c.lineWidth = 20; c.stroke(); c.strokeStyle = '#5fb2e0'; c.lineWidth = 14; c.stroke(); c.strokeStyle = 'rgba(255,255,255,.45)'; c.lineWidth = 3; c.setLineDash([10, 16]); c.lineDashOffset = -t * 18; c.stroke(); c.setLineDash([]);
+  // 길: 흙길 점선 (철길이면 침목 두 줄)
+  const route = k => { const [hx, hy] = WM.home, [x, y] = WM[k]; return k === 'port' ? [hx, hy - 10, 180, 430, x, y + 12] : k === 'mtn' ? [hx + 10, hy - 6, 360, 600, x - 6, y + 10] : [hx + 14, hy + 4, 300, 760, x - 10, y]; };
   ok.forEach(k => {
-    const [x0, y0, cx, cy, x1, y1] = route(k);
-    c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(cx, cy, x1, y1);
-    if (S.rail) { c.setLineDash([]); c.strokeStyle = '#4a4f5a'; c.lineWidth = 6; c.stroke(); c.strokeStyle = '#e8d4a8'; c.lineWidth = 2.5; c.stroke(); c.setLineDash([2, 7]); c.strokeStyle = '#6a4a2a'; c.lineWidth = 9; c.stroke(); c.setLineDash([]); }
-    else { c.setLineDash([9, 7]); c.strokeStyle = '#8a5a2a'; c.lineWidth = 3.5; c.lineCap = 'round'; c.stroke(); c.setLineDash([]); }
+    const [x0, y0, cx, cy, x1, y1] = route(k); c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(cx, cy, x1, y1);
+    if (S.rail) { c.strokeStyle = '#6a4a2a'; c.lineWidth = 14; c.setLineDash([3, 8]); c.stroke(); c.setLineDash([]); c.strokeStyle = '#5a5f68'; c.lineWidth = 8; c.stroke(); c.strokeStyle = '#a9d77f'; c.lineWidth = 3; c.stroke(); }
+    else { c.strokeStyle = 'rgba(120,85,45,.55)'; c.lineWidth = 11; c.stroke(); c.strokeStyle = '#f3e2bd'; c.lineWidth = 7; c.setLineDash([12, 9]); c.lineCap = 'round'; c.stroke(); c.setLineDash([]); }
   });
-  // 마을: 작은 집 무리. 아직 못 가는 곳은 흐린 물음표
-  const town = (x, y, roof, n) => { for (let i = 0; i < n; i++) { const hx = x - (n - 1) * 8 + i * 16, hy = y + (i % 2) * 5; rmRect(c, hx - 7, hy - 8, 14, 11, '#f6ecd6', 2, 2); rmPath(c, () => { c.moveTo(hx - 9, hy - 7); c.lineTo(hx, hy - 16); c.lineTo(hx + 9, hy - 7); c.closePath(); }, roof, 2); } };
-  Object.keys(TOWNS).forEach(k => {
-    const [x, y] = WM[k];
-    if (!ok.includes(k)) { c.globalAlpha = .45; rmPath(c, () => c.arc(x, y - 6, 13, 0, 7), 'rgba(255,255,255,.4)', 2); c.font = `18px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#6a5034'; c.fillText('?', x, y - 5); c.globalAlpha = 1; return; }
-    town(x, y, k === 'mtn' ? '#7a8aa8' : k === 'volcano' ? '#b8503a' : '#3d8ad0', 3);
-  });
-  // 우리 마을: 둥근 성벽과 집
-  rmPath(c, () => c.ellipse(WM.home[0], WM.home[1] - 4, 30, 16, 0, 0, 7), '#d8c8a0', 2.4); town(WM.home[0], WM.home[1], '#c85a4a', 3);
-  // 이름표
-  const label = (x, y, s) => { c.font = `17px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 5; c.strokeStyle = 'rgba(243,230,196,.95)'; c.strokeText(s, x, y); c.fillStyle = '#4a3020'; c.fillText(s, x, y); };
-  label(WM.home[0], WM.home[1] + 24, '마을');
-  ok.forEach(k => { const [x, y] = WM[k]; label(Math.min(RW - 44, x), k === 'port' ? y + 20 : y + 22, TOWNS[k].short); });
-  // 지금 있는 곳: 붉은 핀
-  { const [x, y] = WM[here], b = Math.abs(Math.sin(t * 3)) * 4; rmPath(c, () => { c.moveTo(x, y - 20 - b); c.arc(x, y - 34 - b, 9, Math.PI * .8, Math.PI * 2.2); c.closePath(); }, '#e0405a', 2.4); Cc(c, x, y - 34 - b, 3.5, '#fff'); }
-  // 나침반
-  { const x = 596, y = 46; c.globalAlpha = .85; Cc(c, x, y, 22, 'rgba(243,230,196,.9)'); c.strokeStyle = '#6a5034'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 22, 0, 7); c.stroke();
-    rmPath(c, () => { c.moveTo(x, y - 20); c.lineTo(x + 6, y); c.lineTo(x, y + 20); c.lineTo(x - 6, y); c.closePath(); }, '#e8d4a8', 1.6); rmPath(c, () => { c.moveTo(x, y - 20); c.lineTo(x + 6, y); c.lineTo(x - 6, y); c.closePath(); }, '#c85a4a', 1.6);
-    rmPath(c, () => { c.moveTo(x - 20, y); c.lineTo(x, y - 5); c.lineTo(x + 20, y); c.lineTo(x, y + 5); c.closePath(); }, 'rgba(232,212,168,.8)', 1.4); c.globalAlpha = 1; }
-  // 테두리: 두 줄
-  c.strokeStyle = '#6a5034'; c.lineWidth = 3; c.strokeRect(6, 6, RW - 12, H - 12); c.lineWidth = 1.2; c.strokeRect(12, 12, RW - 24, H - 24);
+  // 그릴 것들을 위에서 아래로 (앞뒤가 맞게)
+  const items = [];
+  const tree = (x, y, s, dark) => items.push([y, () => { E(c, x + 2, y + 2, 9 * s, 4 * s, 'rgba(0,0,0,.15)'); outl(() => c.rect(x - 2 * s, y - 8 * s, 4 * s, 9 * s), '#8a5a30', 2.5); [[0, -16, 10], [-7, -11, 8], [7, -11, 8]].forEach(([dx, dy, r]) => Cc(c, x + dx * s, y + dy * s, (r + 2) * s, OUT)); [[0, -16, 10], [-7, -11, 8], [7, -11, 8]].forEach(([dx, dy, r]) => Cc(c, x + dx * s, y + dy * s, r * s, dark ? '#4f9a46' : '#64b052')); Cc(c, x - 3 * s, y - 19 * s, 3.5 * s, 'rgba(255,255,255,.35)'); }]);
+  const pine = (x, y, s) => items.push([y, () => { E(c, x + 2, y + 2, 8 * s, 3 * s, 'rgba(0,0,0,.15)'); outl(() => { c.moveTo(x, y - 30 * s); c.lineTo(x + 11 * s, y - 4 * s); c.lineTo(x - 11 * s, y - 4 * s); c.closePath(); }, '#3f8a5a', 2.5); outl(() => { c.moveTo(x, y - 30 * s); c.lineTo(x + 5 * s, y - 20 * s); c.lineTo(x - 5 * s, y - 20 * s); c.closePath(); }, '#fbfdff', 2); }]);
+  [[60, 520], [92, 540], [40, 570], [110, 500], [70, 470], [250, 380], [280, 400], [230, 410], [130, 300], [100, 330], [160, 320], [320, 330], [360, 640], [390, 620], [340, 760], [600, 500], [610, 760], [40, 720]].forEach(([x, y], i) => tree(x, y, 1 + (i % 3) * .12, i % 2));
+  [[420, 470], [560, 470], [610, 420], [380, 300]].forEach(([x, y]) => pine(x, y, 1));
+  // 산맥: 앞뒤 순서대로 봉우리, 밝은 왼쪽 면과 그늘진 오른쪽 면, 눈 모자
+  const peak = (x, y, w, h) => items.push([y, () => {
+    outl(() => { c.moveTo(x - w, y); c.lineTo(x, y - h); c.lineTo(x + w, y); c.closePath(); }, '#c2ad92', 4);
+    outl(() => { c.moveTo(x, y - h); c.lineTo(x + w, y); c.lineTo(x + w * .2, y); c.closePath(); }, '#9c8468', 0);
+    outl(() => { c.moveTo(x - w * .38, y - h * .62); c.lineTo(x, y - h); c.lineTo(x + w * .38, y - h * .62); c.lineTo(x + w * .14, y - h * .55); c.lineTo(x - w * .02, y - h * .66); c.lineTo(x - w * .2, y - h * .54); c.closePath(); }, '#ffffff', 3);
+  }]);
+  [[430, 340, 52, 92], [520, 300, 66, 128], [600, 330, 50, 96], [470, 380, 40, 62], [570, 390, 44, 70]].forEach(p => peak(...p));
+  // 화산: 큰 원뿔, 붉은 아가리, 흘러내린 용암, 연기
+  items.push([640, () => {
+    outl(() => { c.moveTo(470, 640); c.quadraticCurveTo(540, 600, 566, 520); c.lineTo(604, 520); c.quadraticCurveTo(630, 600, 690, 640); c.closePath(); }, '#7a5a4a', 4);
+    outl(() => { c.moveTo(585, 520); c.lineTo(604, 520); c.quadraticCurveTo(630, 600, 690, 640); c.lineTo(600, 640); c.closePath(); }, 'rgba(60,40,30,.35)', 0);
+    outl(() => c.ellipse(585, 521, 20, 6, 0, 0, 7), '#ff8a3a', 3); rmGlow(c, 585, 518, 40, `rgba(255,140,60,${.35 + .15 * Math.sin(t * 3)})`);
+    c.strokeStyle = OUT; c.lineWidth = 9; c.beginPath(); c.moveTo(578, 526); c.quadraticCurveTo(560, 560, 566, 600); c.stroke(); c.strokeStyle = '#ff6a2a'; c.lineWidth = 5; c.stroke();
+  }]);
+  for (let k = 0; k < 5; k++) { const p = (t * .22 + k / 5) % 1; items.push([0, () => { Cc(c, 585 + Math.sin(k * 2 + t) * 8 - p * 30, 505 - p * 120, 10 + p * 16, `rgba(120,110,110,${.5 * (1 - p)})`); }]); }
+  // 마을: 집 무리 (지붕 색이 마을마다 다름), 우리 마을은 둥근 성벽
+  const house = (x, y, roof) => { outl(() => c.rect(x - 11, y - 14, 22, 16), '#f6ecd6', 3); outl(() => { c.moveTo(x - 14, y - 12); c.lineTo(x, y - 27); c.lineTo(x + 14, y - 12); c.closePath(); }, roof, 3); outl(() => c.rect(x - 3, y - 7, 6, 9), '#8a5a30', 2); };
+  const village = (k, roof) => { const [x, y] = WM[k]; items.push([y, () => { E(c, x, y + 4, 40, 12, 'rgba(0,0,0,.14)'); house(x - 22, y, roof); house(x + 22, y + 2, roof); house(x, y + 8, roof); }]); };
+  items.push([WM.home[1] - 1, () => { const [x, y] = WM.home; outl(() => c.ellipse(x, y - 4, 54, 30, 0, 0, 7), '#d8cdb8', 4); outl(() => c.ellipse(x, y - 4, 44, 22, 0, 0, 7), '#b5e08a', 2.5); [[-50, -6], [50, -6], [0, -32], [0, 24]].forEach(([dx, dy]) => outl(() => c.rect(x + dx - 7, y + dy - 14, 14, 18), '#d8cdb8', 3)); }]);
+  village('home', '#d0503e');
+  ok.forEach(k => village(k, k === 'mtn' ? '#6a86c8' : k === 'volcano' ? '#a8482e' : '#2f8ad0'));
+  items.sort((a, b) => a[0] - b[0]).forEach(([, f]) => f());
+  // 아직 못 가는 곳: 구름이 덮음
+  Object.keys(TOWNS).filter(k => !ok.includes(k)).forEach(k => { const [x, y] = WM[k]; [[-40, 0, 34], [0, -14, 42], [40, 0, 34], [0, 16, 30]].forEach(([dx, dy, r]) => Cc(c, x + dx + Math.sin(t * .6 + dx) * 3, y + dy - 10, r + 4, 'rgba(120,130,150,.25)')); [[-40, 0, 34], [0, -14, 42], [40, 0, 34], [0, 16, 30]].forEach(([dx, dy, r]) => Cc(c, x + dx + Math.sin(t * .6 + dx) * 3, y + dy - 10, r, '#f4f6fa')); c.font = `30px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#8a94a8'; c.fillText('?', x, y - 12); });
+  // 지금 있는 곳: 통통 튀는 붉은 핀
+  { const [x, y] = WM[here], b = Math.abs(Math.sin(t * 3)) * 6; E(c, x, y - 34, 8 - b * .4, 3, 'rgba(0,0,0,.2)'); outl(() => { c.moveTo(x, y - 40 - b); c.arc(x, y - 58 - b, 13, Math.PI * .78, Math.PI * 2.22); c.closePath(); }, '#e0405a', 3.5); Cc(c, x, y - 58 - b, 5, '#fff'); }
 }
 function paintRooms(t) {
   sheet.querySelectorAll('canvas[data-room]').forEach(cv => { const c = cv.getContext('2d'); c.setTransform(cv.width / RW, 0, 0, cv.height / (ROOM_H[cv.dataset.room] || RH), 0, 0); try { drawRoom(c, cv.dataset.room, t); } catch (e) { /* 그림만 건너뜀 */ } });
@@ -5808,6 +5819,7 @@ function act(b) {
   else if (a === 'donate') donate(b.dataset.o);
   else if (a === 'sharp') sharpen();
   else if (a === 'world') showWorld();
+  else if (a === 'wsel') { wmSel = b.dataset.o; showWorld(); }
   else if (a === 'travel') travel(b.dataset.o);
   else if (a === 'walk') enterRoad(b.dataset.o);
   else if (a === 'skiptrip') endTrip();
