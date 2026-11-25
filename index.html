@@ -39,7 +39,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .quest{pointer-events:auto;height:34px;border-radius:12px;padding:0 12px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;position:relative;overflow:hidden;max-width:100%;white-space:nowrap;border-color:#a8792c}
 .quest em{font-style:normal;font-size:11px;color:var(--ink);background:var(--accent);border-radius:8px;padding:1px 6px}
 .quest{padding:0 8px 0 6px;background:linear-gradient(#5a3a1e,#432a14);border-color:#e9b04f}
-.quest .ico{width:22px;height:22px;margin:0}.quest .ico:last-of-type{width:14px;height:14px;opacity:.85}
+.quest .ico{width:24px;height:24px;margin:0;flex:none;overflow:visible}.quest .ico:last-of-type{width:14px;height:14px;opacity:.85}
 .quest b{font-weight:400;overflow:hidden;text-overflow:ellipsis}
 .quest.fresh{animation:qnew 1.6s ease-out}
 .quest.hint{animation:qhint 1.6s ease-in-out infinite}
@@ -120,6 +120,10 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .room .potslot.ps0{left:44%}.room .potslot.ps1{left:56%}
 .room .potslot .ore{width:70%;height:70%;margin:0}.room .potslot .plus{color:#b08a5a;font-size:22px}
 .fixrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:rgba(0,0,0,.2);border:1px solid rgba(255,235,200,.12)}.fixrow .fx{flex:1;min-width:0}.fixrow b{display:flex;align-items:center;gap:4px;font-size:15px}.fixrow b small{color:var(--dim);font-size:12px;display:inline-flex;align-items:center}.fixrow .costline{margin:4px 0 0;justify-content:flex-start}
+.seg{display:flex;gap:4px;padding:4px;margin:0 0 10px;border-radius:14px;background:rgba(0,0,0,.28);box-shadow:inset 0 2px 4px rgba(0,0,0,.3)}
+.seg button{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;height:38px;border-radius:10px;background:transparent;border:0;box-shadow:none;color:var(--dim);font-size:15px}
+.seg button .ico{width:18px;height:18px;margin:0}.seg button small{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--ink);font-size:11px;display:grid;place-items:center}
+.seg button.on{background:linear-gradient(#f2c35a,#d99a32);color:#3a2408;box-shadow:0 2px 0 rgba(0,0,0,.35)}
 .shelf{padding:8px 8px 4px;border-radius:12px;background:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.25));border-bottom:6px solid #6b4428}
 .smgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .smtile{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 8px 12px;border-radius:16px;background:linear-gradient(rgba(255,235,200,.08),rgba(0,0,0,.22));border:1px solid rgba(255,235,200,.16);box-shadow:0 3px 0 rgba(0,0,0,.3);text-align:center}
@@ -890,7 +894,7 @@ const ICONS = {
   ic_cart: [['M3 9h14l-1.6 7H4.6Z', '#a8703a'], ['M3 9h14', 'none', 1.6, '#2b1a12'], ['M17 9l3.6-3', 'none', 2, '#6b4424'], ['M6.6 18.6a1.9 1.9 0 1 0 .01 0Z', '#6b6f78'], ['M13.6 18.6a1.9 1.9 0 1 0 .01 0Z', '#6b6f78'], ['M5.6 12h9.4', 'none', 1, '#7a5530']],
   ic_donkey: [['M5 12.6c0-2.4 2.2-3.6 5-3.6h4.6l2.4-3 1.6.4-.4 2.6c1.6.6 2.4 1.8 2.4 3.2l-1.6 1-2.4-.6v5.4h-1.8l-.4-4H8.6l-.4 4H6.4l-.2-4.6C5.4 14 5 13.4 5 12.6Z', '#9a8e80'], ['M16.4 5.4 15.6 2.4l1.6.4.6 2.8Z', '#9a8e80'], ['M16.9 9.2a.7 .7 0 1 0 1.4 0a.7 .7 0 1 0-1.4 0Z', '#2b1a12', 0], ['M5 11.6 3.2 13', 'none', 1.4, '#2b1a12'], ['M8 9.4h6.6v2.4H8Z', '#d4473a', .9]],
   ic_rail: [['M7 3 4.6 21M17 3l2.4 18', 'none', 2, '#5a5f68'], ['M5.6 7h12.8M5.2 11h13.6M4.8 15h14.4M4.4 19h15.2', 'none', 2.2, '#8a5a32']],
-  ic_quest: [['M12 2.4a8.6 8.6 0 1 0 .01 0Z', '#f0b64f', 1.6, '#7a4f12'], ['M10.6 6h2.8l-.5 7.6h-1.8Z', '#2b1d0c', 0], ['M12 15.4a1.6 1.6 0 1 0 .01 0Z', '#2b1d0c', 0], ['M9.4 19.6 12 23l2.6-3.4Z', '#f0b64f', 1.2, '#7a4f12']],
+  ic_quest: [['M12 2.3a9.7 9.7 0 1 0 .01 0Z', '#f2b93b', 1.8, '#5a3510'], ['M12 4.6a7.4 7.4 0 1 0 .01 0Z', '#ffd560', 0], ['M12 4.6a7.4 7.4 0 0 0-7.1 5.3a8 8 0 0 1 14.2 0A7.4 7.4 0 0 0 12 4.6Z', '#ffe9a0', 0], ['M10.7 5.7h2.6a.9.9 0 0 1 .9 1l-.6 6a1.6 1.6 0 0 1-3.2 0l-.6-6a.9.9 0 0 1 .9-1Z', '#5a3510', 0], ['M12 15.3a1.5 1.5 0 1 0 .01 0Z', '#5a3510', 0]],
   ic_go: [['M8.5 4.5 16 12l-7.5 7.5', 'none', 3, '#f0b64f']],
   ic_tap: [['M9 21c-2-2-4-5-4-7.4 0-1.2 1-1.8 1.9-1.1L9 14V4.6a1.4 1.4 0 0 1 2.8 0V11l.2-.1V9.6a1.4 1.4 0 0 1 2.8 0v1.6a1.4 1.4 0 0 1 2.6.6v.8a1.4 1.4 0 0 1 2.6.7V16c0 2.4-1 4-2 5Z', '#f6ecdd', 1.4, '#2b1a12'], ['M7 3.6 5.4 2M13.6 3.6 15.2 2M10.4 2.4V.6', 'none', 1.4, '#ffe27a']],
   ic_skip: [['M4 5.5 12 12 4 18.5Z', '#f6ecdd'], ['M12 5.5l8 6.5-8 6.5Z', '#f6ecdd']],
@@ -1188,6 +1192,7 @@ const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 const off = document.createElement('canvas'), oc = off.getContext('2d');
 const msk = document.createElement('canvas'), mc = msk.getContext('2d');
+const sml = document.createElement('canvas'), sc = sml.getContext('2d');   // 흐림용 작은 그림 (4분의 1 크기에서 흐리고 키움)
 let UIZ = 1;   // 넓은 화면에서 글과 단추를 키우는 비율
 let W = 0, H = 0, DPR = 1, TW = 40, TH = 20, ZU = 17, OX = 0, OY = 0;
 const DEPTH = 5.5;
@@ -1209,7 +1214,12 @@ function ghostStart(c, box) {
     gbox = [X0, Y0, X1 - X0, Y1 - Y0];
   }
   const [bx, by, bw, bh] = gbox || [0, 0, cv2.width, cv2.height];
-  gcx.globalCompositeOperation = 'copy'; gcx.drawImage(cv2, bx, by, bw, bh, bx, by, bw, bh); gcx.globalCompositeOperation = 'source-over';
+  gcx.clearRect(bx, by, bw, bh); gcx.drawImage(cv2, bx, by, bw, bh, bx, by, bw, bh);   // 'copy'로 그리면 바깥까지 통째로 지워서 느리니 그 둘레만 지우고 그림
+}
+// 칸 상자 둘레의 그리는 범위 (반투명 처리 때 화면 전체 대신 이 둘레만 떠서 빠르게). up은 위로 솟은 높이(칸 높이 단위)
+function cellBox(x0, y0, x1, y1, up, hw) {
+  const z = Math.max(0, hgt(Math.floor(x0), Math.floor(y0)) || 0), l = iso(x0, y1, 0)[0], r = iso(x1, y0, 0)[0], cx = (l + r) / 2, w = Math.max((r - l) / 2, (hw || .5) * TW) + TW * .2;
+  return [cx - w, iso(x0, y0, 0)[1] - ZU * (up + z + .3), cx + w, iso(x1, y1, 0)[1] + TH * .5];
 }
 function ghostEnd(c, a) {
   const cv2 = c.canvas, [bx, by, bw, bh] = gbox || [0, 0, cv2.width, cv2.height]; if (!bw || !bh) return;
@@ -1954,7 +1964,8 @@ function drawIsland(c) {
   order.forEach((it, k) => {
     let a = it.fog ? 1 - it.fog * .9 : 1;
     if (k > heroAt && it.shape && !cam.to && cam.s <= 1.05 && overlapsHero(it)) { hidden = true; a = Math.min(a, .32); }
-    if (a < 1) ghostStart(c); it.f(); if (a < 1) ghostEnd(c, a);
+    if (a > .94) a = 1;   // 아주 옅은 안개는 그냥 그림
+    if (a < 1) ghostStart(c, cellBox(it.box.x0, it.box.y0, it.box.x1, it.box.y1, (it.shape ? it.shape[1] : 1.6) + .6, it.shape ? it.shape[0] + .2 : .6)); it.f(); if (a < 1) ghostEnd(c, a);
   });
   // 고른 건물 테두리는 건물 위에 한 번 더 (바닥판에 가려지지 않게)
   if (selected && selected.kind !== 'npc') {
@@ -1965,10 +1976,10 @@ function drawIsland(c) {
   }
   // 누른 건물 퍼지는 표시도 건물 위에
   marks.forEach(m => { if (m.w === 1 && m.d === 1) return; const pts = area(m.x, m.y, m.w, m.d, 1.04 + (1 - m.life) * .25); c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.closePath(); c.strokeStyle = `rgba(${m.col},${m.life})`; c.lineWidth = TW * .06; c.stroke(); });
-  if (hidden) { const p = iso(hero.x + .5, hero.y + .5, heroZ()); ghostStart(c); person(c, p[0], p[1], TW / 44, '#3d6fa8', true, hero.path.length ? Math.abs(Math.sin(hero.walk)) * 2 : 0, false); ghostEnd(c, .55); }
+  if (hidden) { const p = iso(hero.x + .5, hero.y + .5, heroZ()); ghostStart(c, cellBox(hero.x - .5, hero.y - .5, hero.x + 1.5, hero.y + 1.5, 3 + heroZ())); person(c, p[0], p[1], TW / 44, '#3d6fa8', true, hero.path.length ? Math.abs(Math.sin(hero.walk)) * 2 : 0, false); ghostEnd(c, .55); }
   dust = dust.filter(p => (p.life -= 1 / 60) > 0);
   dust.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .05; Cc(c, p.x, p.y, p.r * p.life, `rgba(230,220,200,${p.life})`); });
-  if (selected) {
+  if (selected && !((questNow() || {}).target === selected.id && cam.s <= 1.05)) {   // 퀘스트 대상이면 느낌표가 대신 떠 있음
     const o = selected, p = iso(o.gx + o.w / 2, o.gy + o.d / 2, hgt(o.gx, o.gy));
     const tall = (SH[o.kind] || [0, 2.4])[1];
     const top = p[1] - ZU * (tall + .6) - Math.sin(tnow * 4) * 3;
@@ -1976,12 +1987,14 @@ function drawIsland(c) {
   }
   // 지금 퀘스트의 대상 위에 떠 있는 느낌표
   { const q = questNow(), o = q && OBJ.find(v => v.id === q.target);
-    if (o && o !== selected && cam.s <= 1.05 && visObj(o)) {
+    if (o && cam.s <= 1.05 && visObj(o)) {   // 고르고 걸어가는 동안에도 그대로 둠
       const p = iso(o.gx + o.w / 2, o.gy + o.d / 2, hgt(o.gx, o.gy)), tall = o.done ? (SH[o.kind] || [0, 2.4])[1] : 2.2;
-      const y = p[1] - ZU * (tall + .9) - Math.abs(Math.sin(tnow * 3)) * TW * .12, r = TW * .2;
-      P(c, [[p[0] - r * .5, y + r * .7], [p[0] + r * .5, y + r * .7], [p[0], y + r * 1.5]], '#f0b64f');
-      Cc(c, p[0], y, r, '#f0b64f'); c.strokeStyle = '#7a4f12'; c.lineWidth = 2; c.beginPath(); c.arc(p[0], y, r, 0, 7); c.stroke();
-      c.font = `${r * 1.4}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#2b1d0c'; c.fillText('!', p[0], y + 1);
+      const bob = Math.abs(Math.sin(tnow * 3)), y = p[1] - ZU * (tall + 1.25) - bob * TW * .12, r = Math.max(11, TW * .24);
+      E(c, p[0], p[1] - ZU * (tall + .15), r * (.55 - bob * .12), r * (.2 - bob * .05), 'rgba(40,25,10,.22)');   // 바닥 쪽 그림자 대신 살짝 아래 그림자
+      const g = c.createRadialGradient(p[0], y, r * .4, p[0], y, r * 1.9); g.addColorStop(0, 'rgba(255,220,120,.55)'); g.addColorStop(1, 'rgba(255,220,120,0)'); c.fillStyle = g; c.beginPath(); c.arc(p[0], y, r * 1.9, 0, 7); c.fill();
+      c.beginPath(); c.moveTo(p[0] - r * .38, y + r * .78); c.lineTo(p[0] + r * .38, y + r * .78); c.lineTo(p[0], y + r * 1.32); c.closePath(); c.fillStyle = '#f2b93b'; c.fill(); c.lineWidth = Math.max(1.5, r * .15); c.strokeStyle = '#5a3510'; c.lineJoin = 'round'; c.stroke();
+      emo(c, 'ic_quest', p[0], y, r * 2.1);
+      [[-1.15, -.75, 0], [1.2, -.35, 1.7]].forEach(([dx, dy, ph]) => { const k = (Math.sin(tnow * 4 + ph) + 1) / 2; if (k > .3) { const sx = p[0] + dx * r, sy = y + dy * r, ss = r * .28 * k; c.beginPath(); for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4, q = i % 2 ? ss * .3 : ss; c.lineTo(sx + Math.sin(an) * q, sy - Math.cos(an) * q); } c.closePath(); c.fillStyle = '#fff3c0'; c.fill(); } });
     } }
   OBJ.forEach(o => {
     if (cam.s > 1.05 || o.kind === 'bigtree' || !visObj(o)) return;
@@ -3473,7 +3486,7 @@ function drawForest(c, dt) {
       if (t === 'v') { if ((x >= hero.x + .8 || y >= hero.y + .8) === (pass === 1)) caveMouth(c, x, y); continue; }
       if ((x >= hero.x + .8 || y >= hero.y + .8) !== (pass === 1)) continue;
       const front = s > hero.x + hero.y + .5 && s <= hero.x + hero.y + 3 && Math.abs((x - y) - (hero.x - hero.y)) < 1.8 && t === 't';
-      if (front) ghostStart(c);
+      if (front) ghostStart(c, cellBox(x, y, x + 1, y + 1, 3.5));
       if (t === 't' && f.road === 'volcano') deadTreeAt(c, x, y); else if (t === 't') { treeAt(c, x, y); if (f.road === 'mtn') { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .62, TW * .2, TH * .12, 'rgba(250,252,255,.9)'); } }
       else if (t === 'm') { rockAt(c, x, y); const q = iso(x + .5, y + .5, 0), o = GROVES[f.grove].ores[0][0]; for (let k = 0; k < 4; k++) Cc(c, q[0] + (k - 1.5) * TW * .07, q[1] - TW * (.1 + (k % 2) * .06), TW * .03, k % 2 ? ORES[o].light : ORES[o].color); }
       else if (t === 'k') rockAt(c, x, y); else if (t === 's') bushAt(c, x, y); else if (t === 'B') boulderAt(c, x, y);
@@ -4111,7 +4124,7 @@ function drawTown(c, dt) {
   for (let s2 = vr.x0 + vr.y0; s2 <= vr.x1 + vr.y1; s2++) for (let x = Math.max(vr.x0, s2 - vr.y1); x <= Math.min(vr.x1, s2 - vr.y0); x++) {
     const y = s2 - x, t = tT(x, y);
     const front = x + y > hero.x + hero.y + .5 && x + y <= hero.x + hero.y + 3 && Math.abs((x - y) - (hero.x - hero.y)) < 1.8;   // 광부를 가리는 나무는 반투명
-    if (t === 't') list.push([x + y + 1, () => { if (front) ghostStart(c); if (S.loc === 'volcano') deadTreeAt(c, x, y); else treeAt(c, x, y); if (front) ghostEnd(c, .4); if (S.loc === 'volcano') return; if (T.cap) { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .62, TW * .2, TH * .12, T.cap); } }]);
+    if (t === 't') list.push([x + y + 1, () => { if (front) ghostStart(c, cellBox(x, y, x + 1, y + 1, 3.5)); if (S.loc === 'volcano') deadTreeAt(c, x, y); else treeAt(c, x, y); if (front) ghostEnd(c, .4); if (S.loc === 'volcano') return; if (T.cap) { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .62, TW * .2, TH * .12, T.cap); } }]);
     else if (t === 'r') list.push([x + y + 1, () => { rockAt(c, x, y); if (T.cap) { const q = iso(x + .5, y + .5, 0); E(c, q[0], q[1] - TW * .16, TW * .16, TH * .08, T.cap); } }]);
   }
   list.push([4 + 4 + 3, () => townHouse(c, TOWN_OBJ[0], T, '여관')]);
@@ -4286,6 +4299,8 @@ function audio() {
   SFX_BUS.gain.value = vol('sfx') * 1.25;
   return AC;
 }
+// 다른 앱이나 탭으로 나가면 소리를 멈춤 (설정에서 끌 수 있음, 기본은 켬)
+document.addEventListener('visibilitychange', () => { if (!AC) return; if (document.hidden) { if (S.bgOff !== false) AC.suspend(); } else AC.resume(); });
 function setVolumes() { if (!AC) return; SFX_BUS.gain.setTargetAtTime(vol('sfx') * 1.25, AC.currentTime, .05); BGM_BUS.gain.setTargetAtTime(bgm.mood ? vol('bgm') * 1.1 : 0, AC.currentTime, .1); }
 function beep(freq, dur, type, v, slide) {
   if (S.mute || !vol('sfx')) return;
@@ -4599,7 +4614,7 @@ function showCard(o, msg) {
     else if (S.chiefDay !== S.day) { line = CHIEF_TIPS[(S.day - 1) % CHIEF_TIPS.length]; S.chiefDay = S.day; save(); }
     else line = `다음은 대장간이에요. ${GOLD}${GOAL.cost - S.gold}만 더 모으면 돼요.`;
     openSheet('촌장', `<p>${line}</p>` + boardHtml());
-  } else if (o.id === 'merchant') showMerchant();
+  } else if (o.id === 'merchant') showMerchant(ORE_ORDER.some(k => have(k)) ? 'sell' : 'buy');
   else if (o.id === 'kitchen') showKitchen('home');
   else if (o.id === 'jewel') showJewel();
   else if (o.id === 'market') showMarket();
@@ -4609,11 +4624,19 @@ function showCard(o, msg) {
     openSheet(ico('ic_pick') + '광산', `<p>최고 깊이 ${S.deepest}</p>`, '<button class="btn primary" data-a="enter">들어가기</button>');
   } else openSheet(`${o.icon ? ico(o.icon) : ''}${o.name}`, '');
 }
-function showMerchant() {
-  const rows = ORE_ORDER.filter(o => have(o)).map(o => { const n = have(o), p = ORES[o].price; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${n}</small></span><button class="btn small" data-a="sell" data-o="${o}">${GOLD}${p * n}</button></div>`; }).join('');
-  const total = ORE_ORDER.reduce((a, o) => a + have(o) * ORES[o].price, 0);
+// 떠돌이 상인 (기획 83번): 팔기와 사기를 칸으로 나눔. 처음 열 땐 팔 것이 있으면 팔기, 없으면 사기
+let merchTab = 'sell';
+function showMerchant(tab = merchTab) {
+  merchTab = tab;
+  const total = ORE_ORDER.reduce((a, o) => a + have(o) * ORES[o].price, 0), nSell = ORE_ORDER.filter(o => have(o)).length;
+  const seg = `<div class="seg"><button class="${tab === 'sell' ? 'on' : ''}" data-a="mTab" data-o="sell">${ico('ic_gold')}팔기${nSell ? `<small>${nSell}</small>` : ''}</button><button class="${tab === 'buy' ? 'on' : ''}" data-a="mTab" data-o="buy">${ico('ic_shop')}사기</button></div>`;
+  if (tab === 'sell') {
+    const rows = ORE_ORDER.filter(o => have(o)).map(o => { const n = have(o), p = ORES[o].price; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${n}</small></span><button class="btn small" data-a="sell" data-o="${o}">${GOLD}${p * n}</button></div>`; }).join('');
+    openSheet(ico('ic_shop') + '떠돌이 상인', seg + (rows ? `<div class="rows">${rows}</div>` : '<p>광석이라면 뭐든 사 갈게요.</p>'), total ? `<button class="btn primary" data-a="sellAll">전부 ${GOLD}${total}</button>` : '');
+    return;
+  }
   const shop = SHOP.map((it, i) => [it, i]).filter(([it]) => !it.farm || S.restored.includes('field')).map(([it, i]) => `<div class="rowi"><span class="nm">${accIco(it.id)}${(ACC[it.id] || ITEMS[it.id]).n}${it.kind === 'acc' ? ` <small class="eff">${accDesc(it.id)}</small>` : ''}${it.kind === 'acc' && owned(it.id) ? ' <small>있음</small>' : ''}</span><button class="btn small" data-a="buy" data-n="${i}" ${S.gold >= it.gold ? '' : 'disabled'}>${GOLD}${it.gold}</button></div>`).join('');
-  openSheet(ico('ic_shop') + '떠돌이 상인', (rows ? `<p class="dim">팔기</p><div class="rows">${rows}</div>` : '<p>광석이라면 뭐든 사 갈게요.</p>') + `<p class="dim" style="margin-top:10px">사기</p><div class="rows">${shop}</div>`, total ? `<button class="btn primary" data-a="sellAll">전부 ${GOLD}${total}</button>` : '');
+  openSheet(ico('ic_shop') + '떠돌이 상인', seg + `<div class="rows">${shop}</div>`);
 }
 function showBag() {
   const out = scene !== 'village', src = S.carry;
@@ -4674,7 +4697,7 @@ function bagFullMsg(x, y, verb) {
 function showMenu() {
   const sl = (k, ic, name) => { const v = Math.round(S.vol[k] * 100); return `<div class="rowi vol"><span class="nm">${ico(ic)}${name}</span><input type="range" min="0" max="100" step="5" value="${v}" data-vol="${k}" aria-label="${name}"><small>${v}</small></div>`; };
   if (S.vol.master == null) S.vol.master = 1;
-  openSheet(ico('ic_settings') + '설정', `<div class="rows">${sl('master', 'ic_sound', '전체')}${sl('sfx', 'ic_sound', '효과음')}${sl('bgm', 'ic_note', '배경음')}</div>`, `<button class="btn" data-a="mute">${S.mute ? ico('ic_mute') + '소리 꺼짐' : ico('ic_sound') + '소리 켜짐'}</button><button class="btn" data-a="resetAsk">처음부터</button>`);
+  openSheet(ico('ic_settings') + '설정', `<div class="rows">${sl('master', 'ic_sound', '전체')}${sl('sfx', 'ic_sound', '효과음')}${sl('bgm', 'ic_note', '배경음')}<div class="rowi"><span class="nm">${ico('ic_mute')}화면 밖에선 무음</span><button class="btn small${S.bgOff !== false ? ' primary' : ''}" data-a="bgOff">${S.bgOff !== false ? '켬' : '끔'}</button></div></div>`, `<button class="btn" data-a="mute">${S.mute ? ico('ic_mute') + '소리 꺼짐' : ico('ic_sound') + '소리 켜짐'}</button><button class="btn" data-a="resetAsk">처음부터</button>`);
 }
 /* ===== 시설 고치기: 값(돈과 재료)을 내면 고쳐지고, 그 시설의 퀘스트 차례가 와야 고칠 수 있음 ===== */
 const RESTORE = {
@@ -5418,7 +5441,7 @@ document.addEventListener('input', e => { if (e.target.dataset && e.target.datas
 document.addEventListener('change', e => { if (e.target.dataset && (e.target.dataset.vol === 'sfx' || e.target.dataset.vol === 'master')) SFX.coin(); });
 document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled) return; act(b); });
 /* 확정 (기획 66번): 돈이나 물건이 빠지는 단추는 한 번 더 묻고 확정. 확정 창엔 무엇인지와 값만 */
-const CONFIRM = new Set(['restore', 'home', 'buy', 'mbuy', 'nbuy', 'nsell', 'sharp', 'smelt', 'donate', 'craft', 'combine', 'cut', 'donkey', 'fix', 'rail', 'kreq', 'inn', 'sellAll', 'forgeGo', 'spHammer', 'calmHeart']);
+const CONFIRM = new Set(['sleep', 'campSleep', 'restore', 'home', 'buy', 'mbuy', 'nbuy', 'nsell', 'sharp', 'smelt', 'donate', 'craft', 'combine', 'cut', 'donkey', 'fix', 'rail', 'kreq', 'inn', 'sellAll', 'forgeGo', 'spHammer', 'calmHeart']);
 let autoOk = false, cfPend = null;   // autoOk: 시험용 (확정을 건너뜀)
 function askConfirm(b) {
   cfPend = { html: sheet.innerHTML, closable: sheetClosable, a: b.dataset.a, o: b.dataset.o, n: b.dataset.n };
@@ -5473,6 +5496,7 @@ function act(b) {
   else if (a === 'forgeGo') startHammer();
   else if (a === 'smithyBack') { forgeSel = null; showSmithy('pick'); }
   else if (a === 'smTab') showSmithy(b.dataset.o);
+  else if (a === 'mTab') showMerchant(b.dataset.o);
   else if (a === 'kTab') showKitchen(b.dataset.o);
   else if (a === 'spEquip') spEquip(b.dataset.o);
   else if (a === 'spHammer') spHammer(b.dataset.o);
@@ -5531,8 +5555,10 @@ function act(b) {
     if (q && scene !== 'village') { const o = OBJ.find(v => v.id === q.target); toast(`${ico('ic_quest')}${o ? o.name : q.text}`); }   // 밖에선 어디로 가야 하는지 이름만
     if (q && scene === 'village' && !cam.to) { const o = OBJ.find(v => v.id === q.target); mark(o.gx, o.gy, '233,176,79', o.w, o.d); goTo(o); } }
   else if (a === 'mute') { S.mute = !S.mute; save(); setVolumes(); showMenu(); }
+  else if (a === 'bgOff') { S.bgOff = S.bgOff === false; save(); showMenu(); }
   else if (a === 'resetAsk') openSheet('처음부터', '<p class="warn">모든 기록 삭제</p>', '<button class="btn primary" data-a="reset">삭제</button>');
-  else if (a === 'reset') { S = freshState(); applyRestored(); newDayReset(); save(); renderHud(); showHome(); }
+  else if (a === 'reset') { const keep = { vol: S.vol, mute: S.mute, bgOff: S.bgOff }; S = freshState(); Object.assign(S, keep);   // 처음부터 해도 소리 설정은 그대로
+    applyRestored(); newDayReset(); save(); renderHud(); showHome(); }
 }
 function newDayReset() { scene = 'village'; FLAT = false; hero.x = HOME[0]; hero.y = HOME[1]; hero.path = []; selected = null; cam.to = null; cam.s = 1; follow = true; snapCam(); }
 function applyRestored() { OBJ.forEach(o => { o.done = o.stage === 0 || S.restored.includes(o.id); o.grow = o.done || o.kind === 'mine' ? 1 : 0; }); OBJ.find(o => o.id === 'house').name = HOMES[S.home || 0].name; }
@@ -5625,7 +5651,12 @@ function frame(ms) {
     oc.setTransform(DPR, 0, 0, DPR, 0, 0); if (SKY[phase].tint) R(oc, 0, 0, W, H, SKY[phase].tint);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const blur = cam.s > 1.05 ? 0 : 4;
-    if (blur) { ctx.filter = `blur(${blur * DPR}px)`; ctx.drawImage(off, 0, 0); ctx.filter = 'none'; }
+    if (blur) {   // 위아래 흐림: 큰 그림을 그대로 흐리면 무거우니 4분의 1로 줄여 흐린 뒤 키워서 깖
+      const sw = Math.ceil(off.width / 4), sh = Math.ceil(off.height / 4);
+      if (sml.width !== sw || sml.height !== sh) { sml.width = sw; sml.height = sh; }
+      sc.setTransform(1, 0, 0, 1, 0, 0); sc.clearRect(0, 0, sw, sh); sc.filter = `blur(${Math.max(1, blur * DPR / 4)}px)`; sc.drawImage(off, 0, 0, sw, sh); sc.filter = 'none';
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(sml, 0, 0, off.width, off.height);
+    }
     mc.setTransform(1, 0, 0, 1, 0, 0); mc.globalCompositeOperation = 'source-over'; mc.clearRect(0, 0, msk.width, msk.height); mc.drawImage(off, 0, 0);
     if (blur) {
       const g = mc.createLinearGradient(0, 0, 0, msk.height);
