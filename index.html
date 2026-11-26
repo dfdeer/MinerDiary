@@ -1940,7 +1940,10 @@ function wallAt(c, x, y) {
       c.beginPath(); c.moveTo(.16, .42); c.lineTo(.84, .42); c.stroke();
       c.restore();
     };
-    arch(iso(x, y + 1, z0), TW / 2, TH / 2); arch(iso(x + 1, y + 1, z0), TW / 2, -TH / 2);
+    // 아치는 물이 실제로 빠져나가는 면(옆 칸이 성벽이 아닌 물)에만. 다른 성벽과 맞붙은 면에 그리면 그 벽 뒤에 있어야 할 아치가 비쳐 앞뒤가 바뀌어 보임
+    const open = (a, b) => isWater(a, b) && !isWall(a, b);
+    if (open(x, y + 1)) arch(iso(x, y + 1, z0), TW / 2, TH / 2);
+    if (open(x + 1, y)) arch(iso(x + 1, y + 1, z0), TW / 2, -TH / 2);
     return;
   }
   if (broken) {
