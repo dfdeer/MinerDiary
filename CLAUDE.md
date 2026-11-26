@@ -50,4 +50,5 @@
 - GitHub Pages: https://dfdeer.github.io/MinerDiary/
 - main에 병합되면 `.github/workflows/pages.yml`이 문법 검사 후 `index.html`과 `manifest.webmanifest`, `sw.js`, `icons/`를 배포함.
 - 병합한 뒤 Actions의 「Deploy Pages」 실행이 성공했는지 확인하고 주소를 알려 줌.
+- 배포가 실패하면 다시 돌리거나 재시도를 예약하지 말고, 실패한 것만 알려 줌 (11/26 사용자 결정, 재시도할 때마다 토큰이 들어서). 다음 병합 때 함께 배포됨.
 - 새 기능을 넣으면 `tools/browser-test.js`에 그 흐름도 추가.
