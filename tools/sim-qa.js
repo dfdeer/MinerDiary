@@ -5,6 +5,7 @@
 // 하는 일: 열린 창이 있으면 그 창의 단추를 하나 누르고(진행 단추를 더 자주), 없으면 화면(건물, 사람, 바위, 구멍, 땅)을 누름.
 //   이동 장면은 건너뛰고, 「처음부터」 단추는 누르지 않음.
 // 찾는 것: 페이지 오류, 이상한 상태(NaN, 음수 돈, 음수 물건, 기력 넘침, 가방 넘침), 멈춤(오래 아무것도 안 바뀜), 창이 갇힘(누를 단추도 닫기도 없음).
+//   홀수 판은 처음부터(퀘스트 막대를 자주 눌러 퀘스트를 따라감), 짝수 판은 후반 상태(마을 다 고침, 돈과 물건 넉넉히)에서 시작.
 // 결과: 판마다 몇 줄 요약(날짜, 돈 흐름, 깊이, 퀘스트, 장면별 행동 수)과 문제 목록만 출력. 문제가 있으면 종료 코드 1.
 const { chromium } = require('playwright');
 const path = require('path');
@@ -29,7 +30,12 @@ const STUCK = 80;   // 이만큼 행동해도 상태가 그대로면 멈춤으�
     await page.goto(url);
     await page.evaluate(() => localStorage.clear());
     await page.reload(); await page.waitForFunction(() => window.MinerDiary && window.MinerDiary.ready, null, { timeout: 15000 });
-    await page.evaluate(() => { const M = window.MinerDiary; M.autoConfirm(true); M.speed(6); });
+    const late = run % 2 === 0;
+    await page.evaluate(late => { const M = window.MinerDiary; M.autoConfirm(true); M.speed(6); closeSheet();
+      if (late) {   // 후반 상태: 모든 곳을 고치고 돈, 광석, 소모품, 곡괭이, 깊이를 넉넉히
+        S.introSeen = true; S.gold = 20000; OBJ.forEach(o => { o.done = true; o.grow = 1; if (!S.restored.includes(o.id)) S.restored.push(o.id); });
+        ORE_ORDER.forEach(k => { S.inv[k] = 8; }); Object.keys(ITEMS).forEach(k => { S.items[k] = 2; }); S.pick = 3; S.deepest = 12; S.rod = 1; S.sickle = 1; S.cart = 1; S.acc.slots = 2; save(); }
+    }, late);
 
     const sceneN = {}, acts = {}, gold = [], days = {};
     let last = '', same = 0, stuckN = 0;
@@ -88,6 +94,8 @@ const STUCK = 80;   // 이만큼 행동해도 상태가 그대로면 멈춤으�
             if (sc === 'town') { const objs = M.objects().filter(o => o.id); if (r1 < .5 && objs.length) { const o = objs[Math.floor(r2 * objs.length)]; return { p: M.spotPoint(o.id), w: 'tobj' }; } return { p: M.townSpot(dx, dy), w: 'tcell' }; }
             return null;
           }, [info.scene, R(), R()]).catch(e => { note(probs, `[봇] 누를 곳 찾기 실패 ${info.scene}: ${e.message.split('\n')[0]}`); return null; });
+          // 퀘스트를 따라가기 (퀘스트 막대를 누르면 할 일 쪽으로 걸어감)
+          if (R() < (late ? .12 : .35)) { const qb = await page.$('[data-a="quest"]:visible'); if (qb) { await qb.click({ timeout: 2000 }).catch(() => {}); acts.quest = (acts.quest || 0) + 1; await page.waitForFunction(() => !window.MinerDiary.hero().moving, null, { timeout: 6000 }).catch(() => {}); continue; } }
           // 가끔 아래 막대 단추(집으로 바로 가기, 가방)도 씀
           if (R() < .06) { const ab = await page.$('#minebar [data-a="homeFastAsk"]:visible, #dock [data-a="bag"]:visible'); if (ab) { await ab.click({ timeout: 2000 }).catch(() => {}); acts.dock = (acts.dock || 0) + 1; continue; } }
           if (spot && spot.p) { await page.mouse.click(spot.p.x, spot.p.y); acts['tap:' + spot.w.split(':')[0]] = (acts['tap:' + spot.w.split(':')[0]] || 0) + 1; }
@@ -100,7 +108,7 @@ const STUCK = 80;   // 이만큼 행동해도 상태가 그대로면 멈춤으�
     const end = await page.evaluate(() => { const S = window.MinerDiary.state(); return { day: S.day, gold: S.gold, depth: S.deepest, quest: S.quest, restored: (S.restored || []).length, pick: S.pick }; });
     // 3. 판 요약
     const top = Object.entries(acts).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => `${k} ${v}`).join(', ');
-    console.log(`판 ${run}: ${STEPS}번 행동, ${end.day}일째, 돈 ${end.gold} (날마다 시작 돈 ${gold.slice(0, 12).join(' > ')}${gold.length > 12 ? ' ...' : ''}), 깊이 ${end.depth}, 퀘스트 ${end.quest}, 고친 곳 ${end.restored}, 곡괭이 ${end.pick}`);
+    console.log(`판 ${run}(${late ? '후반' : '처음부터'}): ${STEPS}번 행동, ${end.day}일째, 돈 ${end.gold} (날마다 시작 돈 ${gold.slice(0, 12).join(' > ')}${gold.length > 12 ? ' ...' : ''}), 깊이 ${end.depth}, 퀘스트 ${end.quest}, 고친 곳 ${end.restored}, 곡괭이 ${end.pick}`);
     console.log(`  장면: ${Object.entries(sceneN).map(([k, v]) => `${k} ${v}`).join(', ')} / 많이 한 행동: ${top}`);
     const all = [...errors.entries()].map(([k, v]) => `[오류] ${k}${v > 1 ? ` (${v}번)` : ''}`).concat([...probs.entries()].map(([k, v]) => `${k}${v > 1 ? ` (${v}번)` : ''}`));
     if (all.length) { bad++; console.log(`  문제 ${all.length}가지:`); all.slice(0, 15).forEach(s => console.log('    ' + s)); if (all.length > 15) console.log(`    그 밖에 ${all.length - 15}가지`); }
