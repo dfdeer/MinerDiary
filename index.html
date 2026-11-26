@@ -234,6 +234,14 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .rowi{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.22);border-radius:12px;padding:6px 6px 6px 12px;font-weight:700}
 .rowi .nm{flex:1;display:flex;align-items:center;gap:8px}
 .rowi small{color:var(--dim);font-weight:400}
+/* 물건 카드 (기획 93번): 사고팔고 넣고 꺼내는 물건 목록은 지도 갈 곳 카드처럼 큰 그림 카드로 */
+.rows.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px}
+.cards .rowi{flex-direction:column;align-items:stretch;justify-content:space-between;gap:6px;padding:10px 7px 7px;border-radius:16px;text-align:center;background:linear-gradient(rgba(255,235,200,.09),rgba(0,0,0,.22));border:2px solid rgba(255,235,200,.14);box-shadow:0 3px 0 rgba(0,0,0,.3);min-width:0}
+.cards .rowi .nm{flex:none;flex-direction:column;justify-content:center;gap:3px;font-size:13px;line-height:1.25;word-break:keep-all;flex-wrap:wrap}
+.cards .rowi .nm .ore{width:40px;height:40px;margin:0 auto 2px}.cards .rowi .nm>.ico:first-child{width:36px;height:36px;margin:0 auto 2px}
+.cards .rowi>span:not(.nm){display:flex;justify-content:center;align-items:center;gap:4px;font-size:13px}
+.cards .rowi .btn{width:100%;padding:0 6px;justify-content:center}
+.cards .rowi .qbar,.cards .rowi input{width:100%}
 .floors{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .floors .btn{padding:0}
 .ico{width:1.35em;height:1.35em;vertical-align:-.32em;margin-right:.25em;flex:none}
@@ -1821,8 +1829,13 @@ function propAt(c, x, y, kind, night) {
     P(c, [ap, e, d], '#9a4a3a'); P(c, [ap, d, cc], '#7a3628');
     L(c, w[0], w[1] - ZU * 1.0, w[0], w[1] - ZU * .3, '#cbbf9f', 1.2);
   } else if (kind === 'hay') {
-    prism(c, x + .15, y + .2, .7, .55, z, .5, '#e6c766', '#d8b550', '#b8963c');
-    for (let k = 1; k < 4; k++) { const a = iso(x + .15 + k * .175, y + .75, z), b = iso(x + .15 + k * .175, y + .75, z + .5); L(c, a[0], a[1], b[0], b[1], 'rgba(120,90,30,.4)', 1.2); }
+    // 짚더미 (기획 93번): 둥근 언덕 모양으로 쌓은 짚과 위에서 흘러내린 짚 결
+    const b = iso(x + .5, y + .5, z), rx = .4 * TW / Math.SQRT2, ry = .4 * TH / Math.SQRT2, hh = ZU * .85, lw = Math.max(1.4, TW * .02);
+    E(c, b[0], b[1] + ry * .2, rx * 1.15, ry * 1.1, 'rgba(40,30,20,.16)');
+    rmPath(c, () => { c.moveTo(b[0] - rx, b[1]); c.bezierCurveTo(b[0] - rx, b[1] - hh * 1.1, b[0] + rx, b[1] - hh * 1.1, b[0] + rx, b[1]); c.ellipse(b[0], b[1], rx, ry, 0, 0, Math.PI); c.closePath(); }, '#e3c463', lw);
+    c.strokeStyle = 'rgba(150,110,35,.5)'; c.lineWidth = Math.max(1, TW * .011);
+    [-.7, -.4, -.12, .15, .42, .7].forEach(k => { c.beginPath(); c.moveTo(b[0] + rx * k * .35, b[1] - hh * .78); c.quadraticCurveTo(b[0] + rx * k * .9, b[1] - hh * .4, b[0] + rx * k, b[1] + ry * Math.sqrt(1 - k * k) * .9); c.stroke(); });
+    c.fillStyle = 'rgba(255,245,200,.35)'; c.beginPath(); c.ellipse(b[0] - rx * .25, b[1] - hh * .6, rx * .28, hh * .14, -.3, 0, Math.PI * 2); c.fill();
   }
 }
 // 땅 한 칸: 풀, 길, 광장, 밭, 강을 저마다 다른 무늬로
@@ -1923,13 +1936,27 @@ function fogOf(x, y) {
   if (!inTown(x, y)) { d = 17; for (let r = 1; r <= 16 && d === 17; r++) for (let a = -r; a <= r; a++) if (inTown(x + a, y - r) || inTown(x + a, y + r) || inTown(x - r, y + a) || inTown(x + r, y + a)) { d = r; break; } d = Math.max(0, d - 1); }
   f = Math.min(.62, d / 16); FOGD.set(k, f); return f;
 }
+// 성벽 돌 (기획 93번): 보이는 두 면에 돌을 쌓은 줄눈(엇갈린 세로 이음), 아래쪽 이끼 띠, 칸마다 살짝 다른 돌빛
+function wallStones(c, x, y, w, d, z0, h, seed) {
+  const ln = (a, b) => { c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); };
+  faceL(c, x, x + w, y + d, z0, z0 + .16, 'rgba(70,110,60,.22)'); faceR(c, x + w, y, y + d, z0, z0 + .16, 'rgba(70,110,60,.2)');
+  c.strokeStyle = 'rgba(80,68,56,.3)'; c.lineWidth = Math.max(1, TW * .011); c.lineCap = 'butt';
+  const rows = Math.max(2, Math.round(h / .32)), rh = h / rows;
+  for (let r = 1; r < rows; r++) { const z = z0 + r * rh; ln(iso(x, y + d, z), iso(x + w, y + d, z)); ln(iso(x + w, y + d, z), iso(x + w, y, z)); }
+  for (let r = 0; r < rows; r++) {
+    const za = z0 + r * rh, zb = za + rh, off = ((r + seed) % 2) * .25;
+    for (let u = .25 + off; u < w - .05; u += .5) ln(iso(x + u, y + d, za), iso(x + u, y + d, zb));
+    for (let u = .25 + off; u < d - .05; u += .5) ln(iso(x + w, y + d - u, za), iso(x + w, y + d - u, zb));
+  }
+}
 function wallAt(c, x, y) {
   const water = isWater(x, y), z0 = water ? -.15 : hgt(x, y);
   const tower = wallTower(x, y) && !water;
   const broken = !tower && !water && H32(x * 31 + y * 17 + 5) < .16;
-  const top = '#c9bfb1', left = '#a69c8f', right = '#867d71';
+  const tv = Math.round((H32(x * 41 + y * 97) - .5) * 14), sh = (hex, k) => '#' + hex.match(/\w\w/g).map(h => Math.max(0, Math.min(255, parseInt(h, 16) + k)).toString(16).padStart(2, '0')).join('');
+  const top = sh('c9bfb1', tv), left = sh('a69c8f', tv), right = sh('867d71', tv), seed = (x + y) & 1;
   if (water) {   // 강이 성벽을 지나는 곳: 물 위에 선 아치 수문 (보이는 두 면에 아치 구멍과 쇠창살, 물이 비침)
-    prism(c, x, y, 1, 1, z0, 1.5, top, left, right);
+    prism(c, x, y, 1, 1, z0, 1.5, top, left, right); wallStones(c, x, y, 1, 1, z0, 1.5, seed);
     prism(c, x + .05, y + .05, .32, .32, z0 + 1.5, .3, top, left, right); prism(c, x + .6, y + .6, .32, .32, z0 + 1.5, .3, top, left, right);
     const arch = (o, ux, uy) => {
       c.save(); c.transform(ux, uy, 0, -ZU, o[0], o[1]);
@@ -1953,7 +1980,7 @@ function wallAt(c, x, y) {
     return;
   }
   if (tower) {
-    prism(c, x - .12, y - .12, 1.24, 1.24, z0, 2.5, top, left, right);
+    prism(c, x - .12, y - .12, 1.24, 1.24, z0, 2.5, top, left, right); wallStones(c, x - .12, y - .12, 1.24, 1.24, z0, 2.5, seed);
     [[-.12, -.12], [.76, -.12], [-.12, .76], [.76, .76]].forEach(([dx, dy]) => prism(c, x + dx, y + dy, .36, .36, z0 + 2.5, .35, top, left, right));
     // 창문: 벽면을 따라 기울어진 좁은 아치 창 (보이는 두 면에 하나씩)
     const slit = (P) => { c.beginPath(); for (let k = 0; k <= 8; k++) { const a = Math.PI * k / 8, [px, py] = P(.5 - .09 * Math.cos(a), 1.72 + .09 * Math.sin(a) * 1.6); k ? c.lineTo(px, py) : c.moveTo(px, py); } [[.59, 1.3], [.41, 1.3]].forEach(([u, h]) => { const [px, py] = P(u, h); c.lineTo(px, py); }); c.closePath(); c.fillStyle = '#2e2924'; c.fill(); };
@@ -1961,7 +1988,7 @@ function wallAt(c, x, y) {
     slit((u, h) => iso(x + 1.12, y + 1.12 - u * 1.24, z0 + h));
     return;
   }
-  prism(c, x, y, 1, 1, z0, 1.5, top, left, right);
+  prism(c, x, y, 1, 1, z0, 1.5, top, left, right); wallStones(c, x, y, 1, 1, z0, 1.5, seed);
   prism(c, x + .05, y + .05, .32, .32, z0 + 1.5, .3, top, left, right);
   prism(c, x + .6, y + .6, .32, .32, z0 + 1.5, .3, top, left, right);
 }
@@ -2432,8 +2459,8 @@ function showStore() {
   const room = bagCap() - carryN();
   const bag = ORE_ORDER.filter(o => S.carry[o]).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name}</span><span>×${S.carry[o]}</span><button class="btn small" data-a="stIn" data-o="${o}">넣기</button></div>`).join('');
   const box = ORE_ORDER.filter(o => st[o]).map(o => `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name}</span><span>×${st[o]}</span><button class="btn small" data-a="stOut" data-o="${o}" ${room > 0 ? '' : 'disabled'}>꺼내기</button></div>`).join('');
-  openSheet(ico('ic_box') + storeName(), `<p class="dim">${ico('ic_bag')}가방 ${carryN()}/${bagCap()}</p>` + (bag ? `<div class="rows">${bag}</div>` : '<p class="dim">빈 가방</p>')
-    + `<p class="dim" style="margin-top:10px">${ico('ic_box')}창고</p>` + (box ? `<div class="rows">${box}</div>` : '<p class="dim">빈 창고</p>'),
+  openSheet(ico('ic_box') + storeName(), `<p class="dim">${ico('ic_bag')}가방 ${carryN()}/${bagCap()}</p>` + (bag ? `<div class="rows cards">${bag}</div>` : '<p class="dim">빈 가방</p>')
+    + `<p class="dim" style="margin-top:10px">${ico('ic_box')}창고</p>` + (box ? `<div class="rows cards">${box}</div>` : '<p class="dim">빈 창고</p>'),
     bag ? `<button class="btn primary" data-a="stAll">모두 넣기</button>` : '');
 }
 function storeIn(o) { const st = storeHere(), n = S.carry[o] || 0; if (!st || !n) return; st[o] = (st[o] || 0) + n; delete S.carry[o]; SFX.tap(); save(); renderDock(); showStore(); }
@@ -3911,7 +3938,7 @@ function nightHtml() {
   // 야시장도 떠돌이 상인처럼 구매와 판매 칸으로 나눔 (기획 89번)
   const nOk = N.buy.filter(b => !b.done && have(b.item) >= b.n).length;
   const seg = `<div class="seg"><button class="${nightTab === 'buy' ? 'on' : ''}" data-a="nTab" data-o="buy">${ico('ic_moon')}구매</button><button class="${nightTab === 'sell' ? 'on' : ''}" data-a="nTab" data-o="sell">${ico('ic_gold')}판매${nOk ? `<small>${nOk}</small>` : ''}</button></div>`;
-  return `<p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장</p>${seg}<div class="rows">${nightTab === 'buy' ? sell : buy}</div>`;
+  return `<p class="dim" style="margin-top:10px">${ico('ic_moon')}야시장</p>${seg}<div class="rows cards">${nightTab === 'buy' ? sell : buy}</div>`;
 }
 function nightBuy(i) {
   const s2 = nightToday().sell[i]; if (!s2 || s2.sold || S.gold < s2.gold || phaseIndex() < 2) return;
@@ -4122,7 +4149,7 @@ function showTownObj(o) {
     // 살 것(당나귀 수레)이 있으면 떠돌이 상인처럼 구매와 판매 칸으로 나눔 (기획 88번)
     if (twTab === 'buy' && !buy) twTab = 'sell';
     const seg = buy ? `<div class="seg"><button class="${twTab === 'buy' ? 'on' : ''}" data-a="twTab" data-o="buy">${ico('ic_shop')}구매</button><button class="${twTab === 'sell' ? 'on' : ''}" data-a="twTab" data-o="sell">${ico('ic_gold')}판매${rows ? `<small>${ORE_ORDER.filter(k => have(k)).length}</small>` : ''}</button></div>` : '';
-    const body = buy && twTab === 'buy' ? buy : `<p class="dim">비싸게 삼 ${want}</p>` + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>');
+    const body = buy && twTab === 'buy' ? buy : `<p class="dim">비싸게 삼 ${want}</p>` + (rows ? `<div class="rows cards">${rows}</div>` : '<p class="dim">팔 것 없음</p>');
     openSheet(ico('ic_shop') + `${T.short} 시장`, roomHtml('tmarket', []) + seg + body);
   } else if (o.id === 'tmine') {
     const kinds = [...new Set(T.ores.flat().map(([k]) => k))].slice(0, 6).map(k => `<span class="ore ${k}"></span>`).join('');
@@ -4756,11 +4783,11 @@ function showMerchant(tab = merchTab) {
   const seg = `<div class="seg"><button class="${tab === 'buy' ? 'on' : ''}" data-a="mTab" data-o="buy">${ico('ic_shop')}구매</button><button class="${tab === 'sell' ? 'on' : ''}" data-a="mTab" data-o="sell">${ico('ic_gold')}판매${nSell ? `<small>${nSell}</small>` : ''}</button></div>`;
   if (tab === 'sell') {
     const rows = ORE_ORDER.filter(o => have(o)).map(o => { const n = have(o), p = ORES[o].price; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${n}</small></span><button class="btn small" data-a="sell" data-o="${o}">${GOLD}${p * n}</button></div>`; }).join('');
-    openSheet(ico('ic_shop') + '떠돌이 상인', roomHtml('merchant', []) + seg + (rows ? `<div class="rows">${rows}</div>` : '<p>광석이라면 뭐든 사 갈게요.</p>'), total ? `<button class="btn primary" data-a="sellAll">전부 ${GOLD}${total}</button>` : '');
+    openSheet(ico('ic_shop') + '떠돌이 상인', roomHtml('merchant', []) + seg + (rows ? `<div class="rows cards">${rows}</div>` : '<p>광석이라면 뭐든 사 갈게요.</p>'), total ? `<button class="btn primary" data-a="sellAll">전부 ${GOLD}${total}</button>` : '');
     return;
   }
   const shop = SHOP.map((it, i) => [it, i]).filter(([it]) => !it.farm || S.restored.includes('field')).map(([it, i]) => `<div class="rowi"><span class="nm">${accIco(it.id)}${(ACC[it.id] || ITEMS[it.id]).n}${it.kind === 'acc' ? ` <small class="eff">${accDesc(it.id)}</small>` : ''}${it.kind === 'acc' && owned(it.id) ? ' <small>있음</small>' : ''}</span><button class="btn small" data-a="buy" data-n="${i}" ${S.gold >= it.gold ? '' : 'disabled'}>${GOLD}${it.gold}</button></div>`).join('');
-  openSheet(ico('ic_shop') + '떠돌이 상인', roomHtml('merchant', []) + seg + `<div class="rows">${shop}</div>`);
+  openSheet(ico('ic_shop') + '떠돌이 상인', roomHtml('merchant', []) + seg + `<div class="rows cards">${shop}</div>`);
 }
 function showBag() {
   const out = scene !== 'village', src = S.carry;
@@ -4769,7 +4796,7 @@ function showBag() {
   const items = Object.keys(ITEMS).filter(id => S.items[id] > 0).map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small>×${S.items[id]}</small></span>${ITEMS[id].seed ? '' : `<button class="btn small" data-a="use" data-o="${id}" ${usable(id) ? '' : 'disabled'}>${ITEMS[id].eat ? `${PWR}+${ITEMS[id].eat}` : '쓰기'}</button>`}</div>`).join('');
   const canDrop = rows || items;
   openSheet(ico('ic_bag') + `가방 <small>${carryN()}/${bagCap()}</small>`,
-    (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">빈 가방</p>') + (items ? `<p class="dim" style="margin-top:10px">소모품</p><div class="rows">${items}</div>` : '') + accSection(),
+    (rows ? `<div class="rows cards">${rows}</div>` : '<p class="dim">빈 가방</p>') + (items ? `<p class="dim" style="margin-top:10px">소모품</p><div class="rows cards">${items}</div>` : '') + accSection(),
     (canDrop ? `<button class="btn" data-a="dropPick">${ico('ic_trash')}버리기</button>` : '') + (storeHere() ? `<button class="btn" data-a="store">${ico('ic_box')}창고</button>` : '') + `<button class="btn" data-a="stats">${ico('ic_stat')}능력치</button>`);   // 내 물건 관리는 바로가기 (기획 76번): 마을 안이면 가방에서 바로 창고
 }
 // 장신구 칸: 세 칸을 늘 보여 주고, 아직 안 열린 칸은 자물쇠와 여는 방법. 칸이나 줄을 누르면 상세
@@ -4798,7 +4825,7 @@ function showDropPick() {
   const src = dropSrc();
   const ores = ORE_ORDER.filter(o => src[o] > 0).map(o => `<div class="rowi tap" data-a="dropSel" data-o="${o}" data-k="ore"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name}</span><span>×${src[o]}</span></div>`).join('');
   const items = Object.keys(ITEMS).filter(id => S.items[id] > 0).map(id => `<div class="rowi tap" data-a="dropSel" data-o="${id}" data-k="item"><span class="nm">${accIco(id)}${ITEMS[id].n}</span><span>×${S.items[id]}</span></div>`).join('');
-  openSheet(ico('ic_trash') + '버리기', `<div class="rows">${ores}${items}</div>`, `<button class="btn" data-a="bag">가방</button>`);
+  openSheet(ico('ic_trash') + '버리기', `<div class="rows cards">${ores}${items}</div>`, `<button class="btn" data-a="bag">가방</button>`);
 }
 function showDropSel(o, k) {
   const have = k === 'item' ? (S.items[o] || 0) : (dropSrc()[o] || 0); if (!have) { showBag(); return; }
@@ -5588,7 +5615,7 @@ function showPlot(x, y) {
   const k = x + ',' + y, p2 = S.farm[k];
   if (!p2) {
     const seeds = Object.keys(ITEMS).filter(id => ITEMS[id].seed && S.items[id] > 0);
-    openSheet(ico('ic_seed') + '빈 밭', seeds.length ? `<div class="rows">${seeds.map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small>×${S.items[id]}</small> <small>${CROPS[ITEMS[id].seed].days}일</small></span><button class="btn small" data-a="plant" data-o="${id}" data-n="${x * 1000 + y}">심기</button></div>`).join('')}</div>` : '<p class="dim">씨앗 없음</p>');
+    openSheet(ico('ic_seed') + '빈 밭', seeds.length ? `<div class="rows cards">${seeds.map(id => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small>×${S.items[id]}</small> <small>${CROPS[ITEMS[id].seed].days}일</small></span><button class="btn small" data-a="plant" data-o="${id}" data-n="${x * 1000 + y}">심기</button></div>`).join('')}</div>` : '<p class="dim">씨앗 없음</p>');
     return;
   }
   const C = CROPS[p2.crop], ready = p2.days >= C.days, ph = phaseIndex();
@@ -5762,15 +5789,15 @@ function showMarket() {
   const tabs = roomHtml('market', [['trade', '판매', 16, '시세'], ['food', '음식', 222, '구매'], ['mat', '재료', 428, '구매']].map(([k, n, x, sub]) => ({ a: 'mtab', o: k, box: [x - 2, 56, x + 202, 262], name: n, sub, on: marketTab === k })));
   if (marketTab === 'food') {
     const rows = FOOD_SHOP.map(([id, g], i) => `<div class="rowi"><span class="nm">${accIco(id)}${ITEMS[id].n} <small class="eff">${PWR}+${ITEMS[id].eat}</small>${S.items[id] ? ` <small>×${S.items[id]}</small>` : ''}</span><button class="btn small" data-a="mbuy" data-o="food" data-n="${i}" ${S.gold >= g ? '' : 'disabled'}>${GOLD}${g}</button></div>`).join('');
-    openSheet(ico('ic_shop') + '시장', tabs + `<p>갓 구운 빵이랑 따뜻한 꼬치 있어요. 일하다 출출할 때 하나씩 먹어요.</p><div class="rows">${rows}</div>`); return;
+    openSheet(ico('ic_shop') + '시장', tabs + `<p>갓 구운 빵이랑 따뜻한 꼬치 있어요. 일하다 출출할 때 하나씩 먹어요.</p><div class="rows cards">${rows}</div>`); return;
   }
   if (marketTab === 'mat') {
     const rows = MAT_SHOP.map(([id, n, g], i) => `<div class="rowi"><span class="nm"><span class="ore ${id}"></span>${ORES[id].name} ×${n}${have(id) ? ` <small>×${have(id)}</small>` : ''}</span><button class="btn small" data-a="mbuy" data-o="mat" data-n="${i}" ${S.gold >= g ? '' : 'disabled'}>${GOLD}${g}</button></div>`).join('');
-    openSheet(ico('ic_shop') + '시장', tabs + `<p>모자란 재료 있으면 여기서 채워 가요. 좀 비싸긴 해도 발품은 덜 들죠.</p><div class="rows">${rows}</div>`); return;
+    openSheet(ico('ic_shop') + '시장', tabs + `<p>모자란 재료 있으면 여기서 채워 가요. 좀 비싸긴 해도 발품은 덜 들죠.</p><div class="rows cards">${rows}</div>`); return;
   }
   const rows = TRADE.filter(o => have(o)).map(o => { const m = M.mult[o], p = unitPrice(o), cls = m > 1.05 ? 'up' : m < .95 ? 'down' : ''; return `<div class="rowi"><span class="nm"><span class="ore ${o}"></span>${ORES[o].name} <small>×${have(o)}</small> <small class="${cls}">${GOLD}${p}${cls === 'up' ? ico('ic_up') : cls === 'down' ? ico('ic_down') : ''}</small></span><button class="btn small" data-a="trade" data-o="${o}">${GOLD}${tradeValue(o)}</button></div>`; }).join('');
   const bm = evActive('boom'), news = (bm ? `<p class="news">${ico('ic_up')}<span class="ore ${bm.ore}"></span>${ORES[bm.ore].name} 값 두 배</p>` : '') + (M.hint ? `<p class="news">${ico('ic_shop')}내일 ${ORES[M.hint].name} 오름</p>` : '');
-  openSheet(ico('ic_shop') + '시장', tabs + news + (rows ? `<div class="rows">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + nightHtml());
+  openSheet(ico('ic_shop') + '시장', tabs + news + (rows ? `<div class="rows cards">${rows}</div>` : '<p class="dim">팔 것 없음</p>') + nightHtml());
 }
 function trade(o) {
   const n = have(o); if (!n) return;
