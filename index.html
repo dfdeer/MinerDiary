@@ -297,6 +297,10 @@ for (let x = 1; x < N - 1; x++) for (let y = 1; y < N - 1; y++) {
   const w = (Math.sin(x * .9 + y * .4) + Math.sin(y * .7 - x * .5 + 2)) * .07, e = (cx, cy, rx, ry) => 1 - Math.hypot((x - cx) / rx, (y - cy) / ry);
   TOWN[y * N + x] = Math.max(e(21, 11.5, 17, 9.3), e(19, 27.5, 14, 9), e(9, 17, 7, 8)) + w > 0 ? 1 : 0;
 }
+// 마을 안에 갇힌 작은 빈 칸은 마을로 메움 (안 그러면 마을 한가운데 성벽 토막이 섬처럼 생김)
+{ const out = new Uint8Array(N * N), q = []; for (let i = 0; i < N; i++) [[i, 0], [i, N - 1], [0, i], [N - 1, i]].forEach(([x, y]) => { const k = y * N + x; if (!TOWN[k] && !out[k]) { out[k] = 1; q.push(k); } });
+  while (q.length) { const k = q.pop(), x = k % N, y = (k / N) | 0; [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([a, b]) => { const X = x + a, Y = y + b, j = Y * N + X; if (X >= 0 && Y >= 0 && X < N && Y < N && !TOWN[j] && !out[j]) { out[j] = 1; q.push(j); } }); }
+  for (let k = 0; k < N * N; k++) if (!TOWN[k] && !out[k]) TOWN[k] = 1; }
 const inTown = (x, y) => x >= 0 && y >= 0 && x < N && y < N && TOWN[y * N + x] === 1;
 const PLAZA = { x0: 18, y0: 10, x1: 23, y1: 14, cx: 20, cy: 12 };
 const inPlaza = (x, y) => x >= PLAZA.x0 && x <= PLAZA.x1 && y >= PLAZA.y0 && y <= PLAZA.y1;
@@ -1835,19 +1839,23 @@ function drawPaths(c, fogc) {
   if (!PATHQ.length) return;
   const set = new Set(PATHQ.map(([x, y]) => x + ',' + y)), has = (x, y) => set.has(x + ',' + y) || pavedAt(x, y);
   const mix = (hex, f) => { const a = hex.match(/\w\w/g).map(h => parseInt(h, 16)), b = fogc.split(',').map(Number); return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * f)).join(',')})`; };
+  // 바닥 칸 좌표 그대로 그려서(쿼터뷰 변환) 둥근 끝도 땅에 눕힌 타원이 됨. 광장이나 성문처럼 다른 포장 칸과 닿는 쪽은 둥글리지 않고 칸 끝까지 곧게 이어 붙임
+  c.save(); c.transform(TW / 2, TH / 2, -TW / 2, TH / 2, OX, OY);
   const stroke = (w, colf) => {
-    c.lineCap = 'round'; c.lineJoin = 'round';
+    c.lineJoin = 'round'; c.lineWidth = w;
     PATHQ.forEach(([x, y]) => {
-      const f = fogOf(x, y), col = colf(f), a = iso(x + .5, y + .5, 0);
-      c.strokeStyle = col; c.lineWidth = w;
-      c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(a[0] + .01, a[1]); c.stroke();
-      [[1, 0], [0, 1]].forEach(([dx, dy]) => { if (!has(x + dx, y + dy)) return; const b = iso(x + .5 + dx, y + .5 + dy, 0); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); });
+      const cx = x + .5, cy = y + .5; c.strokeStyle = colf(fogOf(x, y));
+      c.lineCap = 'round'; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + .001, cy); c.stroke();
+      [[1, 0], [0, 1]].forEach(([dx, dy]) => { if (!set.has((x + dx) + ',' + (y + dy))) return; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + dx, cy + dy); c.stroke(); });
+      c.lineCap = 'butt';
+      D4.forEach(([dx, dy]) => { if (set.has((x + dx) + ',' + (y + dy)) || !has(x + dx, y + dy)) return; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + dx * .5, cy + dy * .5); c.stroke(); });
     });
   };
   // 흙 테두리, 길 바닥, 밝은 가운데 결 순서로 (굵기는 칸 폭 기준)
-  stroke(TH * 1.02, f => mix('b39468', f * .9));
-  stroke(TH * .86, f => mix('dcc59c', f * .9));
-  stroke(TH * .36, f => mix('e6d3ae', f * .9));
+  stroke(.76, f => mix('b39468', f * .9));
+  stroke(.64, f => mix('dcc59c', f * .9));
+  stroke(.26, f => mix('e6d3ae', f * .9));
+  c.restore(); c.lineCap = 'butt';
   PATHQ.forEach(([x, y]) => { if (fogOf(x, y) > .5) return; for (let k = 0; k < 2; k++) { const q = iso(x + .3 + H32(x * 31 + y * 7 + k) * .4, y + .3 + H32(x * 5 + y * 43 + k) * .4, 0); E(c, q[0], q[1], TW * .055, TW * .028, k ? 'rgba(120,92,55,.22)' : 'rgba(255,250,235,.35)'); } });
 }
 function groundTile(c, x, y, z, town) {
@@ -1881,10 +1889,15 @@ function groundTile(c, x, y, z, town) {
   else if (n2 > .78) { const q = iso(x + .5, y + .5, z); E(c, q[0], q[1], TW * .06, TW * .035, '#a59c8f'); }
 }
 function lampAt(c, x, y, night) {
-  const p = iso(x, y, hgt(x, y));
-  L(c, p[0], p[1], p[0], p[1] - ZU * 1.8, '#3a3330', TW * .04);
-  if (night) Cc(c, p[0], p[1] - ZU * 1.8, TW * .6, 'rgba(255,200,100,.2)');
-  Cc(c, p[0], p[1] - ZU * 1.8, TW * .06, night ? '#ffd27a' : '#cdbd9e');
+  // 가로등: 돌 받침, 굵은 기둥, 지붕 달린 등 상자 (다른 소품처럼 진한 외곽선)
+  const p = iso(x, y, hgt(x, y)), u = TW / 64, top = p[1] - ZU * 1.75;
+  E(c, p[0], p[1] + u, 7 * u, 3 * u, 'rgba(40,30,20,.18)');
+  rmRect(c, p[0] - 4 * u, p[1] - 4 * u, 8 * u, 5 * u, '#9a9488', 1.6 * u, 1.5 * u);
+  rmRect(c, p[0] - 1.7 * u, top + 6 * u, 3.4 * u, p[1] - 4 * u - top - 6 * u, '#4a4038', 1.6 * u, 1 * u);
+  if (night) Cc(c, p[0], top, TW * .55, 'rgba(255,200,100,.2)');
+  rmRect(c, p[0] - 4 * u, top - 4 * u, 8 * u, 10 * u, night ? '#ffd27a' : '#e8dcc0', 1.6 * u, 1.5 * u);
+  R(c, p[0] - .6 * u, top - 4 * u, 1.2 * u, 10 * u, 'rgba(60,45,35,.45)');
+  rmPath(c, () => { c.moveTo(p[0] - 6 * u, top - 4 * u); c.lineTo(p[0], top - 9 * u); c.lineTo(p[0] + 6 * u, top - 4 * u); c.closePath(); }, '#4a4038', 1.6 * u);
 }
 function drawSky(c) {
   const ph = phase, sk = SKY[ph];
@@ -1909,7 +1922,22 @@ function wallAt(c, x, y) {
   const tower = wallTower(x, y) && !water;
   const broken = !tower && !water && H32(x * 31 + y * 17 + 5) < .16;
   const top = '#c9bfb1', left = '#a69c8f', right = '#867d71';
-  if (water) { prism(c, x, y, 1, 1, z0 + .85, .75, top, left, right); const a = iso(x + .5, y + 1, z0 + .85); c.beginPath(); c.arc(a[0], a[1], TW * .18, Math.PI, 0); c.fillStyle = '#3d362f'; c.fill(); return; }
+  if (water) {   // 강이 성벽을 지나는 곳: 물 위에 선 아치 수문 (보이는 두 면에 아치 구멍과 쇠창살, 물이 비침)
+    prism(c, x, y, 1, 1, z0, 1.5, top, left, right);
+    prism(c, x + .05, y + .05, .32, .32, z0 + 1.5, .3, top, left, right); prism(c, x + .6, y + .6, .32, .32, z0 + 1.5, .3, top, left, right);
+    const arch = (o, ux, uy) => {
+      c.save(); c.transform(ux, uy, 0, -ZU, o[0], o[1]);
+      const pts = [[.14, 0]]; for (let k = 0; k <= 14; k++) { const a = Math.PI * k / 14; pts.push([.5 - .36 * Math.cos(a), .62 + .36 * Math.sin(a)]); } pts.push([.86, 0]);
+      const g = c.createLinearGradient(0, 1, 0, 0); g.addColorStop(0, '#2a2a2c'); g.addColorStop(.7, '#3a4a52'); g.addColorStop(1, '#6fa6c0');
+      c.beginPath(); pts.forEach(([u, h], i) => (i ? c.lineTo(u, h) : c.moveTo(u, h))); c.closePath(); c.fillStyle = g; c.fill();
+      c.strokeStyle = '#5a524a'; c.lineWidth = .045; c.stroke();
+      c.strokeStyle = '#2b2622'; c.lineWidth = .035; for (let u = .3; u < .75; u += .14) { const h = .62 + Math.sqrt(Math.max(0, .36 * .36 - (u - .5) * (u - .5))); c.beginPath(); c.moveTo(u, .12); c.lineTo(u, h - .02); c.stroke(); }
+      c.beginPath(); c.moveTo(.16, .42); c.lineTo(.84, .42); c.stroke();
+      c.restore();
+    };
+    arch(iso(x, y + 1, z0), TW / 2, TH / 2); arch(iso(x + 1, y + 1, z0), TW / 2, -TH / 2);
+    return;
+  }
   if (broken) {
     prism(c, x + .05, y + .05, .9, .9, z0, .6, top, left, right);
     for (let k = 0; k < 4; k++) { const p = iso(x + .2 + H32(x + k * 9) * .6, y + .2 + H32(y + k * 5) * .6, z0 + .6); E(c, p[0], p[1], TW * .09, TW * .05, '#9a9085'); }
