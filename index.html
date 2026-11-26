@@ -1954,7 +1954,10 @@ function wallAt(c, x, y) {
   if (tower) {
     prism(c, x - .12, y - .12, 1.24, 1.24, z0, 2.5, top, left, right);
     [[-.12, -.12], [.76, -.12], [-.12, .76], [.76, .76]].forEach(([dx, dy]) => prism(c, x + dx, y + dy, .36, .36, z0 + 2.5, .35, top, left, right));
-    const w = iso(x + .5, y + 1.12, z0 + 1.5); R(c, w[0] - TW * .04, w[1] - ZU * .35, TW * .08, ZU * .5, '#2e2924');
+    // 창문: 벽면을 따라 기울어진 좁은 아치 창 (보이는 두 면에 하나씩)
+    const slit = (P) => { c.beginPath(); for (let k = 0; k <= 8; k++) { const a = Math.PI * k / 8, [px, py] = P(.5 - .09 * Math.cos(a), 1.72 + .09 * Math.sin(a) * 1.6); k ? c.lineTo(px, py) : c.moveTo(px, py); } [[.59, 1.3], [.41, 1.3]].forEach(([u, h]) => { const [px, py] = P(u, h); c.lineTo(px, py); }); c.closePath(); c.fillStyle = '#2e2924'; c.fill(); };
+    slit((u, h) => iso(x - .12 + u * 1.24, y + 1.12, z0 + h));
+    slit((u, h) => iso(x + 1.12, y + 1.12 - u * 1.24, z0 + h));
     return;
   }
   prism(c, x, y, 1, 1, z0, 1.5, top, left, right);
@@ -1983,6 +1986,7 @@ function drawIsland(c) {
     if (isWall(x, y) && !(x === GATE[0] && y === GATE[1]) && !(x === FGATE[0] && y === FGATE[1])) {
       const tower = wallTower(x, y) && !isWater(x, y);
       add(one, tower ? [.62, 3.0] : [.5, 1.9], () => wallAt(c, x, y));
+      if (tower) items[items.length - 1].bias = -.5;   // 탑은 대각선 이웃 성벽보다 먼저 그려 튀어나온 귀퉁이가 앞 벽을 덮지 않음
     }
     if (wildTree(x, y)) add(one, [.32, 2.2], () => treeAt(c, x, y), fog);
     if (wildRock(x, y)) add(one, null, () => rockAt(c, x, y), fog);
@@ -2113,7 +2117,7 @@ function drawRiver(c, vr, fogc) {
 // 앞뒤 순서 정하기 (위상 정렬). a가 b의 뒤: a.x1 <= b.x0 또는 a.y1 <= b.y0
 function isoSort(items) {
   const n = items.length, behind = (a, b) => a.box.x1 <= b.box.x0 + 1e-6 || a.box.y1 <= b.box.y0 + 1e-6;
-  const key = it => it.box.x1 + it.box.y1;
+  const key = it => it.box.x1 + it.box.y1 + (it.bias || 0);   // 같은 깊이(대각선 이웃)면 bias가 작은 것을 먼저(뒤에) 그림
   const indeg = new Array(n).fill(0), adj = items.map(() => []);
   for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
     const ab = behind(items[i], items[j]), ba = behind(items[j], items[i]);
@@ -4384,19 +4388,27 @@ const PWR = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M1
 
 /* ===== 소리 (기기 소리 합성, 파일 없음). 효과음과 배경음은 따로 크기를 조절 (S.vol) ===== */
 let AC = null, SFX_BUS = null, BGM_BUS = null;
-const vol = k => (S.mute ? 0 : (S.vol ? S.vol[k] * (S.vol.master == null ? 1 : S.vol.master) : k === 'sfx' ? .8 : .5));   // 전체 음량을 곱함
+// 화면 밖(다른 앱, 다른 탭, 화면 꺼짐)이고 화면 밖 무음이 켜져 있으면 모든 소리 0
+const bgHidden = () => document.hidden && S.bgOff !== false;
+const vol = k => (S.mute || bgHidden() ? 0 : (S.vol ? S.vol[k] * (S.vol.master == null ? 1 : S.vol.master) : k === 'sfx' ? .8 : .5));   // 전체 음량을 곱함
 function audio() {
   if (!AC) {
     AC = new (window.AudioContext || window.webkitAudioContext)();
     SFX_BUS = AC.createGain(); SFX_BUS.connect(AC.destination);
     BGM_BUS = AC.createGain(); BGM_BUS.gain.value = 0; BGM_BUS.connect(AC.destination);
   }
-  if (AC.state === 'suspended') AC.resume();
+  if (AC.state !== 'running' && !bgHidden()) AC.resume();   // 화면 밖에선 효과음이 나도 다시 켜지 않음
   SFX_BUS.gain.value = vol('sfx') * 1.25;
   return AC;
 }
 // 다른 앱이나 탭으로 나가면 소리를 멈춤 (설정에서 끌 수 있음, 기본은 켬)
-document.addEventListener('visibilitychange', () => { if (!AC) return; if (document.hidden) { if (S.bgOff !== false) AC.suspend(); } else AC.resume(); });
+function bgSound() {
+  if (!AC) return;
+  if (bgHidden()) { SFX_BUS.gain.cancelScheduledValues(0); SFX_BUS.gain.value = 0; BGM_BUS.gain.cancelScheduledValues(0); BGM_BUS.gain.value = 0; AC.suspend(); }
+  else if (!document.hidden) { AC.resume(); setVolumes(); }
+}
+document.addEventListener('visibilitychange', bgSound);
+window.addEventListener('pagehide', () => { if (AC && S.bgOff !== false) AC.suspend(); }); window.addEventListener('pageshow', bgSound);
 function setVolumes() { if (!AC) return; SFX_BUS.gain.setTargetAtTime(vol('sfx') * 1.25, AC.currentTime, .05); BGM_BUS.gain.setTargetAtTime(bgm.mood ? vol('bgm') * 1.1 : 0, AC.currentTime, .1); }
 function beep(freq, dur, type, v, slide) {
   if (S.mute || !vol('sfx')) return;

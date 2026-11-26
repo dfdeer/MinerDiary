@@ -1243,6 +1243,23 @@ const shot = process.argv[2];
     await sp.evaluate(() => { window.MinerDiary.autoConfirm(true); });
     await sp.evaluate(() => { const b = document.createElement('button'); b.dataset.a = 'reset'; act(b); });
     ok(await sp.evaluate(() => S.vol.bgm === .35 && S.vol.master === .7 && S.bgOff === false && S.day === 1), '처음부터 해도 음량과 화면 밖 무음 설정은 그대로');
+    // 화면 밖 무음 (11/26 고침): 화면 밖에서 효과음이 나도 소리가 다시 켜지지 않고, 돌아오면 다시 켜짐. 끄면 화면 밖에서도 소리 남
+    {
+      const r = await sp.evaluate(async () => {
+        const w = ms => new Promise(f => setTimeout(f, ms)); let hid = false;
+        Object.defineProperty(document, 'hidden', { configurable: true, get: () => hid });
+        S.bgOff = true; startAudio(); await AC.resume(); await w(50);
+        hid = true; document.dispatchEvent(new Event('visibilitychange')); await w(80);
+        SFX.tap(); beep(440, .1, 'sine', .3); await w(120);
+        const off = AC.state, g = SFX_BUS.gain.value;
+        hid = false; document.dispatchEvent(new Event('visibilitychange')); await w(120);
+        const on = AC.state;
+        S.bgOff = false; hid = true; document.dispatchEvent(new Event('visibilitychange')); await w(80);
+        const keep = AC.state; hid = false; document.dispatchEvent(new Event('visibilitychange'));
+        delete document.hidden; return { off, g, on, keep };
+      });
+      ok(r.off === 'suspended' && r.g === 0 && r.on === 'running' && r.keep === 'running', `화면 밖에선 효과음이 나도 무음, 돌아오면 소리, 설정을 끄면 화면 밖에서도 소리 (${JSON.stringify(r)})`);
+    }
     await sp.close();
   }
 
