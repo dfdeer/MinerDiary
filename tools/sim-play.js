@@ -34,6 +34,7 @@ const PRI = {
       const fa = faint; faint = function () { window.__m.faint++; return fa.apply(this, arguments); };   // eslint-disable-line no-global-assign
       const bf = bagFullMsg; bagFullMsg = function () { window.__m.full++; return bf.apply(this, arguments); };   // eslint-disable-line no-global-assign
     });
+    const heap0 = await page.evaluate(() => performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : -1);
     const st = () => page.evaluate(() => { const M = window.MinerDiary, S = M.state(), sh = document.getElementById('sheet');
       return { day: S.day, gold: S.gold, e: S.energy, max: S.max, ph: phaseIndex(), scene: M.scene(), q: S.quest, depth: S.deepest, L: S.deep ? S.deep.L : 0, carry: M.carryN(), cap: bagCap(), open: !sh.hidden, skip: !document.getElementById('skip').hidden, restored: S.restored.length, pick: S.pick, qt: (QUESTS[S.quest] || {}).target || '', qid: (QUESTS[S.quest] || {}).id || '',
         btns: sh.hidden ? [] : [...sh.querySelectorAll('[data-a]')].filter(b => !b.disabled && b.offsetParent !== null).map((b, i) => ({ a: b.dataset.a, i, p: b.classList.contains('primary') })), title: sh.hidden ? '' : (sh.querySelector('.sheet-title,h2,header') || sh).textContent.slice(0, 12) }; });
@@ -94,7 +95,7 @@ const PRI = {
         if (s.scene === 'mine' || s.scene === 'forest') {
           idle = s.e === lastE ? idle + 1 : 0; lastE = s.e;
           const away = s.qt && !['mine', 'forest'].includes(s.qt) && s.carry >= 3;
-          if (idle >= 8 || away) { idle = 0; if (away && s.qt === 'merchant') { intent = 'sell'; sellTaps = taps; } if (await dock('#minebar [data-a="homeFastAsk"]')) { taps++; continue; } }
+          if (idle >= 15 || away) { idle = 0; if (away && s.qt === 'merchant') { intent = 'sell'; sellTaps = taps; } if (await dock('#minebar [data-a="homeFastAsk"]')) { taps++; continue; } }
         }
         if (s.scene === 'mine') {
           const p = await page.evaluate(() => { const M = window.MinerDiary, h = M.hero(), hx = Math.round(h.x), hy = Math.round(h.y);
@@ -103,7 +104,7 @@ const PRI = {
             for (let y = hy - 12; y <= hy + 12; y++) for (let x = hx - 12; x <= hx + 12; x++) { const c = M.cell(x, y); if (!c.seen || (c.t !== 'r' && c.t !== 'b')) continue;
               if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const n = M.cell(x + dx, y + dy); return n.seen && 'fud'.includes(n.t); })) continue;
               const d = Math.abs(x - h.x) + Math.abs(y - h.y); if (c.ore && d < od) { od = d; ore = [x, y]; } if (d < bd) { bd = d; best = [x, y]; } }
-            const hole = M.nearestHole();
+            let hole = null, hd = 1e9; for (let y = hy - 20; y <= hy + 20; y++) for (let x = hx - 20; x <= hx + 20; x++) { const c = M.cell(x, y); if (c.seen && c.t === 'd') { const d = Math.abs(x - h.x) + Math.abs(y - h.y); if (d < hd) { hd = d; hole = [x, y]; } } }   // 본 구멍만
             const tgt = ore || (hole && Math.random() < .5 ? hole : best) || hole; return tgt ? M.cellSpot(tgt[0], tgt[1]) : null; });
           await tapAt(p); taps++; continue;
         }
@@ -115,10 +116,10 @@ const PRI = {
         taps++;
       } catch (e) { note(errors, '[봇] ' + e.message.split('\n')[0]); }
     }
-    const m = await page.evaluate(() => window.__m), end = await st();
+    const m = await page.evaluate(() => window.__m), end = await st(), heap = await page.evaluate(() => performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : -1);
     // 요약
     const sum = Object.values(m.spend).reduce((x, y) => x + y, 0) || 1;
-    console.log(`판 ${run}: ${end.day}일째, 누른 횟수 ${taps}, 돈 ${end.gold}, 깊이 ${end.depth}, 퀘스트 ${end.q}, 고친 곳 ${end.restored}, 곡괭이 ${end.pick}, 쓰러짐 ${m.faint}, 가방 가득 ${m.full}, 멈춤 ${stuck}`);
+    console.log(`판 ${run}: ${end.day}일째, 누른 횟수 ${taps}, 돈 ${end.gold}, 깊이 ${end.depth}, 퀘스트 ${end.q}, 고친 곳 ${end.restored}, 곡괭이 ${end.pick}, 쓰러짐 ${m.faint}, 가방 가득 ${m.full}, 멈춤 ${stuck}, 메모리 ${heap}MB (처음 ${heap0}MB)`);
     console.log('  날마다 (일: 돈/깊이/퀘스트): ' + days.map(d => `${d.day}:${d.gold}/${d.depth}/${d.q}`).join(' '));
     console.log('  기력 쓴 곳: ' + Object.entries(m.spend).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k} ${Math.round(v / sum * 100)}%`).join(', '));
     console.log('  퀘스트마다 (번호: 날/누름): ' + quests.map(q => `${q.q}:${q.days}/${q.taps}`).join(' '));
