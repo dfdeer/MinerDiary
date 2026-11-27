@@ -1115,9 +1115,30 @@ function inkPoly(c, pts, fill, ink) { c.beginPath(); pts.forEach(([a, b], i) => 
 function treeAt(c, x, y) {
   const p = iso(x + .5, y + .5, hgt(x, y)), h = H32(x * 311 + y * 733), u = TW / 100 * (.9 + h * .3), ink = Math.max(1.5, TW * .022);
   const sway = Math.sin(tnow * 1.1 + x * .7 + y) * u * .8;
-  c.save(); c.translate(p[0], p[1]);
+  c.save(); c.translate(p[0], p[1]); treeShape(c, u, h, H32(x * 53 + y * 97) < .35, sway, ink); c.restore();
+}
+// 마을 나무 (기획 95번): 종류, 크기, 흔들림 단계마다 한 번 그려 둔 작은 그림을 재사용하고, 안개 반투명은 붙일 때 투명도로.
+// 전엔 안개 낀 나무마다 따로 그려 복사하느라(ghostStart/ghostEnd) 성벽 밖 나무가 많은 곳(집 위쪽)이 느렸음
+const TREE_SPR = new Map(); let TREE_SPR_K = 0;
+function treeSprite(c, x, y, a) {
+  const k = DPR * cam.s; if (cam.to) { if (a < 1) { c.globalAlpha = a; } treeAt(c, x, y); c.globalAlpha = 1; return; }   // 확대 중엔 바로 그림
+  if (Math.abs(k - TREE_SPR_K) > .001) { TREE_SPR.clear(); TREE_SPR_K = k; }
+  const h = H32(x * 311 + y * 733), con = H32(x * 53 + y * 97) < .35, hb = Math.min(3, Math.floor(h * 4)), sw = Math.round(Math.sin(tnow * 1.1 + x * .7 + y) * 4);
+  const key = `${con ? 1 : 0}${hb}${con ? 0 : h < .5 ? 0 : 1}${sw}`;
+  let sp = TREE_SPR.get(key);
+  if (!sp) {
+    const hh = con ? (hb + .5) / 4 : (h < .5 ? Math.min(.49, (hb + .5) / 4) : Math.max(.5, (hb + .5) / 4)), u = TW / 100 * (.9 + hh * .3), ink = Math.max(1.5, TW * .022);
+    const L = u * 62, T = u * 114, B = u * 22, cv2 = document.createElement('canvas');
+    cv2.width = Math.ceil(L * 2 * k) + 2; cv2.height = Math.ceil((T + B) * k) + 2;
+    const g = cv2.getContext('2d'); g.setTransform(k, 0, 0, k, L * k + 1, T * k + 1); treeShape(g, u, hh, con, sw / 4 * u * .8, ink);
+    sp = { cv: cv2, ox: L + 1 / k, oy: T + 1 / k }; TREE_SPR.set(key, sp);
+  }
+  const p = iso(x + .5, y + .5, hgt(x, y));
+  if (a < 1) c.globalAlpha = a; c.drawImage(sp.cv, p[0] - sp.ox, p[1] - sp.oy, sp.cv.width / k, sp.cv.height / k); c.globalAlpha = 1;
+}
+function treeShape(c, u, h, conifer, sway, ink) {
   E(c, u * 6, u * 4, u * 30, u * 13, 'rgba(0,0,0,.16)');
-  if (H32(x * 53 + y * 97) < .35) {   // 침엽수
+  if (conifer) {   // 침엽수
     inkPoly(c, [[-u * 5, 0], [u * 5, 0], [u * 4, -u * 22], [-u * 4, -u * 22]], '#7a4a28', ink);
     [[0, 34], [1, 27], [2, 20]].forEach(([k, w]) => {
       const y0 = -u * (16 + k * 24), y1 = y0 - u * 40, tx = sway * (k + 1) * .5;
@@ -1131,7 +1152,6 @@ function treeAt(c, x, y) {
     [[-u * 10 + sway, -u * 82, u * 13], [-u * 26 + sway, -u * 60, u * 9]].forEach(([a, b, r]) => Cc(c, a, b, r, 'rgba(160,220,120,.45)'));
     [[u * 14 + sway, -u * 52, u * 3], [-u * 6 + sway, -u * 64, u * 2.6]].forEach(([a, b, r]) => Cc(c, a, b, r, 'rgba(30,70,30,.35)'));
   }
-  c.restore();
 }
 function bushAt(c, x, y) {
   const p = iso(x + .5, y + .5, hgt(x, y)), h = H32(x * 17 + y * 29), u = TW / 100 * (.85 + h * .3), ink = Math.max(1.5, TW * .02);
@@ -2018,7 +2038,7 @@ function drawIsland(c) {
       add(one, tower ? [.62, 3.0] : [.5, 1.9], () => wallAt(c, x, y));
       if (tower) items[items.length - 1].bias = -.5;   // 탑은 대각선 이웃 성벽보다 먼저 그려 튀어나온 귀퉁이가 앞 벽을 덮지 않음
     }
-    if (wildTree(x, y)) add(one, [.32, 2.2], () => treeAt(c, x, y), fog);
+    if (wildTree(x, y)) { add(one, [.32, 2.2], a => treeSprite(c, x, y, a), fog); items[items.length - 1].alpha = true; }
     if (wildRock(x, y)) add(one, null, () => rockAt(c, x, y), fog);
   }
   drawPaths(c, fogc);
@@ -2051,7 +2071,7 @@ function drawIsland(c) {
   OBJ.filter(o => o.kind === 'bridge' || o.kind === 'field').forEach(o => { if (visObj(o)) drawObj(c, o, night); });
   const SH = { house: [1.15, 3.6], smithy: [1.6, 4.4], kitchen: [1.6, 3.8], jewel: [1.15, 4.0], market: [1.9, 2.6], museum: [2.1, 4.2], mine: [1.6, 4.6], npc: [.16, 1.6], wagon: [.38, 2.2], bigtree: [1.0, 5], gate: [.5, 2.3], fgate: [.5, 2.3] };
   OBJ.forEach(o => { if (o.kind !== 'bridge' && o.kind !== 'field' && visObj(o)) add({ x0: o.gx, y0: o.gy, x1: o.gx + o.w, y1: o.gy + o.d }, o.done || o.grow > .3 ? SH[o.kind] : [Math.max(o.w, o.d) * .55, 1.6], () => drawObj(c, o, night)); });
-  DECO_TREES.forEach(([x, y]) => { if (vis(x, y)) add({ x0: x, y0: y, x1: x + 1, y1: y + 1 }, [.32, 2.2], () => treeAt(c, x, y)); });
+  DECO_TREES.forEach(([x, y]) => { if (vis(x, y)) { add({ x0: x, y0: y, x1: x + 1, y1: y + 1 }, [.32, 2.2], a => treeSprite(c, x, y, a)); items[items.length - 1].alpha = true; } });
   ROCKS.forEach(([x, y]) => { if (vis(x, y)) add({ x0: x, y0: y, x1: x + 1, y1: y + 1 }, null, () => rockAt(c, x, y)); });
   BUSHES.forEach(([x, y]) => { if (vis(x, y)) add({ x0: x, y0: y, x1: x + 1, y1: y + 1 }, null, () => bushAt(c, x, y)); });
   PROPS.forEach(([x, y, k]) => { if (vis(x, y)) add({ x0: x, y0: y, x1: x + 1, y1: y + 1 }, k === 'well' ? [.4, 2.1] : null, () => propAt(c, x, y, k, night)); });
@@ -2081,6 +2101,7 @@ function drawIsland(c) {
     let a = it.fog ? 1 - it.fog * .9 : 1;
     if (k > heroAt && it.shape && !cam.to && cam.s <= 1.05 && overlapsHero(it)) { hidden = true; a = Math.min(a, .32); }
     if (a > .94) a = 1;   // 아주 옅은 안개는 그냥 그림
+    if (it.alpha) { it.f(a); return; }   // 미리 그린 그림이라 투명도만 주면 됨
     if (a < 1) ghostStart(c, cellBox(it.box.x0, it.box.y0, it.box.x1, it.box.y1, (it.shape ? it.shape[1] : 1.6) + .6, it.shape ? it.shape[0] + .2 : .6)); it.f(); if (a < 1) ghostEnd(c, a);
   });
   // 고른 건물 테두리는 건물 위에 한 번 더 (바닥판에 가려지지 않게)
@@ -2305,6 +2326,17 @@ function tap(px, py) {
 /* ===== 카메라 (광산 입구로 다가가기) ===== */
 function mineFocus() { const d = OBJ.find(o => o.id === 'mine').door; const p = iso(d[0] + .6, d[1] - .4, 0.5); return [p[0], p[1]]; }
 function heroFocus() { const p = iso(hero.x + .5, hero.y + .5, heroZ()); return [p[0], p[1] - ZU * 1.2]; }
+// 끌어서 둘러보는 범위 (기획 95번): 마을은 성벽 둘레 몇 칸까지, 숲은 숲 판 안, 광산과 성 밖과 다른 마을은 광부 둘레까지만.
+// 전엔 막는 곳이 없어 끝없이 끌려 빈 곳을 보며 그릴 것만 늘었음
+function camBounds() {
+  let x0, y0, x1, y1;
+  if (scene === 'village') { x0 = y0 = -5; x1 = y1 = N + 5; }
+  else if (scene === 'forest') { x0 = 0; y0 = 0; x1 = FW; y1 = FH; }
+  else { const R = 12; x0 = hero.x - R; y0 = hero.y - R; x1 = hero.x + R; y1 = hero.y + R; }
+  const ps = [iso(x0, y0, 0), iso(x1, y0, 0), iso(x0, y1, 0), iso(x1, y1, 0)];
+  return [Math.min(...ps.map(p => p[0])), Math.min(...ps.map(p => p[1])) - ZU * 2, Math.max(...ps.map(p => p[0])), Math.max(...ps.map(p => p[1]))];
+}
+function clampCam() { const [a, b, c, d] = camBounds(); cam.fx = Math.max(a, Math.min(c, cam.fx)); cam.fy = Math.max(b, Math.min(d, cam.fy)); }
 function snapCam() { const f = heroFocus(); cam.fx = f[0]; cam.fy = f[1]; }
 function camTo(s, fx, fy, dur, done) { cam.from = { s: cam.s, fx: cam.fx, fy: cam.fy }; cam.to = { s, fx, fy }; cam.t = 0; cam.dur = dur; cam.done = done; }
 function camStep(dt) {
@@ -6080,7 +6112,7 @@ cv.addEventListener('pointermove', e => {
   if (!down || cam.to) return;
   const dx = e.clientX - down.x, dy = e.clientY - down.y;
   if (!down.moved && Math.hypot(dx, dy) > 10) { down.moved = true; follow = false; }
-  if (down.moved) { cam.fx = down.fx - dx / cam.s; cam.fy = down.fy - dy / cam.s; }
+  if (down.moved) { cam.fx = down.fx - dx / cam.s; cam.fy = down.fy - dy / cam.s; clampCam(); }
 });
 cv.addEventListener('pointerup', e => { if (!down) return; if (!down.moved) tap(e.clientX, e.clientY); down = null; });
 cv.addEventListener('pointercancel', () => { down = null; });

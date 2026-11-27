@@ -1059,6 +1059,9 @@ const shot = process.argv[2];
   ok(Math.round(f0[1] - f1[1]) === 800, '화면 밖까지 끈 만큼 화면이 움직임');
   await page.waitForTimeout(100);
   ok(await page.evaluate(() => !!bubble), '광부가 화면 밖이면 내 위치 말풍선이 뜸');
+  // 끌기 범위 (기획 95번): 더 끌어도 마을 성벽 둘레 몇 칸 밖으로는 안 나감
+  for (let k = 0; k < 4; k++) { await page.mouse.move(200, 150); await page.mouse.down(); await page.mouse.move(200, 800, { steps: 4 }); await page.mouse.up(); await page.mouse.move(60, 400); await page.mouse.down(); await page.mouse.move(380, 400, { steps: 4 }); await page.mouse.up(); }
+  ok(await page.evaluate(() => { const [a, b, c, d] = camBounds(); return cam.fx >= a - .5 && cam.fx <= c + .5 && cam.fy >= b - .5 && cam.fy <= d + .5 && Math.abs(cam.fy - b) < 1; }), '마을은 성벽 둘레 몇 칸까지만 끌림 (끝없이 끌리지 않음)');
   await page.keyboard.press('Space'); await page.waitForTimeout(1500);
   ok(await page.evaluate(() => follow && !bubble), '스페이스바로 광부에게 돌아옴');
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '가로 스크롤 없음');
