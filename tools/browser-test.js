@@ -1208,6 +1208,25 @@ const shot = process.argv[2];
     await wp.close();
   }
 
+  /* ===== 마을 밖 퀘스트 막대 (기획 94번): 숲에선 숲 동굴 입구로, 광산에선 깊이 퀘스트면 아래 구멍으로 걸어감 ===== */
+  {
+    const qp = await open(390, 844);
+    await qp.evaluate(() => { window.MinerDiary.speed(6); closeSheet(); S.introSeen = true; S.quest = QUESTS.findIndex(q => q.id === 'cave'); renderHud(); enterForest(); });
+    await qp.waitForTimeout(300); await qp.click('[data-a="quest"]');
+    await qp.waitForFunction(() => window.MinerDiary.scene() === 'mine' && S.deep && S.deep.L === 0, null, { timeout: 20000 }).catch(() => {});
+    ok(await qp.evaluate(() => window.MinerDiary.scene() === 'mine' && S.deep.L === 0), '숲에서 숲 동굴 퀘스트 막대를 누르면 동굴 입구로 걸어가 들어감');
+    await qp.evaluate(() => { leaveCave(); leaveForest(); S.restored.includes('mine') || S.restored.push('mine'); applyRestored(); S.quest = QUESTS.findIndex(q => q.id === 'deep'); renderHud(); enterMine(); });
+    await qp.waitForFunction(() => window.MinerDiary.scene() === 'mine' && S.deep.L === 1, null, { timeout: 10000 });
+    await qp.waitForTimeout(400);
+    const L0 = await qp.evaluate(() => { const x = Math.round(hero.x), y = Math.round(hero.y); window.MinerDiary.setCell(x + 1, y, 'f'); window.MinerDiary.setCell(x + 2, y, 'd'); return S.deep.L; });
+    if (L0 > 0) {
+      await qp.click('[data-a="quest"]');
+      await qp.waitForFunction(L => S.deep.L > L, L0, { timeout: 25000 }).catch(() => {});
+      ok(await qp.evaluate(L => S.deep.L > L, L0), '광산에서 깊이 퀘스트 막대를 누르면 가까운 구멍으로 걸어가 내려감');
+    } else console.log('건너뜀: 처음 층에서 보이는 구멍 없음');
+    await qp.close();
+  }
+
   /* ===== 팔기 수량과 확정: 막대로 수량을 골라 팔고, 돈이나 물건이 빠지는 단추는 확정을 한 번 더 ===== */
   {
     const sp = await open(390, 844);
